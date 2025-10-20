@@ -12,6 +12,7 @@ import '../../features/inventory/presentation/pages/inventory_page.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/analytics/presentation/pages/analytics_page.dart';
+import '../../features/option_groups/pages/option_group_editor_page.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../widgets/main_layout.dart';
 
@@ -65,6 +66,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/menu',
             builder: (context, state) => const MenuPage(),
+            routes: [
+              GoRoute(
+                path: 'option-groups/new',
+                builder: (context, state) => const OptionGroupEditorPage(),
+              ),
+              GoRoute(
+                path: 'option-groups/:id/edit',
+                builder: (context, state) {
+                  final id = state.pathParameters['id']!;
+                  return OptionGroupEditorPage(optionGroupId: id);
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: '/orders',
@@ -137,4 +151,8 @@ extension AppRoutes on GoRouter {
   void goToAnalytics() => go('/analytics');
   void goToLogin() => go('/login');
   void goToSignup() => go('/signup');
+
+  // Option group routes
+  void goToNewOptionGroup() => go('/menu/option-groups/new');
+  void goToEditOptionGroup(String id) => go('/menu/option-groups/$id/edit');
 }

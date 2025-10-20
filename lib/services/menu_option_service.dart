@@ -192,6 +192,42 @@ class MenuOptionService {
     }
   }
 
+  /// Delete an option group (soft delete by setting is_active to false)
+  Future<bool> deleteOptionGroup(String optionGroupId) async {
+    try {
+      final db = await _databaseHelper.database;
+
+      await db.transaction((txn) async {
+        // Soft delete the option group by setting is_active to false
+        await txn.update(
+          'option_groups',
+          {'is_active': 0},
+          where: 'id = ?',
+          whereArgs: [int.tryParse(optionGroupId) ?? 0],
+        );
+
+        // Remove all relationships with menu items
+        await txn.delete(
+          'menu_item_option_groups',
+          where: 'option_group_id = ?',
+          whereArgs: [int.tryParse(optionGroupId) ?? 0],
+        );
+
+        // Remove all relationships with options
+        await txn.delete(
+          'option_group_options',
+          where: 'option_group_id = ?',
+          whereArgs: [int.tryParse(optionGroupId) ?? 0],
+        );
+      });
+
+      return true;
+    } catch (e) {
+      print('Error deleting option group: $e');
+      return false;
+    }
+  }
+
   // ============= Relationships =============
 
   /// Connect a menu item to an option group

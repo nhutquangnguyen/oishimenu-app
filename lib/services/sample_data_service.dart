@@ -425,16 +425,26 @@ class SampleDataService {
     );
 
     if (existingUsers.isNotEmpty) {
-      print('Test user already exists');
+      print('Test user already exists - updating password');
+      // Update existing user's password
+      await db.update(
+        'users',
+        {
+          'password_hash': _hashPassword('123456'),
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'email = ?',
+        whereArgs: ['test@gmail.com'],
+      );
       return;
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // Create test user with password: "password123"
+    // Create test user with password: "123456"
     await db.insert('users', {
       'email': 'test@gmail.com',
-      'password_hash': _hashPassword('password123'),
+      'password_hash': _hashPassword('123456'),
       'full_name': 'Test User',
       'role': 'staff',
       'is_active': 1,

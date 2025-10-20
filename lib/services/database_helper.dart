@@ -1,17 +1,29 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:crypto/crypto.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../core/constants/app_constants.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  DatabaseHelper._internal();
+  DatabaseHelper._internal() {
+    _initializeDatabaseFactory();
+  }
 
   factory DatabaseHelper() => _instance;
+
+  void _initializeDatabaseFactory() {
+    if (kIsWeb) {
+      // Initialize database factory for web
+      databaseFactory = databaseFactoryFfi;
+    }
+  }
 
   Future<Database> get database async {
     _database ??= await _initDatabase();
@@ -19,8 +31,16 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    final String databasesPath = await getDatabasesPath();
-    final String path = join(databasesPath, 'oishimenu.db');
+    String path;
+
+    if (kIsWeb) {
+      // For web, use a simple in-memory database path
+      path = 'oishimenu.db';
+    } else {
+      // For mobile platforms, use the standard path
+      final String databasesPath = await getDatabasesPath();
+      path = join(databasesPath, 'oishimenu.db');
+    }
 
     return await openDatabase(
       path,

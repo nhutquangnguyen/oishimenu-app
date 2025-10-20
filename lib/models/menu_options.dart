@@ -115,8 +115,7 @@ class OptionGroup {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id.isEmpty ? null : int.tryParse(id),
+    final map = <String, dynamic>{
       'name': name,
       'description': description,
       'min_selection': minSelection,
@@ -127,6 +126,13 @@ class OptionGroup {
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
+
+    // Only include id for existing records (updates)
+    if (id.isNotEmpty) {
+      map['id'] = int.tryParse(id);
+    }
+
+    return map;
   }
 
   OptionGroup copyWith({

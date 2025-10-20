@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../services/menu_service.dart';
@@ -30,6 +31,20 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadMenuData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check if we should show a specific tab from query parameter
+    final state = GoRouterState.of(context);
+    final tabParam = state.uri.queryParameters['tab'];
+    if (tabParam != null) {
+      final tabIndex = int.tryParse(tabParam) ?? 0;
+      if (tabIndex >= 0 && tabIndex < 2) {
+        _tabController.animateTo(tabIndex);
+      }
+    }
   }
 
   @override
@@ -326,26 +341,49 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       );
     }
 
-    if (_optionGroups.isEmpty) {
+    // Filter option groups based on search query
+    final filteredGroups = _searchQuery.isEmpty
+        ? _optionGroups
+        : _optionGroups.where((group) {
+            final query = _searchQuery.toLowerCase();
+            final matchesName = group.name.toLowerCase().contains(query);
+            final matchesDescription = group.description?.toLowerCase().contains(query) ?? false;
+            final matchesOptions = group.options.any((option) =>
+                option.name.toLowerCase().contains(query));
+            return matchesName || matchesDescription || matchesOptions;
+          }).toList();
+
+    if (filteredGroups.isEmpty) {
+      final isSearchEmpty = _searchQuery.isEmpty;
+      final iconData = isSearchEmpty ? Icons.tune_outlined : Icons.search_off;
+      final title = isSearchEmpty ? 'Chưa có nhóm tùy chọn' : 'Không tìm thấy';
+      final subtitle = isSearchEmpty
+          ? 'Thêm nhóm tùy chọn đầu tiên của bạn'
+          : 'Thử từ khóa tìm kiếm khác';
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.tune_outlined,
-              size: 64,
-              color: Colors.grey,
-            ),
+            Icon(iconData, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              'No option groups yet',
+              title,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              'Add your first option group to get started',
+              subtitle,
               style: const TextStyle(color: Colors.grey),
             ),
+            if (isSearchEmpty) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => _showAddOptionGroupDialog(),
+                icon: const Icon(Icons.add),
+                label: const Text('Thêm nhóm tùy chọn'),
+              ),
+            ],
           ],
         ),
       );
@@ -353,171 +391,203 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
     return RefreshIndicator(
       onRefresh: _loadMenuData,
-      child: ListView.builder(
+      child: ListView.separated(
         padding: const EdgeInsets.all(16),
-        itemCount: _optionGroups.length,
+        itemCount: filteredGroups.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          final group = _optionGroups[index];
-          final isExpanded = _expandedOptionGroups[group.id] ?? false;
+          final group = filteredGroups[index];
+          return _buildOptionGroupCard(group);
+        },
+      ),
+    );
+  }
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Column(
-              children: [
-                // Option Group Header
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _expandedOptionGroups[group.id] = !isExpanded;
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
+  Widget _buildOptionGroupCard(OptionGroup group) {
+    final isExpanded = _expandedOptionGroups[group.id] ?? false;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Option Group Header
+          InkWell(
+            onTap: () {
+              setState(() {
+                _expandedOptionGroups[group.id] = !isExpanded;
+              });
+            },
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
                                 group.name,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
-                              Text(
-                                '${group.options.length} options • Min: ${group.minSelection} • Max: ${group.maxSelection}',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
+                            ),
+                            if (group.isRequired)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                margin: const EdgeInsets.only(left: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ),
-                              if (group.description?.isNotEmpty == true)
-                                Text(
-                                  group.description!,
+                                child: const Text(
+                                  'BẮT BUỘC',
                                   style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 12,
+                                    color: Colors.red,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                            ],
-                          ),
-                        ),
-                        if (group.isRequired)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'REQUIRED',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
                               ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${group.options.length} tùy chọn • Tối thiểu: ${group.minSelection} • Tối đa: ${group.maxSelection}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (group.description?.isNotEmpty == true) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            group.description!,
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
                             ),
                           ),
-                        Icon(
-                          isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                          color: Colors.grey[600],
-                        ),
+                        ],
                       ],
                     ),
                   ),
-                ),
-                // Option Items
-                if (isExpanded && group.options.isNotEmpty)
-                  ...group.options.map((option) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: Colors.grey[300]!),
+                  // Action buttons
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () => _editOptionGroup(group),
+                        icon: const Icon(Icons.edit, size: 20),
+                        color: Colors.blue,
+                        tooltip: 'Chỉnh sửa',
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                option.name,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              if (option.description?.isNotEmpty == true)
-                                Text(
-                                  option.description!,
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              if (option.category?.isNotEmpty == true)
-                                Text(
-                                  'Category: ${option.category}',
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 11,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        if (option.price > 0)
+                      IconButton(
+                        onPressed: () => _showDeleteConfirmationForOptionGroup(group),
+                        icon: const Icon(Icons.delete, size: 20),
+                        color: Colors.red,
+                        tooltip: 'Xóa',
+                      ),
+                      Icon(
+                        isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                        color: Colors.grey[600],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Option Items (when expanded)
+          if (isExpanded) ...[
+            const Divider(height: 1),
+            if (group.options.isNotEmpty)
+              ...group.options.map((option) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Colors.grey[200]!),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            '+${option.price.toStringAsFixed(0)}đ',
-                            style: TextStyle(
-                              color: Colors.grey[600],
+                            option.name,
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                        const SizedBox(width: 12),
-                        Switch(
-                          value: option.isAvailable,
-                          onChanged: (value) async {
-                            // Toggle option availability
-                            await _toggleOptionAvailability(option, value);
-                          },
-                          activeColor: Colors.green,
-                        ),
-                      ],
-                    ),
-                  )),
-                if (isExpanded && group.options.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: Colors.grey[300]!),
+                          if (option.description?.isNotEmpty == true) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              option.description!,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        'No options in this group',
+                    if (option.price > 0) ...[
+                      Text(
+                        '+${option.price.toStringAsFixed(0)}đ',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Colors.orange[700],
                           fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(width: 12),
+                    ],
+                    Switch(
+                      value: option.isAvailable,
+                      onChanged: (value) async {
+                        await _toggleOptionAvailability(option, value);
+                      },
+                      activeColor: Colors.green,
+                    ),
+                  ],
+                ),
+              ))
+            else
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Text(
+                    'Chưa có tùy chọn nào trong nhóm này',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
                     ),
                   ),
-              ],
-            ),
-          );
-        },
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }
@@ -631,11 +701,137 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     );
   }
 
-  void _showAddOptionGroupDialog() {
-    // TODO: Implement add option group dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add option group - Coming soon!')),
+  Future<void> _showAddOptionGroupDialog() async {
+    // Navigate to dedicated option groups management page and wait for result
+    final result = await context.push('/menu/option-groups/new');
+
+    // If the option group was successfully created, refresh the data
+    if (result == true && mounted) {
+      await _loadMenuData();
+    }
+  }
+
+  Future<void> _editOptionGroup(OptionGroup group) async {
+    // Navigate to edit screen and wait for result
+    final result = await context.push('/menu/option-groups/${group.id}/edit?from=menu');
+
+    // If the option group was successfully updated, refresh the data
+    if (result == true && mounted) {
+      await _loadMenuData();
+    }
+  }
+
+  void _showEditOptionGroupDialog(OptionGroup group) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Chỉnh sửa nhóm tùy chọn ⚡'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Đang chỉnh sửa: "${group.name}"'),
+              const SizedBox(height: 16),
+              Text(
+                'Tính năng chỉnh sửa đang được phát triển.\nHiện tại bạn có thể xem và quản lý các nhóm tùy chọn.',
+                style: TextStyle(color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Open full editor in the future
+              // For now, navigate to dedicated editor if needed
+              context.go('/menu/option-groups/${group.id}/edit');
+            },
+            child: const Text('Mở trình chỉnh sửa'),
+          ),
+        ],
+      ),
     );
+  }
+
+  void _showDeleteConfirmationForOptionGroup(OptionGroup group) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa nhóm tùy chọn'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Bạn có chắc chắn muốn xóa "${group.name}"?'),
+            const SizedBox(height: 8),
+            Text(
+              'Hành động này không thể hoàn tác.',
+              style: TextStyle(
+                color: Colors.red[600],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteOptionGroup(group);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteOptionGroup(OptionGroup group) async {
+    try {
+      final success = await _menuOptionService.deleteOptionGroup(group.id);
+
+      if (mounted) {
+        if (success) {
+          // Refresh the option groups list
+          await _loadMenuData();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã xóa "${group.name}"'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lỗi khi xóa "${group.name}"'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showCategoryItems(String categoryId, String categoryName) {
