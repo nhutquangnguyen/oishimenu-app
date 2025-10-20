@@ -1,0 +1,16 @@
+{
+  "app_name": "OishiMenu",
+  "welcome": "Chào mừng",
+  "login": "Đăng nhập",
+  "signup": "Đăng ký",
+  "email": "Email",
+  "password": "Mật khẩu",
+  "dashboard": "Bảng điều khiển",
+  "menu": "Thực đơn",
+  "orders": "Đơn hàng",
+  "pos": "Bán hàng",
+  "inventory": "Kho hàng",
+  "employees": "Nhân viên",
+  "feedback": "Phản hồi",
+  "analytics": "Phân tích"
+}

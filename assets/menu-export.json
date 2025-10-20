@@ -1,0 +1,1589 @@
+{
+  "exportInfo": {
+    "timestamp": "2025-10-20T04:07:29.844Z",
+    "exportedBy": "menu-export-script",
+    "totalItems": 56,
+    "totalCategories": 16,
+    "totalOptionGroups": 3,
+    "version": "1.0.0"
+  },
+  "categories": [
+    {
+      "id": "category-tr_-s_a",
+      "name": "TRÀ SỮA",
+      "isActive": true,
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "updatedAt": {
+        "seconds": 1759375404,
+        "nanoseconds": 947000000
+      },
+      "displayOrder": 1
+    },
+    {
+      "id": "coffee",
+      "name": "COFFEE & COCOA",
+      "updatedAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      },
+      "isActive": true,
+      "displayOrder": 1,
+      "createdAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      }
+    },
+    {
+      "id": "category-matcha",
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "isActive": true,
+      "name": "MATCHA",
+      "displayOrder": 2,
+      "updatedAt": {
+        "seconds": 1759375406,
+        "nanoseconds": 889000000
+      }
+    },
+    {
+      "id": "category-m_n-m_i",
+      "displayOrder": 3,
+      "name": "MÓN MỚI",
+      "isActive": true,
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "updatedAt": {
+        "seconds": 1759375406,
+        "nanoseconds": 889000000
+      }
+    },
+    {
+      "id": "tea",
+      "name": "TEA",
+      "displayOrder": 3,
+      "isActive": true,
+      "createdAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      },
+      "updatedAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      }
+    },
+    {
+      "id": "category-tr_---tea",
+      "name": "TRÀ - TEA",
+      "isActive": true,
+      "displayOrder": 4,
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "updatedAt": {
+        "seconds": 1759386833,
+        "nanoseconds": 24000000
+      }
+    },
+    {
+      "id": "milk-tea",
+      "name": "TRÀ SỮA - MILK TEA",
+      "isActive": true,
+      "displayOrder": 4,
+      "updatedAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      },
+      "createdAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      }
+    },
+    {
+      "id": "category-_m-th_c--x_-d_a",
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "isActive": true,
+      "name": "ẨM THỰC- XỨ DỪA",
+      "updatedAt": {
+        "seconds": 1759386833,
+        "nanoseconds": 25000000
+      },
+      "displayOrder": 5
+    },
+    {
+      "id": "iced-blend",
+      "displayOrder": 5,
+      "updatedAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      },
+      "createdAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      },
+      "isActive": true,
+      "name": "ICED BLEND"
+    },
+    {
+      "id": "category-c_-ph_---coffee",
+      "updatedAt": {
+        "seconds": 1759386831,
+        "nanoseconds": 767000000
+      },
+      "name": "CÀ PHÊ - COFFEE",
+      "isActive": true,
+      "displayOrder": 6,
+      "createdAt": "2025-10-02T02:46:30.131Z"
+    },
+    {
+      "id": "fast-food",
+      "isActive": true,
+      "name": "FAST FOOD",
+      "displayOrder": 6,
+      "updatedAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      },
+      "createdAt": {
+        "seconds": 1759398087,
+        "nanoseconds": 321000000
+      }
+    },
+    {
+      "id": "category-combo-n_ng-l__ng",
+      "name": "Combo năng lượng",
+      "updatedAt": {
+        "seconds": 1759386830,
+        "nanoseconds": 98000000
+      },
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "isActive": true,
+      "displayOrder": 7
+    },
+    {
+      "id": "category-th_c-_n-nhanh",
+      "isActive": true,
+      "name": "THỨC ĂN NHANH",
+      "updatedAt": "2025-10-02T02:46:30.131Z",
+      "displayOrder": 8,
+      "createdAt": "2025-10-02T02:46:30.131Z"
+    },
+    {
+      "id": "category-_u-__i-h_m-nay",
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "name": "ƯU ĐÃI HÔM NAY",
+      "displayOrder": 9,
+      "isActive": true,
+      "updatedAt": "2025-10-02T02:46:30.131Z"
+    },
+    {
+      "id": "category-combo-tr_-chi_u",
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "name": "Combo trà chiều",
+      "displayOrder": 10,
+      "updatedAt": "2025-10-02T02:46:30.131Z",
+      "isActive": true
+    },
+    {
+      "id": "category-__-xay---iced-blend",
+      "createdAt": "2025-10-02T02:46:30.131Z",
+      "isActive": true,
+      "updatedAt": "2025-10-02T02:46:30.131Z",
+      "name": "ĐÁ XAY - ICED BLEND",
+      "displayOrder": 11
+    }
+  ],
+  "menuItems": [
+    {
+      "id": "0Os0bqkRcPSOc77hxvqQ",
+      "name": "A",
+      "createdAt": "2025-10-02T05:45:57.433Z",
+      "availableStatus": "AVAILABLE",
+      "categoryName": "TRÀ SỮA",
+      "updatedAt": "2025-10-03T03:37:14.716Z",
+      "photos": [],
+      "price": 25000,
+      "description": ""
+    },
+    {
+      "id": "iced-americano",
+      "photos": [
+        "/images/americano.jpg"
+      ],
+      "updatedAt": "2025-10-02T09:41:27.322Z",
+      "description": "Classic iced americano with double shot espresso over ice",
+      "categoryName": "COFFEE & COCOA",
+      "availableStatus": "AVAILABLE",
+      "price": 28000,
+      "name": "Americano Đá",
+      "createdAt": "2025-10-02T09:41:27.322Z",
+      "recipe": {
+        "id": "americano-recipe",
+        "costPerServing": 5600,
+        "ingredients": [
+          {
+            "quantity": 20,
+            "unit": "gram",
+            "ingredientId": "espresso-beans"
+          }
+        ],
+        "name": "Iced Americano Recipe",
+        "servingSize": 1
+      }
+    },
+    {
+      "id": "VNITE20250811044236121145",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "price": 39000,
+      "availableStatus": "AVAILABLE",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "categoryName": "ĐÁ XAY - ICED BLEND",
+      "name": "Bánh Cookie đá xay - Cookies & Cream Blended",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715222058854/photos/menueditor_item_fb8d1148f8c8476a99ff471fa26d91c4_1742224917839194639.jpg"
+      ],
+      "description": "🍪 Bánh Cookie đá xay - Cookies & Cream Blended: Hương vị quyến rũ từ vụn bánh cookie nghiền nhuyễn trong lớp sữa béo mịn, hòa cùng đá xay mát lạnh, mang đến ly đồ uống ngọt ngào và đầy thú vị. 🍫"
+    },
+    {
+      "id": "VNITE20250811044237135507",
+      "availabilitySchedule": "All opening hours",
+      "description": "Bánh mì giòn rụm, pate béo ngậy",
+      "name": "Bánh mì que Pate Hải Phòng Mini",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025042213111252231/photos/menueditor_item_6b35a011f5b84380bfa960b162956710_1754655578176209589.jpg"
+      ],
+      "price": 15000,
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "categoryName": "THỨC ĂN NHANH"
+    },
+    {
+      "id": "VNITE20250811044236117180",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031714592372697/photos/menueditor_item_ff75242e1863475caea327c74db22c24_1742223519240705278.jpg"
+      ],
+      "description": "🥛 Bạc xỉu - Vietnamese Iced Coffee with a Lot of Milk: Ly cà phê \"ít cà nhiều sữa\", ngọt ngào và thơm béo, dành cho những ai yêu thích hương vị nhẹ nhàng nhưng vẫn đậm chất cà phê Việt. 🍯",
+      "availabilitySchedule": "All opening hours",
+      "availableStatus": "AVAILABLE",
+      "name": "Bạc xĩu - Vietnamese iced coffee with a lot of milk",
+      "price": 25000,
+      "categoryName": "CÀ PHÊ - COFFEE"
+    },
+    {
+      "id": "VNITE20250811044237078912",
+      "description": "🍫 Ca cao kem muối - Salted Cream Cocoa: Cacao nguyên chất, đậm vị quyện cùng lớp kem muối bồng bềnh, tạo nên sự đối lập đầy tinh tế giữa ngọt, béo và một chút mặn nhẹ, hấp dẫn ngay từ ngụm đầu tiên. ❄️",
+      "availableStatus": "AVAILABLE",
+      "name": "Ca cao kem muối - Salted cream cocoa",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "price": 29000,
+      "categoryName": "CÀ PHÊ - COFFEE",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715013785792/photos/menueditor_item_dbaa71f1e4564d4e94e73c4c65b4f7b7_1742223664608105079.jpg"
+      ]
+    },
+    {
+      "id": "VNITE20250811044238013810",
+      "availabilitySchedule": "All opening hours",
+      "description": "🍫 Ca cao sữa đá - Iced Milk Cocoa: Hương cacao đậm đà hòa cùng sữa mát lạnh, tạo nên ly đồ uống thơm béo, ngọt dịu, lý tưởng để thưởng thức vào bất cứ thời điểm nào trong ngày. 🧊",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715003589133/photos/menueditor_item_737357a78f404a15994dd4e2dc7b38d1_1742223605655071372.jpg"
+      ],
+      "availableStatus": "AVAILABLE",
+      "price": 26000,
+      "name": "Ca cao sữa đá - Iced milk cocoa",
+      "categoryName": "CÀ PHÊ - COFFEE",
+      "updatedAt": "2025-10-20T04:07:24.743Z"
+    },
+    {
+      "id": "VNITE20250811044236089603",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044236089603/photos/menueditor_item_f36441367cd34522bb56bf252d92ae51_1755582424067848645.jpg"
+      ],
+      "price": 39000,
+      "description": "Cacao Cốt Dừa Đá Xay\nVị đậm đà của cacao hòa quyện với độ béo thơm của cốt dừa, thêm đá xay mịn mát lạnh – ngọt ngào, sảng khoái đến tận cuối ly.",
+      "categoryName": "ĐÁ XAY - ICED BLEND",
+      "name": "Cacao cốt dừa đá xay-  Ice blende Coconut cocoa",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "availabilitySchedule": "All opening hours"
+    },
+    {
+      "id": "VNITE20250811044238022163",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044238022163/photos/menueditor_item_1fd8e93f7cdc4568b20cf8b526a637e1_1755227458467511312.jpg"
+      ],
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Cacao sữa dừa- Coconut cocoa milk",
+      "price": 39000,
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "description": "Cacao Sữa Dừa: Một kiệt tác phân tầng đầy quyến rũ! ✨ Lớp sữa dừa béo ngậy, sánh mịn làm nền 🥥, bên trên là lớp cacao nguyên chất đậm đà, nồng nàn 🍫. Khi thưởng thức, vị ngọt béo của dừa và chút đắng nhẹ của cacao quyện vào nhau, tan chảy dịu dàng.",
+      "categoryName": "ẨM THỰC- XỨ DỪA",
+      "availableStatus": "AVAILABLE"
+    },
+    {
+      "id": "VNITE20250811044237116982",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "description": "🌊 Cafe đen kem muối - Salted Cream Black Coffee: Lớp kem muối béo mịn tan chảy trên nền cà phê đậm đà, tạo nên sự cân bằng hoàn hảo giữa vị mặn, béo và đắng, một trải nghiệm thú vị khó quên. ❄️",
+      "availableStatus": "AVAILABLE",
+      "availabilitySchedule": "All opening hours",
+      "price": 29000,
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031714564406869/photos/menueditor_item_a8d9f35f7013403b9e02c333842c425e_1742223376962156024.jpg"
+      ],
+      "name": "Cafe kem muối - Salted cream coffee",
+      "categoryName": "CÀ PHÊ - COFFEE"
+    },
+    {
+      "id": "VNITE20250811044237039390",
+      "categoryName": "ƯU ĐÃI HÔM NAY",
+      "availableStatus": "AVAILABLE",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031714532811240/photos/menueditor_item_acbf748b8d0349cbb192dbda51613e1f_1742223161948356830.jpg"
+      ],
+      "description": "🥛 Cafe sữa đá - Iced Milk Coffee: Hòa quyện giữa vị đắng nhẹ của cà phê phin và độ ngọt béo của sữa đặc, tạo nên ly cà phê thơm ngon, mát lạnh, đúng gu người Việt. 🍯",
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Cafe sữa đá - Iced Milk Coffee",
+      "price": 19000
+    },
+    {
+      "id": "VNITE20250811044236037451",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031714404997725/photos/menueditor_item_e5b0eeeea7fc43619df400fb35d34f4f_1742222434487087238.jpeg"
+      ],
+      "availabilitySchedule": "All opening hours",
+      "name": "Cafe đen đá - Iced Black Coffee",
+      "description": "☕ Cafe đen đá - Iced Black Coffee: Đậm đà, mạnh mẽ với hương vị cà phê nguyên bản, tan chảy trong đá lạnh, mang đến cảm giác tỉnh táo sảng khoái ngay từ ngụm đầu tiên. ❄️",
+      "categoryName": "CÀ PHÊ - COFFEE",
+      "price": 19000,
+      "availableStatus": "AVAILABLE",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "createdAt": "2025-10-20T04:07:24.743Z"
+    },
+    {
+      "id": "VNITE20250811044239027301",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044239027301/photos/menueditor_item_8f389d55637a47e0b1e01b56105987d9_1755227429771239133.jpg"
+      ],
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Coco Latte",
+      "price": 39000,
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "description": "Coco Latte: Khám phá hương vị cà phê Latte đầy lôi cuốn, hòa quyện cùng vị ngọt thanh và béo ngậy đặc trưng từ nước cốt dừa tươi 🥥. Một ly thức uống mềm mại, sánh mịn, mang đến sự sảng khoái và trải nghiệm độc đáo khó quên. ☕✨",
+      "availableStatus": "AVAILABLE",
+      "categoryName": "ẨM THỰC- XỨ DỪA"
+    },
+    {
+      "id": "VNITE2025090501264147190",
+      "availabilitySchedule": "All opening hours",
+      "price": 47000,
+      "description": "",
+      "availableStatus": "AVAILABLE",
+      "categoryName": "Combo năng lượng",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025090501264147190/photos/menueditor_item_e8aeb0f896034e9389aa721c2d34dad7_1757035573085945303.jpg"
+      ],
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Combo Cà phê sữa tươi sương sáo (M) + Bánh mì que"
+    },
+    {
+      "id": "VNITE2025090501253818031",
+      "description": "",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "availabilitySchedule": "All opening hours",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025090501253818031/photos/menueditor_item_21419efdbc754bdcbbd25f7f3ad57d2d_1757035492961320843.jpg"
+      ],
+      "price": 44000,
+      "categoryName": "Combo năng lượng",
+      "name": "Combo Matcha Latte (M) + Bánh mì que",
+      "updatedAt": "2025-10-20T04:07:24.743Z"
+    },
+    {
+      "id": "VNITE2025090501281760143",
+      "categoryName": "Combo năng lượng",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025090501281760143/photos/menueditor_item_e47b590835bc4d34939b7cf221d6c0ed_1757035646944469326.jpg"
+      ],
+      "availableStatus": "AVAILABLE",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "price": 48000,
+      "name": "Combo Matcha Latte (M) + Cà phê sữa (M)",
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "description": ""
+    },
+    {
+      "id": "VNITE2025090500453311850",
+      "availabilitySchedule": "All opening hours",
+      "availableStatus": "AVAILABLE",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "price": 58000,
+      "description": "Trà ổi hồng tươi mát hòa quyện cùng trà hibiscus đỏ thơm nhẹ, sảng khoái ăn cùng trân châu dai giòn",
+      "name": "Combo Trà Ổi Hồng (M) + Trà Hibiscus Atiso đỏ (M)",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "categoryName": "Combo trà chiều",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025090500453311850/photos/menueditor_item_8066940d43f04b5ba5a4a1b66f1fa964_1758168975545112644.jpg"
+      ]
+    },
+    {
+      "id": "VNITE2025091805014292807",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Combo Trà ổi hồng (M) + Trà xoài (M)",
+      "availabilitySchedule": "All opening hours",
+      "categoryName": "Combo trà chiều",
+      "availableStatus": "AVAILABLE",
+      "price": 58000,
+      "description": "",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025091805014292807/photos/menueditor_item_1282c49b293a4496858b6023c8a6daff_1758171615963736551.jpg"
+      ]
+    },
+    {
+      "id": "VNITE2025092205233146463",
+      "categoryName": "Combo trà chiều",
+      "availableStatus": "AVAILABLE",
+      "name": "Combo trà Atiso đỏ + Trà xoài 🥭",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025092205233146463/photos/menueditor_item_e7979ffab8894f309c4de377c201a5a5_1758518527593805101.jpg"
+      ],
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "price": 58000,
+      "description": "Trà atiso đỏ thơm ngọt, trà xoài tươi mát, hòa quyện tuyệt vời. Khách chọn thêm topping cho combo 2 món vui lòng chọn 2 phần topping",
+      "availabilitySchedule": "All opening hours"
+    },
+    {
+      "id": "VNITE2025081905535959079",
+      "price": 32000,
+      "description": "Cà phê sữa tươi sương sáo – Đậm vị cà phê, béo ngậy sữa tươi, thêm sương sáo mát lạnh giòn dai, giải nhiệt cực đã.",
+      "availableStatus": "AVAILABLE",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "categoryName": "MÓN MỚI",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025081905535959079/photos/menueditor_item_bab2985d801d4536885a874dbd22720d_1755582684124465179.jpg"
+      ],
+      "availabilitySchedule": "All opening hours",
+      "updatedAt": "2025-10-02T03:17:43.198Z",
+      "name": "Cà Phê Sữa Tươi Sương Sáo"
+    },
+    {
+      "id": "vietnamese-iced-coffee",
+      "recipe": {
+        "ingredients": [
+          {
+            "ingredientId": "espresso-beans",
+            "unit": "gram",
+            "quantity": 25
+          },
+          {
+            "ingredientId": "milk",
+            "quantity": 50,
+            "unit": "ml"
+          },
+          {
+            "ingredientId": "sugar",
+            "quantity": 15,
+            "unit": "gram"
+          }
+        ],
+        "id": "vietnamese-coffee-recipe",
+        "name": "Vietnamese Coffee Recipe",
+        "servingSize": 1,
+        "costPerServing": 9200
+      },
+      "description": "Traditional Vietnamese iced coffee with condensed milk, strong and sweet",
+      "name": "Cà Phê Sữa Đá",
+      "price": 32000,
+      "availableStatus": "AVAILABLE",
+      "createdAt": "2025-10-02T09:41:27.322Z",
+      "categoryName": "COFFEE & COCOA",
+      "updatedAt": "2025-10-02T09:41:27.322Z",
+      "photos": [
+        "/images/vietnamese-coffee.jpg"
+      ]
+    },
+    {
+      "id": "VNITE20250811044236098075",
+      "categoryName": "CÀ PHÊ - COFFEE",
+      "availableStatus": "AVAILABLE",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031714580956560/photos/menueditor_item_27d6e7b0697845c5b20a8c232f17742b_1742223453858161573.jpg"
+      ],
+      "description": "🍮 Cà phê caramel kem muối - Salted Caramel Cream Coffee: Sự kết hợp giữa cà phê đậm đà, sốt caramel ngọt lịm và kem muối bồng bềnh, mang đến vị béo mặn ngọt hài hòa, đầy lôi cuốn. ✨",
+      "availabilitySchedule": "All opening hours",
+      "price": 35000,
+      "name": "Cà phê caramel kem muối - Salted caramel cream coffee",
+      "updatedAt": "2025-10-20T04:07:24.743Z"
+    },
+    {
+      "id": "VNITE20250811044235034866",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044235034866/photos/menueditor_item_bf2d75b5ac474c29ac2587f07a3cc08d_1755582446377272338.jpg"
+      ],
+      "availableStatus": "AVAILABLE",
+      "description": "Cà phê cốt dừa Dinh Barista: Một bản giao hưởng hương vị đầy mê hoặc! 🎶 Vị cà phê mạnh mẽ được xoa dịu bởi sự dịu ngọt, béo thơm của cốt dừa 🥥, đánh thức mọi giác quan và mang đến trải nghiệm khó quên. ✨",
+      "categoryName": "ĐÁ XAY - ICED BLEND",
+      "name": "Cà phê cốt dừa đá xay- Ice blended Cafe with Coconut",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "price": 39000
+    },
+    {
+      "id": "VNITE20250811044236059949",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "price": 35000,
+      "availableStatus": "AVAILABLE",
+      "availabilitySchedule": "All opening hours",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044236059949/photos/menueditor_item_b11dcce1fbca4fcea600dbf8ee367981_1755582343409583523.jpg"
+      ],
+      "description": "Dừa Kim Quất: Thức uống đánh thức mọi giác quan! ☀️ Vị nước dừa tươi ngọt thanh, mát lành 🥥 hòa quyện hoàn hảo với chút chua dịu, thơm lừng từ kim quất tươi 🍊, tạo nên bản giao hưởng hương vị sảng khoái, độc đáo. Chắc chắn sẽ khiến bạn vương vấn mãi không thôi! ✨",
+      "categoryName": "ẨM THỰC- XỨ DỪA",
+      "name": "Dừa Kim Quất- Coconut Kumquat"
+    },
+    {
+      "id": "VNITE20250811044237124952",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "description": "🥥 Dừa tươi - Coconut Water: Nước dừa ngọt mát, tươi nguyên, giúp bù nước, giải nhiệt và tiếp thêm năng lượng tự nhiên cho cơ thể. ❄️",
+      "price": 29000,
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "categoryName": "ẨM THỰC- XỨ DỪA",
+      "name": "Dừa tươi - Coconut Fresh",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715101517671/photos/menueditor_item_d6cd42d555a7407cadf340e9496e8b9e_1742224191039742153.jpg"
+      ]
+    },
+    {
+      "id": "VNITE20250811044236104473",
+      "name": "Iced Americano",
+      "categoryName": "CÀ PHÊ - COFFEE",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025041105055220744/photos/menueditor_item_5daac8fb89fc411c86e3448088a28014_1744347871576960905.jpg"
+      ],
+      "availabilitySchedule": "All opening hours",
+      "description": "Iced Americano – Tỉnh Táo Đến Giọt Cuối Cùng!\nThức uống dành cho người yêu sự nguyên bản – Iced Americano mang đến hương vị cà phê đậm đà, nguyên chất, kết hợp cùng đá mát lạnh cho cảm giác sảng khoái tức thì.\n\nKhông đường, không sữa – chỉ còn lại vị đăng đắng tinh tế",
+      "availableStatus": "AVAILABLE",
+      "price": 29000,
+      "createdAt": "2025-10-20T04:07:24.743Z"
+    },
+    {
+      "id": "VNITE20250811044235010024",
+      "availabilitySchedule": "All opening hours",
+      "description": "Latte đá ☕🥛❄️ có vị cà phê nhẹ nhàng hòa quyện cùng sữa tươi béo dịu, thêm đá mát lạnh. Phù hợp với người yêu thích đồ uống thanh nhẹ, dễ uống và không quá đậm vị.",
+      "price": 29000,
+      "availableStatus": "AVAILABLE",
+      "categoryName": "CÀ PHÊ - COFFEE",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044235010024/photos/menueditor_item_531ee451bcd9490e98dbd061a54233a0_1755226017685276460.jpg"
+      ],
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Latte Đá- Iced Latte"
+    },
+    {
+      "id": "VNITE20250811044237029585",
+      "categoryName": "MATCHA",
+      "availabilitySchedule": "All opening hours",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "description": "Thức tỉnh giác quan cùng Matcha Cookie Dinh Barista! Sự kết hợp đột phá giữa matcha Nhật Bản cao cấp, kem muối đặc trưng và bánh Oreo huyền thoại. Mỗi ngụm là một bản giao hưởng vị giác khó quên!",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "price": 39000,
+      "availableStatus": "AVAILABLE",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044237029585/photos/menueditor_item_8893e92f555e4eb0b2d908be84d14e5d_1755582387811764822.jpg"
+      ],
+      "name": "Matcha Cookie"
+    },
+    {
+      "id": "matcha-latte-oat",
+      "updatedAt": "2025-10-02T09:41:27.322Z",
+      "createdAt": "2025-10-02T09:41:27.322Z",
+      "categoryName": "MATCHA",
+      "photos": [
+        "/images/matcha-latte.jpg"
+      ],
+      "description": "Premium matcha latte with creamy oat milk, perfect balance of earthy and sweet",
+      "availableStatus": "AVAILABLE",
+      "price": 55000,
+      "name": "Matcha Latte Sữa Yến Mạch",
+      "recipe": {
+        "name": "Matcha Latte Recipe",
+        "costPerServing": 18500,
+        "servingSize": 1,
+        "ingredients": [
+          {
+            "quantity": 15,
+            "unit": "gram",
+            "ingredientId": "matcha-powder"
+          },
+          {
+            "unit": "ml",
+            "ingredientId": "milk",
+            "quantity": 200
+          },
+          {
+            "quantity": 10,
+            "ingredientId": "sugar",
+            "unit": "gram"
+          }
+        ],
+        "id": "matcha-latte-recipe"
+      }
+    },
+    {
+      "id": "VNITE20250811044238146651",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Matcha Latte Sữa Yến Mạch - Matcha Latte Oat Milk",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025032903160156928/photos/menueditor_item_b4d68ac69fe54b63b5af879705e73a7e_1743217901674721256.jpg"
+      ],
+      "availableStatus": "AVAILABLE",
+      "description": "Matcha Latte Sữa Yến Mạch - Bột matcha nguyên chất kết hợp cũng sữa yến mạch béo nhẹ tạo nên hương vị thơm ngon, thanh mát, tốt cho sức khoẻ.",
+      "price": 31000,
+      "categoryName": "ƯU ĐÃI HÔM NAY",
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z"
+    },
+    {
+      "id": "VNITE2025082706580816727",
+      "description": "Matcha latte kết hợp caramel ngọt dịu, hòa quyện vị tạo nên thức uống thơm ngon.",
+      "availabilitySchedule": "All opening hours",
+      "availableStatus": "AVAILABLE",
+      "name": "Matcha caramel latte",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "price": 32000,
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025082706580816727/photos/menueditor_item_d162f73beab04622ba76fa957fd3b244_1756277753060161792.jpg"
+      ],
+      "categoryName": "MÓN MỚI"
+    },
+    {
+      "id": "VNITE2025082706552836548",
+      "availableStatus": "AVAILABLE",
+      "price": 39000,
+      "name": "Matcha dừa non sương sáo",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025082706552836548/photos/menueditor_item_27fc138a67724d59a3c77ac5fd4b1296_1756277595329397122.jpg"
+      ],
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "categoryName": "MÓN MỚI",
+      "description": "Matcha kết hợp cùng sữa dừa thơm béo, sương sáo giòn mát."
+    },
+    {
+      "id": "VNITE20250811044238137501",
+      "categoryName": "MATCHA",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715150193929/photos/menueditor_item_21538fd3cac14c5b977525d6386bebce_1743132848015443683.jpeg"
+      ],
+      "price": 37000,
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "name": "Matcha dừa tươi - Coconut matcha",
+      "availabilitySchedule": "All opening hours",
+      "description": "🥥 Matcha dừa tươi - Coconut Matcha: Thức uống mát lạnh với nước dừa tươi ngọt dịu kết hợp cùng kem matcha đánh mịn, tạo nên hương vị béo thơm, tươi mới và đầy sảng khoái. 🌿🍃",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE"
+    },
+    {
+      "id": "VNITE20250811044236076103",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715111171003/photos/menueditor_item_be3912fd8e7741448d0975f66fa445a2_1742224255637193717.jpg"
+      ],
+      "availableStatus": "AVAILABLE",
+      "categoryName": "MATCHA",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "description": "🍵 Matcha latte: Hương matcha đậm đà kết hợp cùng sữa tươi béo nhẹ, tạo nên ly latte mịn màng, thơm ngậy với hậu vị trà xanh đặc trưng. 🥛",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "price": 29000,
+      "name": "Matcha latte"
+    },
+    {
+      "id": "VNITE20250811044237096813",
+      "categoryName": "MATCHA",
+      "availabilitySchedule": "All opening hours",
+      "description": "🌊 Matcha latte kem muối - Salted Cream Matcha Latte: Lớp kem muối bồng bềnh mặn nhẹ hòa quyện cùng vị matcha thanh chát, béo ngậy của sữa, mang đến trải nghiệm hương vị độc đáo và cuốn hút. ❄️",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715115635492/photos/menueditor_item_9400fc2577924f28a705421450395b60_1742224299241041470.jpg"
+      ],
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "price": 35000,
+      "name": "Matcha latte kem muối - Salted cream matcha latte"
+    },
+    {
+      "id": "VNITE20250811044238037954",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044238037954/photos/menueditor_item_8c7d5ab8efab441b8164aa9045b91f2e_1755227626652411713.jpg"
+      ],
+      "categoryName": "MATCHA",
+      "name": "Matcha sữa dừa- Matcha Coconut Milk",
+      "description": "Matcha Sữa Dừa\nVị thanh mát của matcha hòa quyện với sữa dừa béo nhẹ, mang đến cảm giác tươi mới và ngọt dịu, dễ uống và đầy cuốn hút.",
+      "availableStatus": "AVAILABLE",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "price": 39000
+    },
+    {
+      "id": "VNITE2025082714555180357",
+      "categoryName": "MÓN MỚI",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "description": "Tàu hủ mềm mịn, tan trong miệng, thơm matcha, ngon khó cưỡng.",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "name": "Matcha tàu hủ - Matcha tofu pudding",
+      "availabilitySchedule": "All opening hours",
+      "availableStatus": "AVAILABLE",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025082714555180357/photos/menueditor_item_4fa2e76a4a2243f5a6e47115eaf965a0_1756306381439863054.jpg"
+      ],
+      "price": 39000
+    },
+    {
+      "id": "VNITE20250811044235049661",
+      "availableStatus": "AVAILABLE",
+      "categoryName": "MATCHA",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "name": "Matcha đá xay - Matcha Blended",
+      "price": 39000,
+      "description": "🍵 Matcha đá xay - Matcha Blended: Matcha thơm lừng, đậm vị quyện cùng sữa tươi mịn màng, xay nhuyễn với đá lạnh, tạo nên ly đồ uống béo mịn, thanh mát, đầy sảng khoái. 🍃",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715230949686/photos/menueditor_item_c272311dc18349efbdb0d3857c7a9466_1742224967525106293.jpg"
+      ]
+    },
+    {
+      "id": "test-1759341637744",
+      "category": "Test",
+      "price": 25000,
+      "created": "2025-10-01T18:00:37.744Z",
+      "status": "AVAILABLE",
+      "name": "Test Item",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "updatedAt": "2025-10-20T04:07:24.743Z"
+    },
+    {
+      "id": "VNITE20250811044236133436",
+      "name": "Trà Dưa Lưới",
+      "price": 29000,
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025052405191642466/photos/menueditor_item_fd5b3f25a90442eab20fcf6209227b0b_1748063867786003744.jpg"
+      ],
+      "availabilitySchedule": "All opening hours",
+      "description": "",
+      "categoryName": "TRÀ - TEA",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE"
+    },
+    {
+      "id": "VNITE2025091803414134034",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "categoryName": "MÓN MỚI",
+      "description": "Trà hibiscus thanh mát, đậm vị atiso đỏ, thơm nhẹ,chua thanh tự nhiên ăn kèm trân châu trắng dai giòn.",
+      "price": 29000,
+      "availabilitySchedule": "All opening hours",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025091803414134034/photos/menueditor_item_b3e3e9ceaf3e4a65a75b9ca9d391ea74_1758167203768125057.jpg"
+      ],
+      "name": "Trà Hibiscus atiso đỏ - Hibiscus tea"
+    },
+    {
+      "id": "VNITE20250811044239036968",
+      "name": "Trà Kim Quất- Kumquat Tea",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025062102335180353/photos/menueditor_item_2f73682c0df349f5857504a49db2d524_1750845192236212417.jpg"
+      ],
+      "categoryName": "TRÀ - TEA",
+      "availableStatus": "AVAILABLE",
+      "availabilitySchedule": "All opening hours",
+      "description": "Trà Kim Quất 🍊\nVị chua dịu xen chút ngọt thanh, thơm mát từ vỏ kim quất hòa quyện cùng trà – giải khát sảng khoái từng ngụm.",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "price": 19000
+    },
+    {
+      "id": "VNITE20250811044236020233",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "description": "Trà Phúc Bồn Tử\nChua dịu và thanh mát, trà phúc bồn tử mang đến cảm giác sảng khoái, hậu vị ngọt nhẹ và mùi thơm quyến rũ tự nhiên.",
+      "name": "Trà Phúc Bồn Tử- Raspberry Tea",
+      "availabilitySchedule": "All opening hours",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025052405200421147/photos/menueditor_item_7269ff5f016a445e861f39440bbb093b_1748063975461436415.jpg"
+      ],
+      "categoryName": "TRÀ - TEA",
+      "price": 29000
+    },
+    {
+      "id": "classic-milk-tea",
+      "categoryName": "TRÀ SỮA - MILK TEA",
+      "availableStatus": "AVAILABLE",
+      "updatedAt": "2025-10-02T09:41:27.322Z",
+      "photos": [
+        "/images/milk-tea.jpg"
+      ],
+      "name": "Trà Sữa Truyền Thống",
+      "createdAt": "2025-10-02T09:41:27.322Z",
+      "recipe": {
+        "name": "Milk Tea Recipe",
+        "servingSize": 1,
+        "ingredients": [
+          {
+            "ingredientId": "milk",
+            "unit": "ml",
+            "quantity": 150
+          },
+          {
+            "ingredientId": "sugar",
+            "unit": "gram",
+            "quantity": 20
+          },
+          {
+            "unit": "gram",
+            "ingredientId": "tapioca-pearls",
+            "quantity": 30
+          }
+        ],
+        "id": "milk-tea-recipe",
+        "costPerServing": 12100
+      },
+      "price": 38000,
+      "description": "Classic milk tea with black tea base and fresh milk, includes tapioca pearls"
+    },
+    {
+      "id": "peach-green-tea",
+      "updatedAt": "2025-10-02T09:41:27.322Z",
+      "createdAt": "2025-10-02T09:41:27.322Z",
+      "price": 42000,
+      "availableStatus": "AVAILABLE",
+      "categoryName": "TEA",
+      "recipe": {
+        "servingSize": 1,
+        "name": "Peach Green Tea Recipe",
+        "costPerServing": 8500,
+        "ingredients": [
+          {
+            "ingredientId": "sugar",
+            "unit": "gram",
+            "quantity": 15
+          }
+        ],
+        "id": "peach-tea-recipe"
+      },
+      "name": "Trà Xanh Đào",
+      "description": "Refreshing green tea infused with fresh peach flavor and fruit pieces",
+      "photos": [
+        "/images/peach-tea.jpg"
+      ]
+    },
+    {
+      "id": "VNITE20250811044236064290",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "description": "Trà xoài nhiệt đới 🥭🍵 có hương vị chua ngọt hài hòa, thơm mát và tươi mới, phù hợp với người yêu thích vị trái cây nhiệt đới rực rỡ và dễ uống mỗi ngày.",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025071716313604746/photos/menueditor_item_d7a78e106cc04a27bb38d933cbdda37c_1752769750137194799.jpg"
+      ],
+      "price": 29000,
+      "availabilitySchedule": "All opening hours",
+      "categoryName": "TRÀ - TEA",
+      "name": "Trà Xoài Nhiệt Đới - Tropical Mango Tea"
+    },
+    {
+      "id": "VNITE20250811044239041536",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715075558150/photos/menueditor_item_bd7838328fbe4b22b59869ef7937fc04_1742224052661464661.jpg"
+      ],
+      "availableStatus": "AVAILABLE",
+      "availabilitySchedule": "All opening hours",
+      "description": "🍯 Trà chanh mật ong - Honey Lemon Tea: Vị chanh tươi chua nhẹ quyện cùng mật ong nguyên chất ngọt thanh, không chỉ thơm ngon mà còn giúp tăng cường sức khỏe và giải nhiệt hiệu quả. 🍋",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "price": 27000,
+      "categoryName": "TRÀ - TEA",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Trà chanh mật ong - Honey Lemon Tea"
+    },
+    {
+      "id": "VNITE20250811044238108065",
+      "categoryName": "TRÀ - TEA",
+      "availableStatus": "AVAILABLE",
+      "price": 29000,
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "name": "Trà dâu - Strawberry Tea",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025032603100277573/photos/menueditor_item_6febc3d0a8404344b72155d4a1117067_1742958511524753555.jpg"
+      ],
+      "availabilitySchedule": "All opening hours",
+      "description": "🍓 Trà dâu - Strawberry Tea: Vị dâu tây chua ngọt tự nhiên hòa quyện cùng trà thơm nhẹ, mang đến thức uống tươi mát, đầy sức sống và đánh thức mọi giác quan. ❄️"
+    },
+    {
+      "id": "VNITE20250811044238117893",
+      "price": 39000,
+      "description": "🌸 Trà lài vải - Jasmine Lychee Tea: Hương lài thanh tao kết hợp cùng vị vải chín mọng, tạo nên thức uống nhẹ nhàng, dịu ngọt và đầy tinh tế.",
+      "categoryName": "TRÀ - TEA",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025031715062991158/photos/menueditor_item_7ed6e63976e146d5834c221c6f9459d1_1742223959364301953.jpg"
+      ],
+      "name": "Trà lài vải - Jasmine Lychee Lea",
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE"
+    },
+    {
+      "id": "VNITE20250811044237089198",
+      "price": 19000,
+      "availableStatus": "AVAILABLE",
+      "sizes": [
+        {
+          "price": 19000,
+          "recipe": {
+            "ingredients": [
+              {
+                "ingredientId": "sugar",
+                "quantity": 1,
+                "notes": "",
+                "unit": "kg"
+              },
+              {
+                "notes": "",
+                "ingredientId": "matcha-powder",
+                "quantity": 1,
+                "unit": "kg"
+              }
+            ],
+            "id": "recipe-1759387260541",
+            "servingSize": 1,
+            "instructions": "",
+            "name": "X",
+            "prepTime": 0,
+            "description": "",
+            "updatedAt": {
+              "seconds": 1759683211,
+              "nanoseconds": 176000000
+            },
+            "createdAt": {
+              "seconds": 1759387260,
+              "nanoseconds": 541000000
+            }
+          },
+          "costPrice": 0,
+          "size": "S"
+        },
+        {
+          "price": 19000,
+          "recipe": {
+            "description": "",
+            "instructions": "",
+            "prepTime": 0,
+            "id": "recipe-1759387288565",
+            "name": "X2",
+            "updatedAt": {
+              "seconds": 1759683219,
+              "nanoseconds": 213000000
+            },
+            "createdAt": {
+              "seconds": 1759387288,
+              "nanoseconds": 565000000
+            },
+            "ingredients": [
+              {
+                "notes": "",
+                "unit": "kg",
+                "ingredientId": "sugar",
+                "quantity": 0.02
+              },
+              {
+                "unit": "kg",
+                "notes": "",
+                "quantity": 2,
+                "ingredientId": "matcha-powder"
+              }
+            ],
+            "servingSize": 1
+          },
+          "costPrice": 0,
+          "size": "M"
+        }
+      ],
+      "defaultSize": "S",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "description": "Đậm vị trà- Béo vị sữa- KHÔNG bột béo",
+      "name": "Trà sữa Dinh- Dinh Milk Tea",
+      "categoryName": "TRÀ SỮA",
+      "availabilitySchedule": "All opening hours",
+      "costPrice": 0,
+      "updatedAt": "2025-10-05T16:53:48.670Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044237089198/photos/menueditor_item_b694e61805444347aea53e07ed3d6580_1756528972173425827.jpg"
+      ],
+      "recipe": null
+    },
+    {
+      "id": "VNITE20250811044237055066",
+      "availableStatus": "AVAILABLE",
+      "availabilitySchedule": "All opening hours",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044237055066/photos/menueditor_item_03e4abe7df124b3090f1a23adf5e14b2_1756529014893191079.jpg"
+      ],
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "description": "Đậm vị trà- Béo vị sữa- KHÔNG bột béo",
+      "categoryName": "TRÀ SỮA",
+      "price": 29000,
+      "name": "Trà sữa Matcha- Matcha Milk Tea",
+      "updatedAt": "2025-10-20T04:07:24.743Z"
+    },
+    {
+      "id": "VNITE20250811044236017979",
+      "name": "Trà sữa Socola- Chcolate Milk Tea",
+      "price": 25000,
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044236017979/photos/menueditor_item_f6b9897521804893a93023678bb1b338_1756528904787862155.jpg"
+      ],
+      "categoryName": "TRÀ SỮA",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "description": "Đậm vị trà- Béo vị sữa- KHÔNG bột béo",
+      "availableStatus": "AVAILABLE"
+    },
+    {
+      "id": "VNITE20250811044237048452",
+      "description": "Trà sữa cốt dừa 🧋🥥 có hương vị béo nhẹ, thơm dịu và ngọt thanh từ cốt dừa. Phù hợp với người thích trà sữa nhưng muốn một phiên bản thanh mát, ít ngấy và dễ uống hơn.",
+      "categoryName": "TRÀ SỮA",
+      "availabilitySchedule": "All opening hours",
+      "availableStatus": "AVAILABLE",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044237048452/photos/menueditor_item_cfb464dbe6a243bf8479ac4512a8baf0_1755227404478941675.jpg"
+      ],
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "price": 29000,
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "name": "Trà sữa dừa- Coconut Milk Tea"
+    },
+    {
+      "id": "VNITE20250811044237069120",
+      "description": "Đậm vị trà- Béo vị sữa- KHÔNG bột béo",
+      "price": 25000,
+      "availabilitySchedule": "All opening hours",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "availableStatus": "AVAILABLE",
+      "categoryName": "TRÀ SỮA",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE20250811044237069120/photos/menueditor_item_90de9f8dd2c444ea811dabf01407b39c_1756528989385596379.jpg"
+      ],
+      "name": "Trà sữa khoai môn- Taro Milk Tea"
+    },
+    {
+      "id": "VNITE20250811044238062018",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "categoryName": "TRÀ - TEA",
+      "description": "🍹 Trà ổi hồng - Pink Guava Tea: Vị ổi hồng chua nhẹ, ngọt dịu cùng hương thơm thanh mát hòa quyện trong từng ngụm trà, tạo nên thức uống sảng khoái, giàu năng lượng và đầy cuốn hút. ❄️",
+      "availableStatus": "AVAILABLE",
+      "name": "Trà ổi hồng - Pink Guava Tea",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025032603114253404/photos/menueditor_item_a20979f54304435a9f469dcdaa23a97e_1742958648661965138.jpg"
+      ],
+      "price": 29000,
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "availabilitySchedule": "All opening hours"
+    },
+    {
+      "id": "VNITE20250811044238125446",
+      "description": "",
+      "availableStatus": "AVAILABLE",
+      "createdAt": "2025-10-20T04:07:24.743Z",
+      "categoryName": "CÀ PHÊ - COFFEE",
+      "availabilitySchedule": "All opening hours",
+      "photos": [
+        "https://food-cms.grab.com/item/VNITE2025052405210115881/photos/menueditor_item_33af9d7a0db5462c809f0c540102b2c0_1748064025281912978.jpg"
+      ],
+      "name": "Vanila latte - Bạc xỉu Vani",
+      "updatedAt": "2025-10-20T04:07:24.743Z",
+      "price": 35000
+    }
+  ],
+  "optionGroups": [
+    {
+      "id": "size-options",
+      "name": "Size",
+      "options": [
+        {
+          "name": "Small (S)",
+          "price": 0
+        },
+        {
+          "price": 5000,
+          "name": "Medium (M)"
+        },
+        {
+          "name": "Large (L)",
+          "price": 10000
+        }
+      ],
+      "minSelection": 1,
+      "maxSelection": 1,
+      "connectedMenuItems": [],
+      "active": true,
+      "createdAt": "2025-10-02T09:41:27.322Z",
+      "updatedAt": "2025-10-02T09:41:27.322Z"
+    },
+    {
+      "id": "sweetness-level",
+      "name": "Sweetness Level",
+      "options": [
+        {
+          "name": "0% Sugar",
+          "price": 0
+        },
+        {
+          "name": "25% Sugar",
+          "price": 0
+        },
+        {
+          "price": 0,
+          "name": "50% Sugar"
+        },
+        {
+          "name": "75% Sugar",
+          "price": 0
+        },
+        {
+          "price": 0,
+          "name": "100% Sugar"
+        }
+      ],
+      "minSelection": 1,
+      "maxSelection": 1,
+      "connectedMenuItems": [],
+      "active": true,
+      "createdAt": "2025-10-02T09:41:27.322Z",
+      "updatedAt": "2025-10-05T16:24:40.593Z"
+    },
+    {
+      "id": "toppings",
+      "name": "Toppings",
+      "options": [
+        {
+          "recipe": {
+            "name": "Tapioca Pearls Recipe",
+            "instructions": "",
+            "id": "recipe-1759681554666",
+            "createdAt": {
+              "seconds": 1759681554,
+              "nanoseconds": 666000000
+            },
+            "ingredients": [
+              {
+                "notes": "",
+                "unit": "kg",
+                "quantity": 1,
+                "ingredientId": "matcha-powder"
+              }
+            ],
+            "description": "",
+            "servingSize": 1,
+            "prepTime": 0,
+            "updatedAt": {
+              "seconds": 1759681554,
+              "nanoseconds": 673000000
+            }
+          },
+          "name": "Tapioca Pearls",
+          "price": 1200000
+        },
+        {
+          "price": 6000,
+          "name": "Jelly"
+        },
+        {
+          "price": 5000,
+          "name": "Extra Cream"
+        },
+        {
+          "name": "Coconut Flakes",
+          "price": 7000
+        }
+      ],
+      "minSelection": 0,
+      "maxSelection": 3,
+      "connectedMenuItems": [
+        "VNITE20250811044237089198"
+      ],
+      "active": true,
+      "createdAt": "2025-10-02T09:41:27.322Z",
+      "updatedAt": "2025-10-05T16:26:02.634Z"
+    }
+  ],
+  "menuItemOptionRelationships": [
+    {
+      "menuItemId": "0Os0bqkRcPSOc77hxvqQ",
+      "menuItemName": "A",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "iced-americano",
+      "menuItemName": "Americano Đá",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236121145",
+      "menuItemName": "Bánh Cookie đá xay - Cookies & Cream Blended",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237135507",
+      "menuItemName": "Bánh mì que Pate Hải Phòng Mini",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236117180",
+      "menuItemName": "Bạc xĩu - Vietnamese iced coffee with a lot of milk",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237078912",
+      "menuItemName": "Ca cao kem muối - Salted cream cocoa",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238013810",
+      "menuItemName": "Ca cao sữa đá - Iced milk cocoa",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236089603",
+      "menuItemName": "Cacao cốt dừa đá xay-  Ice blende Coconut cocoa",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238022163",
+      "menuItemName": "Cacao sữa dừa- Coconut cocoa milk",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237116982",
+      "menuItemName": "Cafe kem muối - Salted cream coffee",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237039390",
+      "menuItemName": "Cafe sữa đá - Iced Milk Coffee",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236037451",
+      "menuItemName": "Cafe đen đá - Iced Black Coffee",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044239027301",
+      "menuItemName": "Coco Latte",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025090501264147190",
+      "menuItemName": "Combo Cà phê sữa tươi sương sáo (M) + Bánh mì que",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025090501253818031",
+      "menuItemName": "Combo Matcha Latte (M) + Bánh mì que",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025090501281760143",
+      "menuItemName": "Combo Matcha Latte (M) + Cà phê sữa (M)",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025090500453311850",
+      "menuItemName": "Combo Trà Ổi Hồng (M) + Trà Hibiscus Atiso đỏ (M)",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025091805014292807",
+      "menuItemName": "Combo Trà ổi hồng (M) + Trà xoài (M)",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025092205233146463",
+      "menuItemName": "Combo trà Atiso đỏ + Trà xoài 🥭",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025081905535959079",
+      "menuItemName": "Cà Phê Sữa Tươi Sương Sáo",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "vietnamese-iced-coffee",
+      "menuItemName": "Cà Phê Sữa Đá",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236098075",
+      "menuItemName": "Cà phê caramel kem muối - Salted caramel cream coffee",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044235034866",
+      "menuItemName": "Cà phê cốt dừa đá xay- Ice blended Cafe with Coconut",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236059949",
+      "menuItemName": "Dừa Kim Quất- Coconut Kumquat",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237124952",
+      "menuItemName": "Dừa tươi - Coconut Fresh",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236104473",
+      "menuItemName": "Iced Americano",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044235010024",
+      "menuItemName": "Latte Đá- Iced Latte",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237029585",
+      "menuItemName": "Matcha Cookie",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "matcha-latte-oat",
+      "menuItemName": "Matcha Latte Sữa Yến Mạch",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238146651",
+      "menuItemName": "Matcha Latte Sữa Yến Mạch - Matcha Latte Oat Milk",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025082706580816727",
+      "menuItemName": "Matcha caramel latte",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025082706552836548",
+      "menuItemName": "Matcha dừa non sương sáo",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238137501",
+      "menuItemName": "Matcha dừa tươi - Coconut matcha",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236076103",
+      "menuItemName": "Matcha latte",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237096813",
+      "menuItemName": "Matcha latte kem muối - Salted cream matcha latte",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238037954",
+      "menuItemName": "Matcha sữa dừa- Matcha Coconut Milk",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025082714555180357",
+      "menuItemName": "Matcha tàu hủ - Matcha tofu pudding",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044235049661",
+      "menuItemName": "Matcha đá xay - Matcha Blended",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "test-1759341637744",
+      "menuItemName": "Test Item",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236133436",
+      "menuItemName": "Trà Dưa Lưới",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE2025091803414134034",
+      "menuItemName": "Trà Hibiscus atiso đỏ - Hibiscus tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044239036968",
+      "menuItemName": "Trà Kim Quất- Kumquat Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236020233",
+      "menuItemName": "Trà Phúc Bồn Tử- Raspberry Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "classic-milk-tea",
+      "menuItemName": "Trà Sữa Truyền Thống",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "peach-green-tea",
+      "menuItemName": "Trà Xanh Đào",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236064290",
+      "menuItemName": "Trà Xoài Nhiệt Đới - Tropical Mango Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044239041536",
+      "menuItemName": "Trà chanh mật ong - Honey Lemon Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238108065",
+      "menuItemName": "Trà dâu - Strawberry Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238117893",
+      "menuItemName": "Trà lài vải - Jasmine Lychee Lea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237089198",
+      "menuItemName": "Trà sữa Dinh- Dinh Milk Tea",
+      "optionGroupIds": [
+        "toppings"
+      ],
+      "optionGroupNames": [
+        "Toppings"
+      ]
+    },
+    {
+      "menuItemId": "VNITE20250811044237055066",
+      "menuItemName": "Trà sữa Matcha- Matcha Milk Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044236017979",
+      "menuItemName": "Trà sữa Socola- Chcolate Milk Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237048452",
+      "menuItemName": "Trà sữa dừa- Coconut Milk Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044237069120",
+      "menuItemName": "Trà sữa khoai môn- Taro Milk Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238062018",
+      "menuItemName": "Trà ổi hồng - Pink Guava Tea",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    },
+    {
+      "menuItemId": "VNITE20250811044238125446",
+      "menuItemName": "Vanila latte - Bạc xỉu Vani",
+      "optionGroupIds": [],
+      "optionGroupNames": []
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "app_name": "OishiMenu",
+  "welcome": "Welcome",
+  "login": "Login",
+  "signup": "Sign Up",
+  "email": "Email",
+  "password": "Password",
+  "dashboard": "Dashboard",
+  "menu": "Menu",
+  "orders": "Orders",
+  "pos": "POS",
+  "inventory": "Inventory",
+  "employees": "Employees",
+  "feedback": "Feedback",
+  "analytics": "Analytics"
+}
