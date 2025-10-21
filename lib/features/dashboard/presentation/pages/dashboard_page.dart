@@ -17,6 +17,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 class _DashboardPageState extends ConsumerState<DashboardPage> {
   String _selectedTimeFrame = 'Today';
   String _selectedBranch = 'All Branches';
+  String _selectedGroupBy = 'Hour';
   bool _sortByRevenue = true;
 
   @override
@@ -103,8 +104,57 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
                         // Sales Chart
                         _buildSectionHeader(context, AppLocalizations.salesOverview, null),
+                        const SizedBox(height: 12),
+
+                        // Chart Grouping Options
+                        Row(
+                          children: [
+                            Text(
+                              'Group by:',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: DropdownButton<String>(
+                                value: _selectedGroupBy,
+                                isDense: true,
+                                underline: const SizedBox(),
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                items: ['Hour', 'Day', 'Week day'].map((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _selectedGroupBy = newValue;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 16),
-                        SalesChart(timeFrame: _selectedTimeFrame),
+
+                        SalesChart(
+                          timeFrame: _selectedTimeFrame,
+                          groupBy: _selectedGroupBy,
+                        ),
                         const SizedBox(height: 32),
 
                         // Best Sellers

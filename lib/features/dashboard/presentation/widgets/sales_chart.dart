@@ -3,8 +3,13 @@ import 'package:fl_chart/fl_chart.dart';
 
 class SalesChart extends StatelessWidget {
   final String timeFrame;
+  final String groupBy;
 
-  const SalesChart({super.key, required this.timeFrame});
+  const SalesChart({
+    super.key,
+    required this.timeFrame,
+    required this.groupBy,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +32,7 @@ class SalesChart extends StatelessWidget {
                     show: true,
                     drawHorizontalLine: true,
                     drawVerticalLine: false,
-                    horizontalInterval: 500000,
+                    horizontalInterval: _getYAxisInterval(),
                     getDrawingHorizontalLine: (value) {
                       return FlLine(
                         color: Colors.grey[300],
@@ -66,10 +71,21 @@ class SalesChart extends StatelessWidget {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        interval: 500000,
+                        interval: _getYAxisInterval(),
                         getTitlesWidget: (double value, TitleMeta meta) {
+                          if (value == 0) return const Text('');
+
+                          String label;
+                          if (value >= 1000000) {
+                            label = '${(value / 1000000).toStringAsFixed(value % 1000000 == 0 ? 0 : 1)}M';
+                          } else if (value >= 1000) {
+                            label = '${(value / 1000).toStringAsFixed(0)}K';
+                          } else {
+                            label = '${value.toStringAsFixed(0)}';
+                          }
+
                           return Text(
-                            '${(value / 1000000).toStringAsFixed(1)}M',
+                            label,
                             style: const TextStyle(
                               color: Colors.grey,
                               fontWeight: FontWeight.bold,
@@ -131,93 +147,142 @@ class SalesChart extends StatelessWidget {
   }
 
   List<FlSpot> _getChartData() {
-    switch (timeFrame) {
-      case 'Today':
-        // Hourly data for today (24 hours, showing every 3 hours)
-        return const [
-          FlSpot(0, 120000),   // 6 AM
-          FlSpot(1, 350000),   // 9 AM
-          FlSpot(2, 580000),   // 12 PM
-          FlSpot(3, 820000),   // 3 PM
-          FlSpot(4, 1200000),  // 6 PM
-          FlSpot(5, 1850000),  // 9 PM
-          FlSpot(6, 2450000),  // 12 AM
+    final baseMultiplier = _getTimeFrameMultiplier();
+
+    switch (groupBy) {
+      case 'Hour':
+        // 24 hours - showing key hours
+        return [
+          FlSpot(0, 50000 * baseMultiplier),    // 6 AM
+          FlSpot(1, 120000 * baseMultiplier),   // 8 AM
+          FlSpot(2, 280000 * baseMultiplier),   // 10 AM
+          FlSpot(3, 450000 * baseMultiplier),   // 12 PM
+          FlSpot(4, 380000 * baseMultiplier),   // 2 PM
+          FlSpot(5, 520000 * baseMultiplier),   // 4 PM
+          FlSpot(6, 680000 * baseMultiplier),   // 6 PM
+          FlSpot(7, 750000 * baseMultiplier),   // 8 PM
+          FlSpot(8, 920000 * baseMultiplier),   // 10 PM
         ];
-      case 'This Week':
-        // Daily data for this week
-        return const [
-          FlSpot(0, 1800000),  // Monday
-          FlSpot(1, 2100000),  // Tuesday
-          FlSpot(2, 1650000),  // Wednesday
-          FlSpot(3, 2400000),  // Thursday
-          FlSpot(4, 2800000),  // Friday
-          FlSpot(5, 2200000),  // Saturday
-          FlSpot(6, 2450000),  // Sunday
+      case 'Day':
+        // 30 days - showing key days
+        return [
+          FlSpot(0, 1200000 * baseMultiplier),  // Day 1
+          FlSpot(1, 1500000 * baseMultiplier),  // Day 4
+          FlSpot(2, 1800000 * baseMultiplier),  // Day 7
+          FlSpot(3, 2100000 * baseMultiplier),  // Day 10
+          FlSpot(4, 1950000 * baseMultiplier),  // Day 13
+          FlSpot(5, 2400000 * baseMultiplier),  // Day 16
+          FlSpot(6, 2200000 * baseMultiplier),  // Day 19
+          FlSpot(7, 2600000 * baseMultiplier),  // Day 22
+          FlSpot(8, 2300000 * baseMultiplier),  // Day 25
+          FlSpot(9, 2800000 * baseMultiplier),  // Day 28
         ];
-      case 'This Month':
-        // Weekly data for this month (4 weeks)
-        return const [
-          FlSpot(0, 8200000),  // Week 1
-          FlSpot(1, 12300000), // Week 2
-          FlSpot(2, 15100000), // Week 3
-          FlSpot(3, 22400000), // Week 4
-        ];
-      case 'Last 30 Days':
-        // Weekly data for last 30 days
-        return const [
-          FlSpot(0, 7800000),  // Week 1
-          FlSpot(1, 13200000), // Week 2
-          FlSpot(2, 18500000), // Week 3
-          FlSpot(3, 21700000), // Week 4
+      case 'Week day':
+        // Weekly pattern
+        return [
+          FlSpot(0, 1800000 * baseMultiplier),  // Monday
+          FlSpot(1, 2100000 * baseMultiplier),  // Tuesday
+          FlSpot(2, 1650000 * baseMultiplier),  // Wednesday
+          FlSpot(3, 2400000 * baseMultiplier),  // Thursday
+          FlSpot(4, 2800000 * baseMultiplier),  // Friday
+          FlSpot(5, 2200000 * baseMultiplier),  // Saturday
+          FlSpot(6, 2450000 * baseMultiplier),  // Sunday
         ];
       default:
         return const [FlSpot(0, 0)];
     }
   }
 
-  double _getMaxX() {
+  double _getTimeFrameMultiplier() {
     switch (timeFrame) {
       case 'Today':
-        return 6; // 7 data points (0-6)
+        return 0.4;  // Smaller scale for today
       case 'This Week':
-        return 6; // 7 days (0-6)
+        return 1.0;  // Base scale
       case 'This Month':
+        return 3.2;  // Larger scale for month
       case 'Last 30 Days':
-        return 3; // 4 weeks (0-3)
+        return 2.8;  // Similar to month
+      default:
+        return 1.0;
+    }
+  }
+
+  double _getMaxX() {
+    switch (groupBy) {
+      case 'Hour':
+        return 8; // 9 data points (0-8)
+      case 'Day':
+        return 9; // 10 data points (0-9)
+      case 'Week day':
+        return 6; // 7 days (0-6)
       default:
         return 6;
     }
   }
 
   double _getMaxY() {
-    switch (timeFrame) {
-      case 'Today':
-        return 3000000; // 3M VND
-      case 'This Week':
-        return 3000000; // 3M VND
-      case 'This Month':
-      case 'Last 30 Days':
-        return 25000000; // 25M VND
-      default:
-        return 3000000;
+    final data = _getChartData();
+    final maxValue = data.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
+
+    // Smart scaling - round up to nice numbers
+    if (maxValue <= 1000000) {
+      return ((maxValue / 200000).ceil() * 200000).toDouble(); // Round to nearest 200K
+    } else if (maxValue <= 5000000) {
+      return ((maxValue / 500000).ceil() * 500000).toDouble(); // Round to nearest 500K
+    } else if (maxValue <= 10000000) {
+      return ((maxValue / 1000000).ceil() * 1000000).toDouble(); // Round to nearest 1M
+    } else {
+      return ((maxValue / 2000000).ceil() * 2000000).toDouble(); // Round to nearest 2M
+    }
+  }
+
+  double _getYAxisInterval() {
+    final maxY = _getMaxY();
+
+    if (maxY <= 1000000) {
+      return 200000; // 200K intervals
+    } else if (maxY <= 5000000) {
+      return 500000; // 500K intervals
+    } else if (maxY <= 10000000) {
+      return 1000000; // 1M intervals
+    } else {
+      return 2000000; // 2M intervals
     }
   }
 
   String _getBottomTitle(int value) {
-    switch (timeFrame) {
-      case 'Today':
+    switch (groupBy) {
+      case 'Hour':
         // Hour labels
         switch (value) {
           case 0: return '6AM';
-          case 1: return '9AM';
-          case 2: return '12PM';
-          case 3: return '3PM';
-          case 4: return '6PM';
-          case 5: return '9PM';
-          case 6: return '12AM';
+          case 1: return '8AM';
+          case 2: return '10AM';
+          case 3: return '12PM';
+          case 4: return '2PM';
+          case 5: return '4PM';
+          case 6: return '6PM';
+          case 7: return '8PM';
+          case 8: return '10PM';
           default: return '';
         }
-      case 'This Week':
+      case 'Day':
+        // Day labels
+        switch (value) {
+          case 0: return '1';
+          case 1: return '4';
+          case 2: return '7';
+          case 3: return '10';
+          case 4: return '13';
+          case 5: return '16';
+          case 6: return '19';
+          case 7: return '22';
+          case 8: return '25';
+          case 9: return '28';
+          default: return '';
+        }
+      case 'Week day':
         // Day labels
         switch (value) {
           case 0: return 'Mon';
@@ -227,16 +292,6 @@ class SalesChart extends StatelessWidget {
           case 4: return 'Fri';
           case 5: return 'Sat';
           case 6: return 'Sun';
-          default: return '';
-        }
-      case 'This Month':
-      case 'Last 30 Days':
-        // Week labels
-        switch (value) {
-          case 0: return 'W1';
-          case 1: return 'W2';
-          case 2: return 'W3';
-          case 3: return 'W4';
           default: return '';
         }
       default:

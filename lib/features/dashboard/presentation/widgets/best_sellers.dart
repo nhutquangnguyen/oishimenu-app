@@ -22,7 +22,7 @@ class _BestSellersState extends State<BestSellers> {
   @override
   Widget build(BuildContext context) {
     final items = _getBestSellerItems();
-    final displayItems = _showAll ? items : items.take(10).toList();
+    final displayItems = _showAll ? items : items.take(5).toList();
 
     return Card(
       elevation: 2,
@@ -42,7 +42,7 @@ class _BestSellersState extends State<BestSellers> {
             }),
 
             // Show All/Show Less button
-            if (items.length > 10) ...[
+            if (items.length > 5) ...[
               const SizedBox(height: 12),
               Center(
                 child: TextButton(
