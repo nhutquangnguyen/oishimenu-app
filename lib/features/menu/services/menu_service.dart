@@ -177,4 +177,53 @@ class MenuService {
       return null;
     }
   }
+
+  Future<bool> updateMenuItem(MenuItem menuItem) async {
+    try {
+      final db = await _databaseHelper.database;
+
+      // Find or create category ID
+      final categories = await getCategories();
+      String? categoryId;
+
+      for (final entry in categories.entries) {
+        if (entry.value == menuItem.categoryName) {
+          categoryId = entry.key;
+          break;
+        }
+      }
+
+      // If category doesn't exist, create it
+      if (categoryId == null) {
+        final newCategory = MenuCategory(
+          id: '',
+          name: menuItem.categoryName,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+        categoryId = await createCategory(newCategory);
+      }
+
+      if (categoryId == null) {
+        throw Exception('Failed to create or find category');
+      }
+
+      // Update menu item with category_id
+      final itemData = menuItem.toMap();
+      itemData['category_id'] = int.tryParse(categoryId);
+      itemData.remove('categoryName'); // Remove the name field, use ID instead
+
+      final result = await db.update(
+        'menu_items',
+        itemData,
+        where: 'id = ?',
+        whereArgs: [int.tryParse(menuItem.id) ?? 0],
+      );
+
+      return result > 0;
+    } catch (e) {
+      print('Error updating menu item: $e');
+      return false;
+    }
+  }
 }

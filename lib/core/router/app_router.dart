@@ -13,6 +13,10 @@ import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/analytics/presentation/pages/analytics_page.dart';
 import '../../features/option_groups/pages/option_group_editor_page.dart';
+import '../../features/menu/presentation/pages/menu_item_editor_page.dart';
+import '../../features/menu/presentation/pages/scan_menu_page.dart';
+import '../../test_menu_editor.dart';
+import '../../test_scan_menu.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../widgets/main_layout.dart';
 
@@ -21,7 +25,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
-    initialLocation: '/dashboard',
+    initialLocation: '/menu',
     redirect: (context, state) {
       // Check authentication status
       final isLoggedIn = authState.when(
@@ -31,20 +35,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       );
 
       final isOnAuthPage = state.fullPath == '/login' || state.fullPath == '/signup';
+      final isOnTestPage = state.fullPath == '/test' || state.fullPath == '/test-scan';
+      final isOnMenuPage = state.fullPath?.startsWith('/menu') == true;
 
-      // Redirect to login if not authenticated and not on auth page
-      if (!isLoggedIn && !isOnAuthPage) {
+      // Redirect to login if not authenticated and not on auth, test, or menu pages
+      if (!isLoggedIn && !isOnAuthPage && !isOnTestPage && !isOnMenuPage) {
         return '/login';
       }
 
-      // Redirect to dashboard if authenticated and on auth page
+      // Redirect to menu if authenticated and on auth page
       if (isLoggedIn && isOnAuthPage) {
-        return '/dashboard';
+        return '/menu';
       }
 
       return null; // No redirect needed
     },
     routes: [
+      // Test routes
+      GoRoute(
+        path: '/test',
+        builder: (context, state) => const MenuEditorTestPage(),
+      ),
+      GoRoute(
+        path: '/test-scan',
+        builder: (context, state) => const ScanMenuTestPage(),
+      ),
+
       // Authentication routes
       GoRoute(
         path: '/login',
@@ -68,6 +84,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const MenuPage(),
             routes: [
               GoRoute(
+                path: 'scan',
+                builder: (context, state) => const ScanMenuPage(),
+              ),
+              GoRoute(
                 path: 'option-groups/new',
                 builder: (context, state) => const OptionGroupEditorPage(),
               ),
@@ -76,6 +96,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) {
                   final id = state.pathParameters['id']!;
                   return OptionGroupEditorPage(optionGroupId: id);
+                },
+              ),
+              GoRoute(
+                path: 'items/new',
+                builder: (context, state) => const MenuItemEditorPage(),
+              ),
+              GoRoute(
+                path: 'items/:id/edit',
+                builder: (context, state) {
+                  final id = state.pathParameters['id']!;
+                  return MenuItemEditorPage(menuItemId: id);
                 },
               ),
             ],
@@ -152,7 +183,14 @@ extension AppRoutes on GoRouter {
   void goToLogin() => go('/login');
   void goToSignup() => go('/signup');
 
+  // Scan menu route
+  void goToScanMenu() => go('/menu/scan');
+
   // Option group routes
   void goToNewOptionGroup() => go('/menu/option-groups/new');
   void goToEditOptionGroup(String id) => go('/menu/option-groups/$id/edit');
+
+  // Menu item routes
+  void goToNewMenuItem() => go('/menu/items/new');
+  void goToEditMenuItem(String id) => go('/menu/items/$id/edit');
 }

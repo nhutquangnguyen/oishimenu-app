@@ -101,60 +101,86 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           // Search and filter bar
           Container(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    decoration: InputDecoration(
-                      hintText: 'Search',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => setState(() => _searchQuery = ''),
-                            )
-                          : null,
-                      border: OutlineInputBorder(
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        onChanged: (value) => setState(() => _searchQuery = value),
+                        decoration: InputDecoration(
+                          hintText: 'Search',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () => setState(() => _searchQuery = ''),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Scan button
+                    GestureDetector(
+                      onTap: _goToScanMenu,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          border: Border.all(color: Colors.blue[300]!),
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: Icon(
+                          Icons.qr_code_scanner,
+                          color: Colors.blue[600],
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[400]!),
                         borderRadius: BorderRadius.circular(25),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Out of Stock (12)'),
+                          const SizedBox(width: 8),
+                          Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[400]!),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Out of Stock (12)'),
-                      const SizedBox(width: 8),
-                      Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[400]!),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.schedule, size: 16),
-                      const SizedBox(width: 4),
-                      const Text('Availability'),
-                      const SizedBox(width: 8),
-                      Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
-                    ],
-                  ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[400]!),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.schedule, size: 16),
+                          const SizedBox(width: 4),
+                          const Text('Availability'),
+                          const SizedBox(width: 8),
+                          Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -275,54 +301,15 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
               ),
               // Category Items
               if (isExpanded)
-                ...items.map((item) => Container(
-                  margin: const EdgeInsets.only(bottom: 8, left: 16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Row(
-                    children: [
-                      if (item.photos.isNotEmpty)
-                        Container(
-                          width: 40,
-                          height: 40,
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.fastfood, color: Colors.grey),
-                        ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              '${item.price.toStringAsFixed(0)}đ',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: item.availableStatus,
-                        onChanged: (_) => _toggleAvailability(item),
-                        activeColor: Colors.green,
-                      ),
-                    ],
+                ...items.map((item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8, left: 16),
+                  child: MenuItemCard(
+                    menuItem: item,
+                    categoryName: categoryName,
+                    onTap: () => _editMenuItem(item),
+                    onToggleAvailability: () => _toggleAvailability(item),
+                    onEdit: () => _editMenuItem(item),
+                    onDelete: () => _deleteMenuItem(item),
                   ),
                 )),
               const SizedBox(height: 16),
@@ -694,11 +681,84 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     );
   }
 
-  void _showAddMenuItemDialog() {
-    // TODO: Implement add menu item dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add menu item - Coming soon!')),
+  Future<void> _showAddMenuItemDialog() async {
+    // Navigate to the new menu item editor
+    final result = await context.push('/menu/items/new');
+    // If the menu item was successfully created, refresh the data
+    if (result == true && mounted) {
+      await _loadMenuData();
+    }
+  }
+
+  Future<void> _editMenuItem(MenuItem item) async {
+    // Navigate to edit screen and wait for result
+    final result = await context.push('/menu/items/${item.id}/edit');
+    // If the menu item was successfully updated, refresh the data
+    if (result == true && mounted) {
+      await _loadMenuData();
+    }
+  }
+
+  Future<void> _toggleMenuItemAvailability(MenuItem item) async {
+    try {
+      await _menuService.updateMenuItemStatus(item.id, !item.availableStatus);
+      // Refresh the data to show the updated availability
+      await _loadMenuData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating availability: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteMenuItem(MenuItem item) async {
+    // Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Menu Item'),
+        content: Text('Are you sure you want to delete "${item.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
+
+    if (confirm == true) {
+      try {
+        await _menuService.deleteMenuItem(item.id);
+        await _loadMenuData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Menu item deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting item: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _showAddOptionGroupDialog() async {
@@ -867,5 +927,15 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         ],
       ),
     );
+  }
+
+  Future<void> _goToScanMenu() async {
+    // Navigate to scan menu page and wait for result
+    final result = await context.push('/menu/scan');
+
+    // If items were successfully imported, refresh the data
+    if (result == true && mounted) {
+      await _loadMenuData();
+    }
   }
 }
