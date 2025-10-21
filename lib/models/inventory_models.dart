@@ -1,4 +1,5 @@
 // Inventory and Stocktake Models for Vietnamese Restaurant POS
+import '../core/utils/parse_utils.dart';
 // Following patterns from oishimenu-g components
 
 class Ingredient {
@@ -67,14 +68,14 @@ class Ingredient {
   factory Ingredient.fromMap(Map<String, dynamic> map) {
     return Ingredient(
       id: map['id'] as int?,
-      name: map['name'],
-      description: map['description'],
-      category: map['category'],
-      unit: map['unit'],
+      name: stringFromDynamic(map['name']),
+      description: stringFromDynamic(map['description']),
+      category: stringFromDynamic(map['category']),
+      unit: stringFromDynamic(map['unit']),
       currentQuantity: map['current_quantity']?.toDouble() ?? 0.0,
       minimumThreshold: map['minimum_threshold']?.toDouble() ?? 0.0,
       costPerUnit: map['cost_per_unit']?.toDouble() ?? 0.0,
-      supplier: map['supplier'],
+      supplier: stringFromDynamic(map['supplier']),
       isActive: map['is_active'] == 1,
       createdAt: map['created_at'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int)
@@ -172,11 +173,11 @@ class StocktakeSession {
   factory StocktakeSession.fromMap(Map<String, dynamic> map) {
     return StocktakeSession(
       id: map['id'] as int?,
-      name: map['name'],
-      description: map['description'],
-      type: map['type'],
-      status: map['status'],
-      location: map['location'],
+      name: stringFromDynamic(map['name']),
+      description: stringFromDynamic(map['description']),
+      type: stringFromDynamic(map['type']),
+      status: stringFromDynamic(map['status']),
+      location: stringFromDynamic(map['location']),
       totalItems: map['total_items'] ?? 0,
       countedItems: map['counted_items'] ?? 0,
       varianceCount: map['variance_count'] ?? 0,
@@ -248,13 +249,13 @@ class StocktakeItem {
       id: map['id'] as int?,
       sessionId: map['session_id'] as int,
       ingredientId: map['ingredient_id'] as int,
-      ingredientName: map['ingredient_name'],
-      unit: map['unit'],
+      ingredientName: stringFromDynamic(map['ingredient_name']),
+      unit: stringFromDynamic(map['unit']),
       expectedQuantity: map['expected_quantity']?.toDouble() ?? 0.0,
       countedQuantity: map['counted_quantity']?.toDouble(),
       variance: map['variance']?.toDouble(),
       varianceValue: map['variance_value']?.toDouble(),
-      notes: map['notes'],
+      notes: stringFromDynamic(map['notes']),
       countedAt: map['counted_at'] != null
           ? (map['counted_at'] is int
               ? DateTime.fromMillisecondsSinceEpoch(map['counted_at'] as int)

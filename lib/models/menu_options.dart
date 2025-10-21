@@ -1,6 +1,8 @@
 /// Models for menu options and option groups
 /// Implements the many-to-many relationship structure described in the requirements
 
+import '../core/utils/parse_utils.dart';
+
 class MenuOption {
   final String id;
   final String name;
@@ -24,11 +26,11 @@ class MenuOption {
 
   factory MenuOption.fromMap(Map<String, dynamic> map) {
     return MenuOption(
-      id: map['id']?.toString() ?? '',
-      name: map['name'] ?? '',
+  id: map['id']?.toString() ?? '',
+  name: stringFromDynamic(map['name']),
       price: (map['price'] ?? 0).toDouble(),
-      description: map['description'],
-      category: map['category'],
+  description: stringFromDynamic(map['description']),
+  category: stringFromDynamic(map['category']),
       isAvailable: (map['is_available'] ?? 1) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] ?? 0),
@@ -101,8 +103,8 @@ class OptionGroup {
   factory OptionGroup.fromMap(Map<String, dynamic> map) {
     return OptionGroup(
       id: map['id']?.toString() ?? '',
-      name: map['name'] ?? '',
-      description: map['description'],
+      name: stringFromDynamic(map['name']),
+      description: stringFromDynamic(map['description']),
       minSelection: map['min_selection'] ?? 0,
       maxSelection: map['max_selection'] ?? 1,
       options: [], // Will be loaded separately
@@ -262,8 +264,8 @@ class SelectedOption {
     return SelectedOption(
       optionId: map['option_id']?.toString() ?? '',
       optionGroupId: map['option_group_id']?.toString() ?? '',
-      optionGroupName: map['option_group_name'] ?? '',
-      optionName: map['option_name'] ?? '',
+      optionGroupName: stringFromDynamic(map['option_group_name']),
+      optionName: stringFromDynamic(map['option_name']),
       optionPrice: (map['option_price'] ?? 0).toDouble(),
     );
   }

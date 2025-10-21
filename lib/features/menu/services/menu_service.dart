@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../../../services/database_helper.dart';
 import '../../../models/menu_item.dart';
+import '../../../core/utils/parse_utils.dart';
 
 class MenuService {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
@@ -51,7 +52,7 @@ class MenuService {
 
       final categories = <String, String>{};
       for (final map in maps) {
-        categories[map['id'].toString()] = map['name'] as String;
+        categories[map['id'].toString()] = stringFromDynamic(map['name']);
       }
       return categories;
     } catch (e) {
@@ -71,7 +72,7 @@ class MenuService {
       );
 
       if (maps.isNotEmpty) {
-        return maps.first['name'] as String;
+        return stringFromDynamic(maps.first['name']);
       }
       return 'Unknown Category';
     } catch (e) {

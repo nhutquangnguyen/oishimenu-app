@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class SalesChart extends StatelessWidget {
-  const SalesChart({super.key});
+  final String timeFrame;
+
+  const SalesChart({super.key, required this.timeFrame});
 
   @override
   Widget build(BuildContext context) {
@@ -16,34 +18,7 @@ class SalesChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Last 7 Days',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Weekly',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
             SizedBox(
               height: 200,
               child: LineChart(
@@ -74,41 +49,16 @@ class SalesChart extends StatelessWidget {
                         reservedSize: 30,
                         interval: 1,
                         getTitlesWidget: (double value, TitleMeta meta) {
-                          const style = TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          );
-                          Widget text;
-                          switch (value.toInt()) {
-                            case 0:
-                              text = const Text('Mon', style: style);
-                              break;
-                            case 1:
-                              text = const Text('Tue', style: style);
-                              break;
-                            case 2:
-                              text = const Text('Wed', style: style);
-                              break;
-                            case 3:
-                              text = const Text('Thu', style: style);
-                              break;
-                            case 4:
-                              text = const Text('Fri', style: style);
-                              break;
-                            case 5:
-                              text = const Text('Sat', style: style);
-                              break;
-                            case 6:
-                              text = const Text('Sun', style: style);
-                              break;
-                            default:
-                              text = const Text('', style: style);
-                              break;
-                          }
                           return SideTitleWidget(
                             axisSide: meta.axisSide,
-                            child: text,
+                            child: Text(
+                              _getBottomTitle(value.toInt()),
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -135,20 +85,12 @@ class SalesChart extends StatelessWidget {
                     show: false,
                   ),
                   minX: 0,
-                  maxX: 6,
+                  maxX: _getMaxX(),
                   minY: 0,
-                  maxY: 3000000,
+                  maxY: _getMaxY(),
                   lineBarsData: [
                     LineChartBarData(
-                      spots: const [
-                        FlSpot(0, 1800000),
-                        FlSpot(1, 2100000),
-                        FlSpot(2, 1650000),
-                        FlSpot(3, 2400000),
-                        FlSpot(4, 2800000),
-                        FlSpot(5, 2200000),
-                        FlSpot(6, 2450000),
-                      ],
+                      spots: _getChartData(),
                       isCurved: true,
                       gradient: const LinearGradient(
                         colors: [Color(0xFF6d28d9), Color(0xFF7c3aed)],
@@ -186,5 +128,119 @@ class SalesChart extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<FlSpot> _getChartData() {
+    switch (timeFrame) {
+      case 'Today':
+        // Hourly data for today (24 hours, showing every 3 hours)
+        return const [
+          FlSpot(0, 120000),   // 6 AM
+          FlSpot(1, 350000),   // 9 AM
+          FlSpot(2, 580000),   // 12 PM
+          FlSpot(3, 820000),   // 3 PM
+          FlSpot(4, 1200000),  // 6 PM
+          FlSpot(5, 1850000),  // 9 PM
+          FlSpot(6, 2450000),  // 12 AM
+        ];
+      case 'This Week':
+        // Daily data for this week
+        return const [
+          FlSpot(0, 1800000),  // Monday
+          FlSpot(1, 2100000),  // Tuesday
+          FlSpot(2, 1650000),  // Wednesday
+          FlSpot(3, 2400000),  // Thursday
+          FlSpot(4, 2800000),  // Friday
+          FlSpot(5, 2200000),  // Saturday
+          FlSpot(6, 2450000),  // Sunday
+        ];
+      case 'This Month':
+        // Weekly data for this month (4 weeks)
+        return const [
+          FlSpot(0, 8200000),  // Week 1
+          FlSpot(1, 12300000), // Week 2
+          FlSpot(2, 15100000), // Week 3
+          FlSpot(3, 22400000), // Week 4
+        ];
+      case 'Last 30 Days':
+        // Weekly data for last 30 days
+        return const [
+          FlSpot(0, 7800000),  // Week 1
+          FlSpot(1, 13200000), // Week 2
+          FlSpot(2, 18500000), // Week 3
+          FlSpot(3, 21700000), // Week 4
+        ];
+      default:
+        return const [FlSpot(0, 0)];
+    }
+  }
+
+  double _getMaxX() {
+    switch (timeFrame) {
+      case 'Today':
+        return 6; // 7 data points (0-6)
+      case 'This Week':
+        return 6; // 7 days (0-6)
+      case 'This Month':
+      case 'Last 30 Days':
+        return 3; // 4 weeks (0-3)
+      default:
+        return 6;
+    }
+  }
+
+  double _getMaxY() {
+    switch (timeFrame) {
+      case 'Today':
+        return 3000000; // 3M VND
+      case 'This Week':
+        return 3000000; // 3M VND
+      case 'This Month':
+      case 'Last 30 Days':
+        return 25000000; // 25M VND
+      default:
+        return 3000000;
+    }
+  }
+
+  String _getBottomTitle(int value) {
+    switch (timeFrame) {
+      case 'Today':
+        // Hour labels
+        switch (value) {
+          case 0: return '6AM';
+          case 1: return '9AM';
+          case 2: return '12PM';
+          case 3: return '3PM';
+          case 4: return '6PM';
+          case 5: return '9PM';
+          case 6: return '12AM';
+          default: return '';
+        }
+      case 'This Week':
+        // Day labels
+        switch (value) {
+          case 0: return 'Mon';
+          case 1: return 'Tue';
+          case 2: return 'Wed';
+          case 3: return 'Thu';
+          case 4: return 'Fri';
+          case 5: return 'Sat';
+          case 6: return 'Sun';
+          default: return '';
+        }
+      case 'This Month':
+      case 'Last 30 Days':
+        // Week labels
+        switch (value) {
+          case 0: return 'W1';
+          case 1: return 'W2';
+          case 2: return 'W3';
+          case 3: return 'W4';
+          default: return '';
+        }
+      default:
+        return '';
+    }
   }
 }

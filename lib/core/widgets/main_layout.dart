@@ -205,7 +205,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
             title: 'Settings',
             onTap: () {
               Navigator.pop(context);
-              // Navigate to settings
+              context.go('/settings');
             },
           ),
           _buildAccountOptionTile(

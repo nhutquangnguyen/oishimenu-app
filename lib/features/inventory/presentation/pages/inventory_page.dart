@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/inventory_models.dart';
 import '../../providers/inventory_provider.dart';
+import '../../../../core/localization/app_localizations.dart';
 
 class InventoryPage extends ConsumerStatefulWidget {
   const InventoryPage({super.key});
@@ -42,9 +43,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     color: Theme.of(context).primaryColor,
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Inventory',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.inventory,
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
                     ),
@@ -65,9 +66,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 labelStyle: const TextStyle(fontWeight: FontWeight.w600),
                 unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
                 dividerColor: Colors.grey[200],
-                tabs: const [
-                  Tab(text: 'Ingredients'),
-                  Tab(text: 'Stocktake'),
+                tabs: [
+                  Tab(text: AppLocalizations.ingredients),
+                  Tab(text: AppLocalizations.stocktake),
                 ],
               ),
             ),
@@ -103,12 +104,12 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
             child: Row(
               children: [
                 _SimpleStatItem(
-                  label: 'Items',
+                  label: AppLocalizations.items,
                   value: '${stats['total_ingredients'] ?? 0}',
                 ),
                 const SizedBox(width: 24),
                 _SimpleStatItem(
-                  label: 'Value',
+                  label: AppLocalizations.value,
                   value: CurrencyUtils.formatVND(stats['total_value']?.toDouble() ?? 0),
                 ),
                 const Spacer(),
@@ -126,7 +127,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                              size: 14, color: Colors.orange[700]),
                         const SizedBox(width: 4),
                         Text(
-                          '${stats['low_stock_count']} low',
+                          AppLocalizations.lowStockCount(stats['low_stock_count'] ?? 0),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -145,7 +146,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
           ),
           error: (e, _) => Padding(
             padding: const EdgeInsets.all(20),
-            child: Text('Error loading stats',
+            child: Text(AppLocalizations.errorLoadingStats,
                        style: TextStyle(color: Colors.grey[600])),
           ),
         ),
@@ -206,33 +207,33 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     },
                     icon: Icon(Icons.more_vert, size: 20, color: Colors.grey[600]),
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'sample',
                         child: Row(
                           children: [
-                            Icon(Icons.data_array, size: 16),
-                            SizedBox(width: 8),
-                            Text('Sample Data'),
+                            const Icon(Icons.data_array, size: 16),
+                            const SizedBox(width: 8),
+                            Text(AppLocalizations.sampleData),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'export',
                         child: Row(
                           children: [
-                            Icon(Icons.download, size: 16),
-                            SizedBox(width: 8),
-                            Text('Export CSV'),
+                            const Icon(Icons.download, size: 16),
+                            const SizedBox(width: 8),
+                            Text(AppLocalizations.exportCsv),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'clear',
                         child: Row(
                           children: [
-                            Icon(Icons.clear_all, size: 16),
-                            SizedBox(width: 8),
-                            Text('Clear All'),
+                            const Icon(Icons.clear_all, size: 16),
+                            const SizedBox(width: 8),
+                            Text(AppLocalizations.clearAll),
                           ],
                         ),
                       ),
@@ -248,7 +249,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     child: TextButton.icon(
                       onPressed: _showLowStockDialog,
                       icon: Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange[700]),
-                      label: const Text('Low Stock'),
+                      label: Text(AppLocalizations.lowStock),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.orange[700],
                         textStyle: const TextStyle(fontWeight: FontWeight.w500),
@@ -260,7 +261,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     child: TextButton.icon(
                       onPressed: _showAddIngredientDialog,
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Add Item'),
+                      label: Text(AppLocalizations.addItem),
                       style: TextButton.styleFrom(
                         foregroundColor: Theme.of(context).primaryColor,
                         textStyle: const TextStyle(fontWeight: FontWeight.w500),
@@ -286,7 +287,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                            size: 48, color: Colors.grey[400]),
                       const SizedBox(height: 16),
                       Text(
-                        'No ingredients yet',
+                        AppLocalizations.noIngredientsYet,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,

@@ -18,6 +18,7 @@
   "financial_reports": "Báo cáo tài chính",
 
   "quick_actions": "Hành động nhanh",
+  "menu": "Thực đơn",
   "new_order": "Đơn hàng mới",
   "start_pos_order": "Bắt đầu bán hàng",
   "manage_items": "Quản lý món ăn",
@@ -361,7 +362,7 @@
     "unknown": "Không xác định"
   },
 
-  "menu": {
+  "menu_details": {
     "items": "Món ăn",
     "option_groups": "Nhóm lựa chọn",
     "search": "Tìm kiếm",

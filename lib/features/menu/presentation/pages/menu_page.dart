@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../services/menu_service.dart';
 import '../../../../services/menu_option_service.dart';
 import '../widgets/menu_item_card.dart';
+import '../../../../core/localization/app_localizations.dart';
 
 class MenuPage extends StatefulWidget {
   const MenuPage({super.key});
@@ -92,9 +94,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
               labelColor: Theme.of(context).colorScheme.primary,
               unselectedLabelColor: Colors.grey,
               indicatorColor: Theme.of(context).colorScheme.primary,
-              tabs: const [
-                Tab(text: 'Items'),
-                Tab(text: 'Option Groups'),
+              tabs: [
+                Tab(text: AppLocalizations.menuItems),
+                Tab(text: AppLocalizations.menuOptionGroups),
               ],
             ),
           ),
@@ -109,7 +111,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                       child: TextField(
                         onChanged: (value) => setState(() => _searchQuery = value),
                         decoration: InputDecoration(
-                          hintText: 'Search',
+                          hintText: AppLocalizations.menuSearch,
                           prefixIcon: const Icon(Icons.search),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
@@ -156,7 +158,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('Out of Stock (12)'),
+                          Text(AppLocalizations.menuOutOfStock(12)),
                           const SizedBox(width: 8),
                           Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
                         ],
@@ -174,7 +176,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                         children: [
                           const Icon(Icons.schedule, size: 16),
                           const SizedBox(width: 4),
-                          const Text('Availability'),
+                          Text(AppLocalizations.menuAvailability),
                           const SizedBox(width: 8),
                           Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
                         ],
@@ -239,14 +241,14 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 16),
             Text(
-              _searchQuery.isNotEmpty ? 'No items found' : 'No menu items yet',
+              _searchQuery.isNotEmpty ? AppLocalizations.menuNoItemsFound : AppLocalizations.noMenuItemsYet,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               _searchQuery.isNotEmpty
-                ? 'Try a different search term'
-                : 'Add your first menu item to get started',
+                ? AppLocalizations.menuTryDifferentSearch
+                : AppLocalizations.addFirstMenuItem,
               style: const TextStyle(color: Colors.grey),
             ),
           ],
@@ -589,22 +591,22 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Category: $categoryName'),
+            Text(AppLocalizations.menuCategory(categoryName)),
             const SizedBox(height: 8),
             if (menuItem.description?.isNotEmpty == true)
-              Text('Description: ${menuItem.description}'),
+              Text(AppLocalizations.menuDescription(menuItem.description)),
             const SizedBox(height: 8),
-            Text('Price: ₫${menuItem.price.toStringAsFixed(2)}'),
+            Text(AppLocalizations.menuPrice(menuItem.price.toStringAsFixed(2))),
             if (menuItem.costPrice != null)
-              Text('Cost: ₫${menuItem.costPrice!.toStringAsFixed(2)}'),
+              Text(AppLocalizations.menuCost(menuItem.costPrice!.toStringAsFixed(2))),
             const SizedBox(height: 8),
-            Text('Status: ${menuItem.availableStatus ? "Available" : "Unavailable"}'),
+            Text(AppLocalizations.menuStatus(menuItem.availableStatus ? AppLocalizations.menuAvailableStatus : AppLocalizations.menuUnavailableStatus)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(AppLocalizations.menuClose),
           ),
         ],
       ),
@@ -630,7 +632,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         // Show error message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update option availability')),
+            SnackBar(content: Text(AppLocalizations.menuFailedUpdateOptionAvailability)),
           );
         }
       }
@@ -638,7 +640,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       print('Error toggling option availability: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error updating option availability')),
+          SnackBar(content: Text(AppLocalizations.menuErrorUpdatingOptionAvailability)),
         );
       }
     }
@@ -647,7 +649,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   void _showEditMenuItemDialog(MenuItem menuItem) {
     // TODO: Implement edit menu item dialog
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit menu item - Coming soon!')),
+      SnackBar(content: Text(AppLocalizations.menuEditComingSoon)),
     );
   }
 
@@ -655,12 +657,12 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Menu Item'),
-        content: Text('Are you sure you want to delete "${menuItem.name}"?'),
+        title: Text(AppLocalizations.menuDeleteMenuItem),
+        content: Text(AppLocalizations.menuDeleteConfirmation(menuItem.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -674,7 +676,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.menuDelete),
           ),
         ],
       ),
@@ -726,7 +728,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -922,7 +924,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(AppLocalizations.menuClose),
           ),
         ],
       ),

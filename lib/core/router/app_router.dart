@@ -12,6 +12,7 @@ import '../../features/inventory/presentation/pages/inventory_page.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/analytics/presentation/pages/analytics_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/option_groups/pages/option_group_editor_page.dart';
 import '../../features/menu/presentation/pages/menu_item_editor_page.dart';
 import '../../features/menu/presentation/pages/scan_menu_page.dart';
@@ -135,6 +136,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/analytics',
             builder: (context, state) => const AnalyticsPage(),
           ),
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => const SettingsPage(),
+          ),
         ],
       ),
     ],
@@ -180,6 +185,7 @@ extension AppRoutes on GoRouter {
   void goToEmployees() => go('/employees');
   void goToFeedback() => go('/feedback');
   void goToAnalytics() => go('/analytics');
+  void goToSettings() => go('/settings');
   void goToLogin() => go('/login');
   void goToSignup() => go('/signup');
 

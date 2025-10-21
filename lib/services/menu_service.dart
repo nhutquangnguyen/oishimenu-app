@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../models/menu_item.dart';
 import 'database_helper.dart';
+import '../core/utils/parse_utils.dart';
 
 class MenuService {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
@@ -91,7 +92,7 @@ class MenuService {
         limit: 1,
       );
 
-      map['category_name'] = categoryMap.isNotEmpty ? categoryMap.first['name'] : '';
+  map['category_name'] = categoryMap.isNotEmpty ? stringFromDynamic(categoryMap.first['name']) : '';
 
       // Get sizes for this menu item
       final sizeMaps = await db.query(
@@ -131,7 +132,7 @@ class MenuService {
         limit: 1,
       );
 
-      map['category_name'] = categoryMap.isNotEmpty ? categoryMap.first['name'] : '';
+  map['category_name'] = categoryMap.isNotEmpty ? stringFromDynamic(categoryMap.first['name']) : '';
 
       // Get sizes for this menu item
       final sizeMaps = await db.query(
@@ -226,7 +227,7 @@ class MenuService {
         limit: 1,
       );
 
-      map['category_name'] = categoryMap.isNotEmpty ? categoryMap.first['name'] : '';
+  map['category_name'] = categoryMap.isNotEmpty ? stringFromDynamic(categoryMap.first['name']) : '';
 
       items.add(MenuItem.fromMap(map));
     }

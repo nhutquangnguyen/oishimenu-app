@@ -1,4 +1,6 @@
 
+import '../core/utils/parse_utils.dart';
+
 class MenuItem {
   final String id;
   final String name;
@@ -32,11 +34,11 @@ class MenuItem {
 
   factory MenuItem.fromMap(Map<String, dynamic> map) {
     return MenuItem(
-      id: map['id']?.toString() ?? '',
-      name: map['name'] ?? '',
+  id: map['id']?.toString() ?? '',
+  name: stringFromDynamic(map['name']),
       price: (map['price'] ?? 0).toDouble(),
-      categoryName: map['category_name'] ?? '',
-      description: map['description'] ?? '',
+  categoryName: stringFromDynamic(map['category_name']),
+  description: stringFromDynamic(map['description']),
       photos: _parsePhotos(map['photos']),
       availableStatus: (map['available_status'] ?? 1) == 1,
       availabilitySchedule: map['availability_schedule'],
@@ -57,7 +59,7 @@ class MenuItem {
     }
 
     if (photos is List) {
-      return photos.map((photo) => photo?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+      return photos.map((photo) => stringFromDynamic(photo)).where((s) => s.isNotEmpty).toList();
     }
 
     return [];
@@ -124,7 +126,7 @@ class MenuSize {
 
   factory MenuSize.fromMap(Map<String, dynamic> map) {
     return MenuSize(
-      name: map['name'] ?? '',
+      name: stringFromDynamic(map['name']),
       price: (map['price'] ?? 0).toDouble(),
       isDefault: map['isDefault'] ?? false,
     );
@@ -161,11 +163,11 @@ class Recipe {
   factory Recipe.fromMap(Map<String, dynamic> map) {
     return Recipe(
       id: map['id'] ?? '',
-      name: map['name'] ?? '',
+      name: stringFromDynamic(map['name']),
       ingredients: (map['ingredients'] as List<dynamic>?)
           ?.map((ingredient) => RecipeIngredient.fromMap(ingredient))
           .toList() ?? [],
-      instructions: map['instructions'] ?? '',
+      instructions: stringFromDynamic(map['instructions']),
       prepTime: map['prepTime'] ?? 0,
       servingSize: map['servingSize'] ?? 1,
       costPerServing: (map['costPerServing'] ?? 0).toDouble(),
@@ -200,10 +202,10 @@ class RecipeIngredient {
 
   factory RecipeIngredient.fromMap(Map<String, dynamic> map) {
     return RecipeIngredient(
-      ingredientId: map['ingredientId'] ?? '',
+      ingredientId: stringFromDynamic(map['ingredientId']),
       quantity: (map['quantity'] ?? 0).toDouble(),
-      unit: map['unit'] ?? '',
-      notes: map['notes'] ?? '',
+      unit: stringFromDynamic(map['unit']),
+      notes: stringFromDynamic(map['notes']),
     );
   }
 
@@ -237,7 +239,7 @@ class MenuCategory {
   factory MenuCategory.fromMap(Map<String, dynamic> map) {
     return MenuCategory(
       id: map['id']?.toString() ?? '',
-      name: map['name'] ?? '',
+      name: stringFromDynamic(map['name']),
       displayOrder: map['display_order'] ?? 0,
       isActive: (map['is_active'] ?? 1) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),

@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
 import '../widgets/social_auth_button.dart';
+import '../../../../core/localization/app_localizations.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -46,7 +47,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } on AuthException catch (e) {
       ref.read(authErrorProvider.notifier).state = e.message;
     } catch (e) {
-      ref.read(authErrorProvider.notifier).state = 'An unexpected error occurred';
+      ref.read(authErrorProvider.notifier).state = AppLocalizations.error;
     } finally {
       ref.read(authLoadingProvider.notifier).state = false;
     }
@@ -65,7 +66,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } on AuthException catch (e) {
       ref.read(authErrorProvider.notifier).state = e.message;
     } catch (e) {
-      ref.read(authErrorProvider.notifier).state = 'Failed to sign in with Google';
+      ref.read(authErrorProvider.notifier).state = AppLocalizations.failedGoogleSignin;
     } finally {
       ref.read(authLoadingProvider.notifier).state = false;
     }
@@ -120,7 +121,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Restaurant Management System',
+                      AppLocalizations.restaurantManagementSystem,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Colors.grey[600],
                       ),
@@ -132,14 +133,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                 // Welcome text
                 Text(
-                  'Welcome Back',
+                  AppLocalizations.welcomeBack,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Sign in to your account to continue',
+                  AppLocalizations.signInToContinue,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -174,16 +175,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // Email field
                 AuthTextField(
                   controller: _emailController,
-                  label: 'Email',
-                  hintText: 'Enter your email',
+                  label: AppLocalizations.email,
+                  hintText: AppLocalizations.enterEmail,
                   keyboardType: TextInputType.emailAddress,
                   prefixIcon: Icons.email_outlined,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                      return AppLocalizations.pleaseEnterEmail;
                     }
                     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                      return 'Please enter a valid email';
+                      return AppLocalizations.pleaseEnterValidEmail;
                     }
                     return null;
                   },
@@ -194,8 +195,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // Password field
                 AuthTextField(
                   controller: _passwordController,
-                  label: 'Password',
-                  hintText: 'Enter your password',
+                  label: AppLocalizations.password,
+                  hintText: AppLocalizations.enterPassword,
                   obscureText: _obscurePassword,
                   prefixIcon: Icons.lock_outlined,
                   suffixIcon: IconButton(
@@ -210,10 +211,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
+                      return AppLocalizations.pleaseEnterPassword;
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return AppLocalizations.passwordMin6Chars;
                     }
                     return null;
                   },
@@ -228,7 +229,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onPressed: () {
                       // Navigate to forgot password
                     },
-                    child: const Text('Forgot Password?'),
+                    child: Text(AppLocalizations.forgotPassword),
                   ),
                 ),
 
@@ -236,7 +237,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                 // Sign in button
                 AuthButton(
-                  text: 'Sign In',
+                  text: AppLocalizations.signIn,
                   onPressed: isLoading ? null : _signIn,
                   isLoading: isLoading,
                 ),
@@ -250,7 +251,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Or continue with',
+                        AppLocalizations.orContinueWith,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
@@ -264,7 +265,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                 // Google sign in
                 SocialAuthButton(
-                  text: 'Continue with Google',
+                  text: AppLocalizations.continueWithGoogle,
                   icon: Icons.login, // Replace with actual Google icon
                   onPressed: isLoading ? null : _signInWithGoogle,
                 ),
@@ -276,12 +277,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "Don't have an account? ",
+                      AppLocalizations.dontHaveAccount,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     TextButton(
                       onPressed: () => context.go('/signup'),
-                      child: const Text('Sign Up'),
+                      child: Text(AppLocalizations.signUp),
                     ),
                   ],
                 ),

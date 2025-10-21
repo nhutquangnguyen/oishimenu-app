@@ -1,3 +1,4 @@
+import '../core/utils/parse_utils.dart';
 
 enum OrderStatus {
   pending('PENDING'),
@@ -120,10 +121,10 @@ class Order {
   factory Order.fromMap(Map<String, dynamic> map) {
     return Order(
       id: map['id']?.toString() ?? '',
-      orderNumber: map['order_number'] ?? '',
+      orderNumber: stringFromDynamic(map['order_number']),
       customer: Customer.fromMap({
         'id': map['customer_id']?.toString() ?? '',
-        'name': map['customer_name'] ?? '',
+        'name': stringFromDynamic(map['customer_name']),
         'phone': map['customer_phone'],
         'email': map['customer_email'],
         'address': map['customer_address'],
@@ -140,10 +141,10 @@ class Order {
       paymentMethod: PaymentMethod.fromString(map['payment_method'] ?? 'cash'),
       paymentStatus: PaymentStatus.fromString(map['payment_status'] ?? 'PENDING'),
       deliveryInfo: null, // Will be handled separately if needed
-      tableNumber: map['table_number'],
-      platform: map['platform'] ?? 'direct',
+      tableNumber: stringFromDynamic(map['table_number']),
+      platform: stringFromDynamic(map['platform']) == '' ? 'direct' : stringFromDynamic(map['platform']),
       assignedStaff: map['assigned_staff_id']?.toString(),
-      notes: map['notes'],
+      notes: stringFromDynamic(map['notes']),
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] ?? 0),
     );
@@ -249,13 +250,13 @@ class OrderItem {
     return OrderItem(
       id: map['id']?.toString() ?? '',
       menuItemId: map['menu_item_id']?.toString() ?? '',
-      menuItemName: map['menu_item_name'] ?? '',
+      menuItemName: stringFromDynamic(map['menu_item_name']),
       basePrice: (map['base_price'] ?? 0).toDouble(),
       quantity: map['quantity'] ?? 1,
       selectedOptions: [], // Options will be handled separately if needed
-      selectedSize: map['selected_size'],
+      selectedSize: stringFromDynamic(map['selected_size']),
       subtotal: (map['subtotal'] ?? 0).toDouble(),
-      notes: map['notes'],
+      notes: stringFromDynamic(map['notes']),
     );
   }
 
@@ -290,10 +291,10 @@ class SelectedOption {
 
   factory SelectedOption.fromMap(Map<String, dynamic> map) {
     return SelectedOption(
-      optionGroupId: map['optionGroupId'] ?? '',
-      optionGroupName: map['optionGroupName'] ?? '',
-      optionId: map['optionId'] ?? '',
-      optionName: map['optionName'] ?? '',
+      optionGroupId: stringFromDynamic(map['optionGroupId']),
+      optionGroupName: stringFromDynamic(map['optionGroupName']),
+      optionId: stringFromDynamic(map['optionId']),
+      optionName: stringFromDynamic(map['optionName']),
       price: (map['price'] ?? 0).toDouble(),
     );
   }
@@ -327,10 +328,10 @@ class Customer {
   factory Customer.fromMap(Map<String, dynamic> map) {
     return Customer(
       id: map['id'] ?? '',
-      name: map['name'] ?? '',
-      phone: map['phone'],
-      email: map['email'],
-      address: map['address'],
+      name: stringFromDynamic(map['name']),
+      phone: stringFromDynamic(map['phone']),
+      email: stringFromDynamic(map['email']),
+      address: stringFromDynamic(map['address']),
     );
   }
 
@@ -368,12 +369,12 @@ class DeliveryInfo {
 
   factory DeliveryInfo.fromMap(Map<String, dynamic> map) {
     return DeliveryInfo(
-      address: map['address'] ?? '',
-      city: map['city'],
-      district: map['district'],
-      ward: map['ward'],
-      postalCode: map['postalCode'],
-      notes: map['notes'],
+      address: stringFromDynamic(map['address']),
+      city: stringFromDynamic(map['city']),
+      district: stringFromDynamic(map['district']),
+      ward: stringFromDynamic(map['ward']),
+      postalCode: stringFromDynamic(map['postalCode']),
+      notes: stringFromDynamic(map['notes']),
       latitude: map['latitude']?.toDouble(),
       longitude: map['longitude']?.toDouble(),
     );

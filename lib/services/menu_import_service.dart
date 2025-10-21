@@ -6,6 +6,7 @@ import '../models/menu_item.dart';
 import '../models/menu_options.dart';
 import '../features/menu/services/menu_service.dart';
 import '../services/menu_option_service.dart';
+import '../core/utils/parse_utils.dart';
 
 /// Service for importing menu data from JSON exports
 class MenuImportService {
@@ -127,9 +128,9 @@ class MenuImportService {
   /// Import a single category
   Future<MenuCategory?> _importCategory(Map<String, dynamic> data) async {
     try {
-      final category = MenuCategory(
+        final category = MenuCategory(
         id: '', // Will be auto-generated
-        name: data['name'] ?? '',
+        name: stringFromDynamic(data['name']),
         displayOrder: data['displayOrder'] ?? 0,
         isActive: data['isActive'] ?? true,
         createdAt: _parseDateTime(data['createdAt']) ?? DateTime.now(),
@@ -162,12 +163,12 @@ class MenuImportService {
         }
       }
 
-      final menuItem = MenuItem(
+        final menuItem = MenuItem(
         id: '', // Will be auto-generated
-        name: data['name'] ?? '',
+        name: stringFromDynamic(data['name']),
         price: (data['price'] ?? 0).toDouble(),
-        categoryName: data['categoryName'] ?? 'Uncategorized',
-        description: data['description'] ?? '',
+        categoryName: stringFromDynamic(data['categoryName']) == '' ? 'Uncategorized' : stringFromDynamic(data['categoryName']),
+        description: stringFromDynamic(data['description']),
         photos: photos,
         availableStatus: availableStatus,
         createdAt: _parseDateTime(data['createdAt']) ?? DateTime.now(),
@@ -188,8 +189,8 @@ class MenuImportService {
       // Create the option group
       final optionGroup = OptionGroup(
         id: '', // Will be auto-generated
-        name: data['name'] ?? '',
-        description: data['description'],
+        name: stringFromDynamic(data['name']),
+        description: stringFromDynamic(data['description']),
         minSelection: data['minSelection'] ?? 0,
         maxSelection: data['maxSelection'] ?? 1,
         isRequired: data['isRequired'] ?? false,
@@ -236,10 +237,10 @@ class MenuImportService {
     try {
       final option = MenuOption(
         id: '', // Will be auto-generated
-        name: data['name'] ?? '',
+        name: stringFromDynamic(data['name']),
         price: (data['price'] ?? 0).toDouble(),
-        description: data['description'],
-        category: data['category'],
+        description: stringFromDynamic(data['description']),
+        category: stringFromDynamic(data['category']),
         isAvailable: data['isAvailable'] ?? true,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -265,8 +266,8 @@ class MenuImportService {
 
       // Get the actual menu item ID from our database by name
       // Since we imported items with new IDs, we need to match by name
-      final menuItemName = data['menuItemName']?.toString();
-      if (menuItemName == null) return false;
+  final menuItemName = stringFromDynamic(data['menuItemName']);
+  if (menuItemName.isEmpty) return false;
 
       // Find the menu item by name (this is a simplified approach)
       final allMenuItems = await _menuService.getAllMenuItems();
@@ -279,12 +280,11 @@ class MenuImportService {
       final allOptionGroups = await _menuOptionService.getAllOptionGroups();
       int connected = 0;
 
-      for (int i = 0; i < optionGroupIds.length; i++) {
-        final originalGroupId = optionGroupIds[i].toString();
-        final optionGroupNames = data['optionGroupNames'] as List<dynamic>?;
+  for (int i = 0; i < optionGroupIds.length; i++) {
+  final optionGroupNames = data['optionGroupNames'] as List<dynamic>?;
 
         if (optionGroupNames != null && i < optionGroupNames.length) {
-          final groupName = optionGroupNames[i].toString();
+          final groupName = stringFromDynamic(optionGroupNames[i]);
           final optionGroup = allOptionGroups.firstWhere(
             (group) => group.name == groupName,
             orElse: () => throw Exception('Option group not found: $groupName'),

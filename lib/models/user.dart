@@ -1,3 +1,5 @@
+import '../core/utils/parse_utils.dart';
+
 class AppUser {
   final String id;
   final String email;
@@ -20,9 +22,9 @@ class AppUser {
   factory AppUser.fromMap(Map<String, dynamic> map) {
     return AppUser(
       id: map['id']?.toString() ?? '',
-      email: map['email'] ?? '',
-      fullName: map['full_name'] ?? '',
-      role: map['role'] ?? 'staff',
+      email: stringFromDynamic(map['email']),
+      fullName: stringFromDynamic(map['full_name']),
+      role: stringFromDynamic(map['role']) == '' ? 'staff' : stringFromDynamic(map['role']),
       isActive: (map['is_active'] ?? 1) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] ?? 0),
