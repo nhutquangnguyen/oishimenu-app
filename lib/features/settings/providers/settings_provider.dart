@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:hive/hive.dart';
 
-import '../../../core/localization/app_localizations.dart';
-
 /// Enum for supported languages
 enum AppLanguage {
   vietnamese('vi', 'VN', 'Tiếng Việt'),
@@ -16,7 +14,7 @@ enum AppLanguage {
   final String countryCode;
   final String displayName;
 
-  Locale get locale => Locale(languageCode, countryCode);
+  Locale get locale => Locale(languageCode);
 
   static AppLanguage fromLocale(Locale locale) {
     for (final language in AppLanguage.values) {
@@ -134,20 +132,41 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     }
   }
 
-  Future<void> updateLanguage(AppLanguage language, BuildContext context) async {
+  /// Initialize language on app startup
+  Future<void> initializeLanguage(BuildContext context) async {
     try {
-      state = state.copyWith(language: language);
-      await _service.saveSettings(state);
+      final settings = await _service.loadSettings();
+      state = settings;
 
-      // Update the app locale using easy_localization
-      switch (language) {
+      // Apply the saved language to EasyLocalization
+      switch (settings.language) {
         case AppLanguage.vietnamese:
-          await AppLocalizations.setVietnamese(context);
+          await context.setLocale(const Locale('vi'));
           break;
         case AppLanguage.english:
-          await AppLocalizations.setEnglish(context);
+          await context.setLocale(const Locale('en'));
           break;
       }
+    } catch (e) {
+      print('Failed to initialize language: $e');
+    }
+  }
+
+  Future<void> updateLanguage(AppLanguage language, BuildContext context) async {
+    try {
+      // Update the app locale using easy_localization FIRST
+      switch (language) {
+        case AppLanguage.vietnamese:
+          await context.setLocale(const Locale('vi'));
+          break;
+        case AppLanguage.english:
+          await context.setLocale(const Locale('en'));
+          break;
+      }
+
+      // Then update and save the state
+      state = state.copyWith(language: language);
+      await _service.saveSettings(state);
     } catch (e) {
       print('Failed to update language: $e');
     }

@@ -35,12 +35,12 @@ void main() async {
   runApp(
     EasyLocalization(
       supportedLocales: const [
-        Locale('vi', 'VN'), // Vietnamese (Vietnam) - Default
-        Locale('en', 'US'), // English (US)
+        Locale('vi'), // Vietnamese - Default
+        Locale('en'), // English
       ],
       path: 'assets/translations',
-      fallbackLocale: const Locale('vi', 'VN'),
-      startLocale: const Locale('vi', 'VN'), // Set Vietnamese as default
+      fallbackLocale: const Locale('vi'),
+      startLocale: const Locale('vi'), // Set Vietnamese as default
       child: ProviderScope(
         overrides: [
           authServiceProvider.overrideWithValue(authService),
@@ -51,13 +51,28 @@ void main() async {
   );
 }
 
-class OishiMenuApp extends ConsumerWidget {
+class OishiMenuApp extends ConsumerStatefulWidget {
   const OishiMenuApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OishiMenuApp> createState() => _OishiMenuAppState();
+}
+
+class _OishiMenuAppState extends ConsumerState<OishiMenuApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize language settings after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(settingsProvider.notifier).initializeLanguage(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(currentThemeModeProvider);
+    final currentLanguage = ref.watch(currentLanguageProvider);
 
     return MaterialApp.router(
       title: AppConstants.appName,
@@ -70,7 +85,7 @@ class OishiMenuApp extends ConsumerWidget {
       // Localization configuration
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
-      locale: context.locale,
+      locale: currentLanguage.locale,
     );
   }
 }
