@@ -44,7 +44,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createDatabase,
       onUpgrade: _upgradeDatabase,
     );
@@ -217,6 +217,48 @@ class DatabaseHelper {
       )
     ''');
 
+    // Stocktake Sessions table
+    await db.execute('''
+      CREATE TABLE stocktake_sessions (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        type TEXT NOT NULL, -- full, partial, cycle
+        status TEXT NOT NULL DEFAULT 'draft', -- draft, in_progress, completed, cancelled
+        location TEXT,
+        total_items INTEGER DEFAULT 0,
+        counted_items INTEGER DEFAULT 0,
+        variance_count INTEGER DEFAULT 0,
+        total_variance_value REAL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        started_at INTEGER,
+        completed_at INTEGER,
+        created_by INTEGER,
+        FOREIGN KEY (created_by) REFERENCES users (id)
+      )
+    ''');
+
+    // Stocktake Items table
+    await db.execute('''
+      CREATE TABLE stocktake_items (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        ingredient_id INTEGER NOT NULL,
+        ingredient_name TEXT NOT NULL,
+        unit TEXT NOT NULL,
+        expected_quantity REAL NOT NULL,
+        counted_quantity REAL,
+        variance REAL,
+        variance_value REAL,
+        notes TEXT,
+        counted_at INTEGER,
+        counted_by INTEGER,
+        FOREIGN KEY (session_id) REFERENCES stocktake_sessions (id) ON DELETE CASCADE,
+        FOREIGN KEY (ingredient_id) REFERENCES ingredients (id),
+        FOREIGN KEY (counted_by) REFERENCES users (id)
+      )
+    ''');
+
     // Tables for dine-in management
     await db.execute('''
       CREATE TABLE restaurant_tables (
@@ -318,6 +360,9 @@ class DatabaseHelper {
 
     // Create sample categories
     await _createSampleCategories(db);
+
+    // Create sample inventory data
+    await _createSampleInventoryData(db);
   }
 
   Future<void> _upgradeDatabase(Database db, int oldVersion, int newVersion) async {
@@ -384,6 +429,49 @@ class DatabaseHelper {
         ALTER TABLE menu_items ADD COLUMN availability_schedule TEXT
       ''');
     }
+
+    if (oldVersion < 4 && newVersion >= 4) {
+      // Add stocktake tables for version 4
+      await db.execute('''
+        CREATE TABLE stocktake_sessions (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          type TEXT NOT NULL, -- full, partial, cycle
+          status TEXT NOT NULL DEFAULT 'draft', -- draft, in_progress, completed, cancelled
+          location TEXT,
+          total_items INTEGER DEFAULT 0,
+          counted_items INTEGER DEFAULT 0,
+          variance_count INTEGER DEFAULT 0,
+          total_variance_value REAL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          started_at INTEGER,
+          completed_at INTEGER,
+          created_by INTEGER,
+          FOREIGN KEY (created_by) REFERENCES users (id)
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE stocktake_items (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          ingredient_id INTEGER NOT NULL,
+          ingredient_name TEXT NOT NULL,
+          unit TEXT NOT NULL,
+          expected_quantity REAL NOT NULL,
+          counted_quantity REAL,
+          variance REAL,
+          variance_value REAL,
+          notes TEXT,
+          counted_at INTEGER,
+          counted_by INTEGER,
+          FOREIGN KEY (session_id) REFERENCES stocktake_sessions (id) ON DELETE CASCADE,
+          FOREIGN KEY (ingredient_id) REFERENCES ingredients (id),
+          FOREIGN KEY (counted_by) REFERENCES users (id)
+        )
+      ''');
+    }
   }
 
   Future<void> _createDefaultAdmin(Database db) async {
@@ -421,6 +509,105 @@ class DatabaseHelper {
         'updated_at': now,
       });
     }
+  }
+
+  Future<void> _createSampleInventoryData(Database db) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Check if ingredients already exist
+    final count = await db.rawQuery('SELECT COUNT(*) as count FROM ingredients');
+    if ((count.first['count'] as int) > 0) {
+      print('Sample inventory data already exists');
+      return;
+    }
+
+    final sampleIngredients = [
+      {
+        'name': 'Thịt bò nạm (Beef Brisket)',
+        'description': 'Premium beef brisket for phở bò',
+        'category': 'protein',
+        'unit': 'kg',
+        'current_quantity': 15.5,
+        'minimum_threshold': 5.0,
+        'cost_per_unit': 280000.0,
+        'supplier': 'Chợ Bến Thành',
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      },
+      {
+        'name': 'Rau húng quế (Thai Basil)',
+        'description': 'Fresh Thai basil for phở garnish',
+        'category': 'vegetables',
+        'unit': 'kg',
+        'current_quantity': 2.1,
+        'minimum_threshold': 1.0,
+        'cost_per_unit': 35000.0,
+        'supplier': 'Dalat Farm',
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      },
+      {
+        'name': 'Bánh phở tươi (Fresh Rice Noodles)',
+        'description': 'Fresh rice noodles for phở',
+        'category': 'grains',
+        'unit': 'kg',
+        'current_quantity': 25.0,
+        'minimum_threshold': 10.0,
+        'cost_per_unit': 18000.0,
+        'supplier': 'Xưởng bánh phở Sài Gòn',
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      },
+      {
+        'name': 'Nước mắm (Fish Sauce)',
+        'description': 'Premium Vietnamese fish sauce',
+        'category': 'spices',
+        'unit': 'lít',
+        'current_quantity': 8.5,
+        'minimum_threshold': 3.0,
+        'cost_per_unit': 65000.0,
+        'supplier': 'Phú Quốc Fish Sauce',
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      },
+      {
+        'name': 'Cà phê robusta (Robusta Coffee)',
+        'description': 'Premium Vietnamese robusta coffee beans',
+        'category': 'beverages',
+        'unit': 'kg',
+        'current_quantity': 4.8,
+        'minimum_threshold': 2.0,
+        'cost_per_unit': 120000.0,
+        'supplier': 'Buôn Ma Thuột Coffee',
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      },
+      // Low stock item for testing alerts
+      {
+        'name': 'Gừng tươi (Fresh Ginger)',
+        'description': 'Fresh ginger for broth and marinades',
+        'category': 'vegetables',
+        'unit': 'kg',
+        'current_quantity': 0.3, // Below minimum threshold
+        'minimum_threshold': 0.5,
+        'cost_per_unit': 45000.0,
+        'supplier': 'Chợ Bến Thành',
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      },
+    ];
+
+    for (final ingredient in sampleIngredients) {
+      await db.insert('ingredients', ingredient);
+    }
+
+    print('Sample inventory data created with ${sampleIngredients.length} ingredients');
   }
 
   String _hashPassword(String password) {

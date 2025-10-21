@@ -147,12 +147,43 @@ class MenuOptionService {
   Future<List<MenuOption>> getOptionsForGroup(String optionGroupId) async {
     try {
       final db = await _databaseHelper.database;
+      final groupIdInt = int.tryParse(optionGroupId) ?? 0;
+      print('🔍 Querying options for group ID: $optionGroupId (parsed as $groupIdInt)');
+
+      // First, let's check what junction records exist
+      final junctionRecords = await db.query(
+        'option_group_options',
+        where: 'option_group_id = ?',
+        whereArgs: [groupIdInt],
+      );
+      print('🔗 Found ${junctionRecords.length} junction records for group $groupIdInt:');
+      for (final record in junctionRecords) {
+        print('   - Junction: group=${record['option_group_id']}, option=${record['option_id']}');
+
+        // Check if the menu option exists
+        final optionCheck = await db.query(
+          'menu_options',
+          where: 'id = ?',
+          whereArgs: [record['option_id']],
+        );
+        print('   - Menu option ${record['option_id']} exists: ${optionCheck.isNotEmpty}');
+        if (optionCheck.isNotEmpty) {
+          print('     - is_available: ${optionCheck.first['is_available']}');
+          print('     - name: ${optionCheck.first['name']}');
+        }
+      }
+
       final List<Map<String, dynamic>> maps = await db.rawQuery('''
         SELECT mo.* FROM menu_options mo
         INNER JOIN option_group_options ogo ON mo.id = ogo.option_id
         WHERE ogo.option_group_id = ? AND mo.is_available = 1
         ORDER BY ogo.display_order ASC, mo.name ASC
-      ''', [int.tryParse(optionGroupId) ?? 0]);
+      ''', [groupIdInt]);
+
+      print('📊 Found ${maps.length} options for group $optionGroupId');
+      for (final map in maps) {
+        print('   - Option: ${map['name']} (ID: ${map['id']}, price: ${map['price']})');
+      }
 
       return List.generate(maps.length, (i) {
         return MenuOption.fromMap(maps[i]);
@@ -248,7 +279,7 @@ class MenuOptionService {
       );
 
       if (existing.isNotEmpty) {
-        return false; // Relationship already exists
+        return true; // Relationship already exists - this is the desired outcome
       }
 
       final relationship = MenuItemOptionGroup(
@@ -295,16 +326,23 @@ class MenuOptionService {
   }) async {
     try {
       final db = await _databaseHelper.database;
+      final optionIdInt = int.tryParse(optionId);
+      final groupIdInt = int.tryParse(optionGroupId);
+
+      print('🔗 Connecting option $optionId (parsed: $optionIdInt) to group $optionGroupId (parsed: $groupIdInt)');
 
       // Check if relationship already exists
       final existing = await db.query(
         'option_group_options',
         where: 'option_group_id = ? AND option_id = ?',
-        whereArgs: [int.tryParse(optionGroupId), int.tryParse(optionId)],
+        whereArgs: [groupIdInt, optionIdInt],
       );
 
+      print('🔍 Found ${existing.length} existing relationships');
+
       if (existing.isNotEmpty) {
-        return false; // Relationship already exists
+        print('✅ Relationship already exists - returning true');
+        return true; // Relationship already exists - this is the desired outcome
       }
 
       final relationship = OptionGroupOption(
@@ -315,7 +353,20 @@ class MenuOptionService {
         createdAt: DateTime.now(),
       );
 
-      await db.insert('option_group_options', relationship.toMap());
+      final relationshipMap = relationship.toMap();
+      print('💾 Inserting junction record: $relationshipMap');
+
+      final insertId = await db.insert('option_group_options', relationshipMap);
+      print('✅ Junction table insert successful with ID: $insertId');
+
+      // Verify the insert worked
+      final verification = await db.query(
+        'option_group_options',
+        where: 'option_group_id = ? AND option_id = ?',
+        whereArgs: [groupIdInt, optionIdInt],
+      );
+      print('🔍 Verification query found ${verification.length} records');
+
       return true;
     } catch (e) {
       print('Error connecting option to group: $e');

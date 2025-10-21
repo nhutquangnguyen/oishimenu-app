@@ -808,7 +808,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
               final price = double.tryParse(priceText) ?? 0.0;
 
               final newOption = MenuOption(
-                id: option?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                id: option?.id ?? '', // Empty ID for new options
                 name: name,
                 price: price,
                 createdAt: option?.createdAt ?? DateTime.now(),

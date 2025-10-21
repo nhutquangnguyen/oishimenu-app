@@ -35,21 +35,82 @@ class QuickActions extends StatelessWidget {
         color: Colors.purple[600]!,
         onTap: () => context.go('/analytics'),
       ),
+      QuickActionItem(
+        icon: Icons.table_restaurant_outlined,
+        title: 'Tables',
+        subtitle: 'Manage seating',
+        color: Colors.blue[600]!,
+        onTap: () => context.go('/tables'),
+      ),
+      QuickActionItem(
+        icon: Icons.group_outlined,
+        title: 'Staff',
+        subtitle: 'Manage team',
+        color: Colors.indigo[600]!,
+        onTap: () => context.go('/staff'),
+      ),
+      QuickActionItem(
+        icon: Icons.receipt_long_outlined,
+        title: 'Reports',
+        subtitle: 'View reports',
+        color: Colors.teal[600]!,
+        onTap: () => context.go('/reports'),
+      ),
+      QuickActionItem(
+        icon: Icons.kitchen_outlined,
+        title: 'Kitchen',
+        subtitle: 'Kitchen display',
+        color: Colors.red[600]!,
+        onTap: () => context.go('/kitchen'),
+      ),
+      QuickActionItem(
+        icon: Icons.people_outline,
+        title: 'Customers',
+        subtitle: 'Customer data',
+        color: Colors.pink[600]!,
+        onTap: () => context.go('/customers'),
+      ),
+      QuickActionItem(
+        icon: Icons.event_seat_outlined,
+        title: 'Reservations',
+        subtitle: 'Book tables',
+        color: Colors.brown[600]!,
+        onTap: () => context.go('/reservations'),
+      ),
+      QuickActionItem(
+        icon: Icons.print_outlined,
+        title: 'Print',
+        subtitle: 'Print receipts',
+        color: Colors.grey[600]!,
+        onTap: () {
+          // Show print options
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Print options')),
+          );
+        },
+      ),
+      QuickActionItem(
+        icon: Icons.settings_outlined,
+        title: 'Settings',
+        subtitle: 'App settings',
+        color: Colors.blueGrey[600]!,
+        onTap: () => context.go('/settings'),
+      ),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // On narrow screens, show 2 columns; on wider screens, show 4 columns
-        final crossAxisCount = constraints.maxWidth < 600 ? 2 : 4;
+        // Use more columns for compact icon-only design
+        final crossAxisCount = constraints.maxWidth < 400 ? 4 : constraints.maxWidth < 600 ? 6 : 8;
 
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: crossAxisCount == 2 ? 1.3 : 0.85,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.85, // Slightly taller to accommodate text
           ),
           itemCount: actions.length,
           itemBuilder: (context, index) {
@@ -72,9 +133,9 @@ class _QuickActionCard extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
           width: 1,
         ),
       ),
@@ -82,62 +143,41 @@ class _QuickActionCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: action.onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  action.color.withOpacity(0.05),
-                  action.color.withOpacity(0.02),
+                  action.color.withOpacity(0.08),
+                  action.color.withOpacity(0.03),
                 ],
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(8.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: action.color.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      action.icon,
-                      color: action.color,
-                      size: 28,
-                    ),
+                  Icon(
+                    action.icon,
+                    color: action.color,
+                    size: 24,
                   ),
-                  const SizedBox(height: 12),
-                  Flexible(
-                    child: Text(
-                      action.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 6),
+                  Text(
+                    action.title,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Flexible(
-                    child: Text(
-                      action.subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 11,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

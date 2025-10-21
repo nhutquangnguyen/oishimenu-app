@@ -178,8 +178,10 @@ class OptionGroupNotifier extends AsyncNotifier<List<OptionGroup>> {
       final success = await service.connectOptionToGroup(optionId, groupId, displayOrder: displayOrder);
 
       if (success) {
-        // Invalidate related providers
+        // Invalidate related providers to force refresh
         ref.invalidate(optionsForGroupProvider(groupId));
+        ref.invalidate(optionGroupsProvider);
+        ref.invalidate(allMenuOptionsProvider);
         await refresh();
         return true;
       } else {

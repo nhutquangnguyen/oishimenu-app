@@ -41,7 +41,7 @@ class DashboardPage extends ConsumerWidget {
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -52,7 +52,7 @@ class DashboardPage extends ConsumerWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Text(
                           'Here\'s your restaurant summary for today',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -76,16 +76,16 @@ class DashboardPage extends ConsumerWidget {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Metrics section
                         _buildMetricsSection(context),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
 
                         // Quick Actions
-                        _buildSectionHeader(context, 'Quick Actions', '4/4'),
+                        _buildSectionHeader(context, 'Quick Actions', '12 actions'),
                         const SizedBox(height: 16),
                         const QuickActions(),
                         const SizedBox(height: 32),
@@ -129,7 +129,7 @@ class DashboardPage extends ConsumerWidget {
                 icon: Icons.trending_up,
                 color: Colors.green,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               const MetricCard(
                 title: 'Orders',
                 value: '87',
@@ -138,7 +138,7 @@ class DashboardPage extends ConsumerWidget {
                 icon: Icons.receipt_long,
                 color: Colors.blue,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               const MetricCard(
                 title: 'Customers',
                 value: '156',
@@ -147,7 +147,7 @@ class DashboardPage extends ConsumerWidget {
                 icon: Icons.people,
                 color: Colors.purple,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               const MetricCard(
                 title: 'Avg Order',
                 value: '₫285,000',
@@ -174,7 +174,7 @@ class DashboardPage extends ConsumerWidget {
                     color: Colors.green,
                   ),
                 ),
-                SizedBox(width: 12),
+                SizedBox(width: 8),
                 Expanded(
                   child: MetricCard(
                     title: 'Orders',
@@ -187,7 +187,7 @@ class DashboardPage extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             const Row(
               children: [
                 Expanded(
@@ -200,7 +200,7 @@ class DashboardPage extends ConsumerWidget {
                     color: Colors.purple,
                   ),
                 ),
-                SizedBox(width: 12),
+                SizedBox(width: 8),
                 Expanded(
                   child: MetricCard(
                     title: 'Avg Order',
@@ -243,7 +243,7 @@ class DashboardPage extends ConsumerWidget {
 
   String _getTimeOfDay() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
+    if (hour < 12) return 'Good morning XX';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   }
