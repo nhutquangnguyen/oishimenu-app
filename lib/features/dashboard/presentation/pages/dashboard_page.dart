@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 
-import '../widgets/quick_actions.dart';
 import '../widgets/best_sellers.dart';
 import '../widgets/sales_chart.dart';
 import '../../../../features/auth/providers/auth_provider.dart';
@@ -96,12 +96,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         _buildMetricsSection(context),
                         const SizedBox(height: 24),
 
-                        // Quick Actions
-                        _buildSectionHeader(context, AppLocalizations.quickActions, '12 actions'),
-                        const SizedBox(height: 16),
-                        const QuickActions(),
-                        const SizedBox(height: 32),
-
                         // Sales Chart
                         _buildSectionHeader(context, AppLocalizations.salesOverview, null),
                         const SizedBox(height: 12),
@@ -110,7 +104,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         Row(
                           children: [
                             Text(
-                              'Group by:',
+                              'dashboard.group_by'.tr(),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.w500,
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -132,12 +126,20 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   fontWeight: FontWeight.w500,
                                 ),
-                                items: ['Hour', 'Day', 'Week day'].map((String value) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
-                                  );
-                                }).toList(),
+                                items: [
+                                  DropdownMenuItem<String>(
+                                    value: 'Hour',
+                                    child: Text('dashboard.hour'.tr()),
+                                  ),
+                                  DropdownMenuItem<String>(
+                                    value: 'Day',
+                                    child: Text('dashboard.day'.tr()),
+                                  ),
+                                  DropdownMenuItem<String>(
+                                    value: 'Week day',
+                                    child: Text('dashboard.week_day'.tr()),
+                                  ),
+                                ],
                                 onChanged: (String? newValue) {
                                   if (newValue != null) {
                                     setState(() {
@@ -207,18 +209,42 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
   }
 
+  String _getTranslatedLabel(String englishLabel) {
+    // Map English labels to translation keys
+    switch (englishLabel) {
+      // Time frame options
+      case 'Today':
+        return 'dashboard.today'.tr();
+      case 'This Week':
+        return 'dashboard.this_week'.tr();
+      case 'This Month':
+        return 'dashboard.this_month'.tr();
+      case 'Last 30 Days':
+        return 'dashboard.last_30_days'.tr();
+      // Branch options
+      case 'All Branches':
+        return 'dashboard.all_branches'.tr();
+      case 'Main Branch':
+        return 'dashboard.main_branch'.tr();
+      case 'Secondary Branch':
+        return 'dashboard.secondary_branch'.tr();
+      default:
+        return englishLabel; // Fallback to original if no translation found
+    }
+  }
+
   String _getRevenueTitle() {
     switch (_selectedTimeFrame) {
       case 'Today':
         return AppLocalizations.todaysRevenue;
       case 'This Week':
-        return 'This Week\'s Revenue';
+        return '${'dashboard.revenue'.tr()} ${'dashboard.this_week'.tr().toLowerCase()}';
       case 'This Month':
-        return 'This Month\'s Revenue';
+        return '${'dashboard.revenue'.tr()} ${'dashboard.this_month'.tr().toLowerCase()}';
       case 'Last 30 Days':
-        return 'Last 30 Days Revenue';
+        return '${'dashboard.revenue'.tr()} ${'dashboard.last_30_days'.tr().toLowerCase()}';
       default:
-        return 'Revenue';
+        return 'dashboard.revenue'.tr();
     }
   }
 
@@ -267,7 +293,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       children: [
         Expanded(
           child: Text(
-            'Best Sellers',
+            'dashboard.best_sellers'.tr(),
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -285,8 +311,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildToggleButton('Revenue', _sortByRevenue, true),
-              _buildToggleButton('Quantity', !_sortByRevenue, false),
+              _buildToggleButton('dashboard.revenue'.tr(), _sortByRevenue, true),
+              _buildToggleButton('dashboard.quantity'.tr(), !_sortByRevenue, false),
             ],
           ),
         ),
@@ -364,7 +390,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               context,
               icon: Icons.calendar_today_outlined,
               label: _selectedTimeFrame,
-              options: ['Today', 'This Week', 'This Month', 'Last 30 Days', 'Custom'],
+              options: ['Today', 'This Week', 'This Month', 'Last 30 Days'],
+              displayNames: null, // Will use translation keys in the method
               onChanged: (value) {
                 setState(() {
                   _selectedTimeFrame = value!;
@@ -379,7 +406,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               context,
               icon: Icons.store_outlined,
               label: _selectedBranch,
-              options: ['All Branches', 'Main Branch', 'Branch 2', 'Branch 3'],
+              options: ['All Branches', 'Main Branch', 'Secondary Branch'],
+              displayNames: null, // Will use translation keys in the method
               onChanged: (value) {
                 setState(() {
                   _selectedBranch = value!;
@@ -397,8 +425,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     required IconData icon,
     required String label,
     required List<String> options,
+    List<String>? displayNames,
     required Function(String?) onChanged,
   }) {
+    // Get display name for current selection
+    String currentDisplayName = _getTranslatedLabel(label);
+
     return GestureDetector(
       onTap: () {
         _showDropdownMenu(context, options, label, onChanged);
@@ -424,7 +456,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                label,
+                currentDisplayName,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -479,7 +511,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 const SizedBox(width: 16),
               const SizedBox(width: 8),
               Text(
-                option,
+                _getTranslatedLabel(option),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: option == currentValue ? FontWeight.w600 : FontWeight.w400,
                   color: option == currentValue

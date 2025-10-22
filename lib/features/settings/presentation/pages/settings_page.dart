@@ -31,7 +31,7 @@ class SettingsPage extends ConsumerWidget {
             // Language Section
             _buildSectionCard(
               context: context,
-              title: 'Language / Ngôn ngữ',
+              title: AppLocalizations.tr('settings_page.language'),
               children: [
                 _buildLanguageOption(
                   context: context,
@@ -54,17 +54,13 @@ class SettingsPage extends ConsumerWidget {
             // Theme Section (Future implementation)
             _buildSectionCard(
               context: context,
-              title: AppLocalizations.tr('theme') != 'theme'
-                  ? AppLocalizations.tr('theme')
-                  : 'Theme / Giao diện',
+              title: AppLocalizations.tr('settings_page.theme'),
               children: [
                 _buildThemeOption(
                   context: context,
                   ref: ref,
                   themeMode: ThemeMode.light,
-                  title: AppLocalizations.tr('light_mode') != 'light_mode'
-                      ? AppLocalizations.tr('light_mode')
-                      : 'Light / Sáng',
+                  title: AppLocalizations.tr('settings_page.light_mode'),
                   icon: Icons.light_mode,
                   isSelected: settings.themeMode == ThemeMode.light,
                 ),
@@ -73,9 +69,7 @@ class SettingsPage extends ConsumerWidget {
                   context: context,
                   ref: ref,
                   themeMode: ThemeMode.dark,
-                  title: AppLocalizations.tr('dark_mode') != 'dark_mode'
-                      ? AppLocalizations.tr('dark_mode')
-                      : 'Dark / Tối',
+                  title: AppLocalizations.tr('settings_page.dark_mode'),
                   icon: Icons.dark_mode,
                   isSelected: settings.themeMode == ThemeMode.dark,
                 ),
@@ -84,9 +78,7 @@ class SettingsPage extends ConsumerWidget {
                   context: context,
                   ref: ref,
                   themeMode: ThemeMode.system,
-                  title: AppLocalizations.tr('system_mode') != 'system_mode'
-                      ? AppLocalizations.tr('system_mode')
-                      : 'System / Hệ thống',
+                  title: AppLocalizations.tr('settings_page.system_mode'),
                   icon: Icons.auto_mode,
                   isSelected: settings.themeMode == ThemeMode.system,
                 ),
@@ -98,9 +90,7 @@ class SettingsPage extends ConsumerWidget {
             // App Info Section
             _buildSectionCard(
               context: context,
-              title: AppLocalizations.tr('app_info') != 'app_info'
-                  ? AppLocalizations.tr('app_info')
-                  : 'App Information / Thông tin ứng dụng',
+              title: AppLocalizations.tr('settings_page.app_info'),
               children: [
                 ListTile(
                   leading: CircleAvatar(
@@ -111,7 +101,7 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                   title: Text(AppLocalizations.appName),
-                  subtitle: const Text('Version 1.0.0'),
+                  subtitle: Text('${AppLocalizations.tr('settings_page.version')} 1.0.0'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ],

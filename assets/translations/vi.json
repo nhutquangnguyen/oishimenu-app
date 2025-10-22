@@ -6,7 +6,7 @@
   "email": "Email",
   "password": "Mật khẩu",
 
-  "dashboard": "Bảng điều khiển",
+  "dashboard_tab": "Bảng điều khiển",
   "menu": "Thực đơn",
   "orders": "Đơn hàng",
   "pos": "Bán hàng",
@@ -40,6 +40,21 @@
   "settings": "Cài đặt",
   "app_settings": "Cài đặt ứng dụng",
 
+  "settings_page": {
+    "language": "Ngôn ngữ",
+    "theme": "Giao diện",
+    "light_mode": "Sáng",
+    "dark_mode": "Tối",
+    "system_mode": "Hệ thống",
+    "app_info": "Thông tin ứng dụng",
+    "version": "Phiên bản",
+    "features": "Tính năng",
+    "account": "Tài khoản",
+    "profile": "Hồ sơ",
+    "help_support": "Trợ giúp & Hỗ trợ",
+    "sign_out": "Đăng xuất"
+  },
+
   "todays_revenue": "Doanh thu hôm nay",
   "avg_order": "Đơn trung bình",
   "good_morning": "Chào buổi sáng",
@@ -48,6 +63,7 @@
   "restaurant_summary": "Tóm tắt nhà hàng hôm nay",
   "sales_overview": "Tổng quan doanh số",
   "recent_orders": "Đơn hàng gần đây",
+  "analytics_breakdown": "Phân tích chi tiết",
 
   "inventory_management": "Quản lý kho hàng",
   "ingredients": "Nguyên liệu",
@@ -361,6 +377,14 @@
     "unknown": "Không xác định"
   },
 
+  "menu_details": {
+    "items": "Món ăn",
+    "option_groups": "Nhóm lựa chọn",
+    "search": "Tìm kiếm",
+    "out_of_stock": "Hết hàng ({count})",
+    "availability": "Tình trạng"
+  },
+
   "menu": {
     "items": "Món ăn",
     "option_groups": "Nhóm lựa chọn",
@@ -441,6 +465,38 @@
     "example": "Ví dụ: Phở Bò - 65000",
     "categories_with_colons": "Danh mục có thể được chỉ định bằng dấu hai chấm:",
     "category_example": "Món nước:\nPhở Bò - 65000\nBún Chả - 55000"
+  },
+
+  "dashboard": {
+    "group_by": "Nhóm theo",
+    "hour": "Giờ",
+    "day": "Ngày",
+    "week_day": "Thứ trong tuần",
+    "today": "Hôm nay",
+    "this_week": "Tuần này",
+    "this_month": "Tháng này",
+    "last_30_days": "30 ngày qua",
+    "all_branches": "Tất cả chi nhánh",
+    "main_branch": "Chi nhánh chính",
+    "secondary_branch": "Chi nhánh phụ",
+    "revenue": "Doanh thu",
+    "quantity": "Số lượng",
+    "best_sellers": "Bán chạy nhất",
+    "show_all": "Hiển thị tất cả",
+    "show_less": "Thu gọn",
+    "items": "món",
+    "sold": "đã bán",
+    "analytics_breakdown": "Phân tích chi tiết",
+    "payment_types": "Loại thanh toán",
+    "order_sources": "Nguồn đơn hàng",
+    "cash": "Tiền mặt",
+    "card": "Thẻ",
+    "digital_wallet": "Ví điện tử",
+    "other": "Khác",
+    "dine_in": "Tại chỗ",
+    "take_away": "Mang đi",
+    "grab": "Grab",
+    "shopee": "Shopee"
   },
 
   "menu_item_editor": {

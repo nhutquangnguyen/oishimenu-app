@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_localizations.dart';
 
 class BestSellers extends StatefulWidget {
   final String timeFrame;
@@ -52,7 +53,9 @@ class _BestSellersState extends State<BestSellers> {
                     });
                   },
                   child: Text(
-                    _showAll ? 'Show Less' : 'Show All (${items.length} items)',
+                    _showAll
+                        ? AppLocalizations.tr('dashboard.show_less')
+                        : '${AppLocalizations.tr('dashboard.show_all')} (${items.length} ${AppLocalizations.tr('dashboard.items')})',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -132,7 +135,7 @@ class _BestSellersState extends State<BestSellers> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                widget.sortByRevenue ? item.revenue : '${item.quantity} sold',
+                widget.sortByRevenue ? item.revenue : '${item.quantity} ${AppLocalizations.tr('dashboard.sold')}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: Theme.of(context).colorScheme.primary,
@@ -140,7 +143,7 @@ class _BestSellersState extends State<BestSellers> {
               ),
               const SizedBox(height: 2),
               Text(
-                widget.sortByRevenue ? '${item.quantity} sold' : item.revenue,
+                widget.sortByRevenue ? '${item.quantity} ${AppLocalizations.tr('dashboard.sold')}' : item.revenue,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 11,

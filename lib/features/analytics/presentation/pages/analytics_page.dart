@@ -48,13 +48,24 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       isExpanded: true,
                       underline: const SizedBox(),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      items: ['Today', 'This Week', 'This Month', 'Last 30 Days']
-                          .map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: 'Today',
+                          child: Text(AppLocalizations.tr('dashboard.today')),
+                        ),
+                        DropdownMenuItem<String>(
+                          value: 'This Week',
+                          child: Text(AppLocalizations.tr('dashboard.this_week')),
+                        ),
+                        DropdownMenuItem<String>(
+                          value: 'This Month',
+                          child: Text(AppLocalizations.tr('dashboard.this_month')),
+                        ),
+                        DropdownMenuItem<String>(
+                          value: 'Last 30 Days',
+                          child: Text(AppLocalizations.tr('dashboard.last_30_days')),
+                        ),
+                      ],
                       onChanged: (String? newValue) {
                         if (newValue != null) {
                           setState(() {
@@ -80,13 +91,20 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       isExpanded: true,
                       underline: const SizedBox(),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      items: ['All Branches', 'Main Branch', 'Secondary Branch']
-                          .map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: 'All Branches',
+                          child: Text(AppLocalizations.tr('dashboard.all_branches')),
+                        ),
+                        DropdownMenuItem<String>(
+                          value: 'Main Branch',
+                          child: Text(AppLocalizations.tr('dashboard.main_branch')),
+                        ),
+                        DropdownMenuItem<String>(
+                          value: 'Secondary Branch',
+                          child: Text(AppLocalizations.tr('dashboard.secondary_branch')),
+                        ),
+                      ],
                       onChanged: (String? newValue) {
                         if (newValue != null) {
                           setState(() {
@@ -103,7 +121,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
             // Analytics Breakdown Section
             Text(
-              'Analytics Breakdown',
+              AppLocalizations.tr('dashboard.analytics_breakdown'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

@@ -97,6 +97,39 @@ class AppLocalizations {
   static String get salesOverview => 'sales_overview'.tr();
   static String get recentOrders => 'recent_orders'.tr();
   static String get restaurantSummary => 'restaurant_summary'.tr();
+  static String get bestSellers => 'best_sellers'.tr();
+  static String get analyticsBreakdown => 'analytics_breakdown'.tr();
+
+  // Dashboard specific strings
+  static String get groupBy => 'dashboard.group_by'.tr();
+  static String get hour => 'dashboard.hour'.tr();
+  static String get day => 'dashboard.day'.tr();
+  static String get weekDay => 'dashboard.week_day'.tr();
+  static String get today => 'dashboard.today'.tr();
+  static String get thisWeek => 'dashboard.this_week'.tr();
+  static String get thisMonth => 'dashboard.this_month'.tr();
+  static String get last30Days => 'dashboard.last_30_days'.tr();
+  static String get allBranches => 'dashboard.all_branches'.tr();
+  static String get mainBranch => 'dashboard.main_branch'.tr();
+  static String get secondaryBranch => 'dashboard.secondary_branch'.tr();
+  static String get revenue => 'dashboard.revenue'.tr();
+  static String get dashboardQuantity => 'dashboard.quantity'.tr();
+  static String get dashboardBestSellers => 'dashboard.best_sellers'.tr();
+  static String get showAll => 'dashboard.show_all'.tr();
+  static String get showLess => 'dashboard.show_less'.tr();
+  static String get dashboardItems => 'dashboard.items'.tr();
+  static String get sold => 'dashboard.sold'.tr();
+  static String get dashboardAnalyticsBreakdown => 'dashboard.analytics_breakdown'.tr();
+  static String get paymentTypes => 'dashboard.payment_types'.tr();
+  static String get orderSources => 'dashboard.order_sources'.tr();
+  static String get cash => 'dashboard.cash'.tr();
+  static String get card => 'dashboard.card'.tr();
+  static String get digitalWallet => 'dashboard.digital_wallet'.tr();
+  static String get other => 'dashboard.other'.tr();
+  static String get dineIn => 'dashboard.dine_in'.tr();
+  static String get takeAway => 'dashboard.take_away'.tr();
+  static String get grab => 'dashboard.grab'.tr();
+  static String get shopee => 'dashboard.shopee'.tr();
 
   static String getGreeting() {
     final hour = DateTime.now().hour;

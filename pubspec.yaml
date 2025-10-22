@@ -25,6 +25,10 @@ dependencies:
   go_router: ^12.1.3
   cached_network_image: ^3.3.0
 
+  # Image Management
+  image_picker: ^1.0.4
+  path_provider: ^2.1.1
+
   # Charts & Data Visualization
   fl_chart: ^0.65.0
 

@@ -26,7 +26,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
-    initialLocation: '/menu',
+    initialLocation: '/dashboard',
     redirect: (context, state) {
       // Check authentication status
       final isLoggedIn = authState.when(
@@ -37,16 +37,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final isOnAuthPage = state.fullPath == '/login' || state.fullPath == '/signup';
       final isOnTestPage = state.fullPath == '/test' || state.fullPath == '/test-scan';
-      final isOnMenuPage = state.fullPath?.startsWith('/menu') == true;
 
-      // Redirect to login if not authenticated and not on auth, test, or menu pages
-      if (!isLoggedIn && !isOnAuthPage && !isOnTestPage && !isOnMenuPage) {
+      // Redirect to login if not authenticated and not on auth or test pages
+      if (!isLoggedIn && !isOnAuthPage && !isOnTestPage) {
         return '/login';
       }
 
-      // Redirect to menu if authenticated and on auth page
+      // Redirect to dashboard (Home tab) if authenticated and on auth page
       if (isLoggedIn && isOnAuthPage) {
-        return '/menu';
+        return '/dashboard';
       }
 
       return null; // No redirect needed
@@ -166,7 +165,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => context.go('/dashboard'),
-              child: const Text('Go to Dashboard'),
+              child: const Text('Go to Home'),
             ),
           ],
         ),

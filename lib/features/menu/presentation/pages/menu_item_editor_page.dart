@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../services/menu_service.dart';
@@ -27,6 +30,7 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
 
   final MenuService _menuService = MenuService();
   final MenuOptionService _optionService = MenuOptionService();
+  final ImagePicker _picker = ImagePicker();
 
   List<String> _photos = [];
   String _selectedCategoryName = '';
@@ -195,12 +199,7 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.grey[300]!),
-                image: _photos.isNotEmpty
-                    ? DecorationImage(
-                        image: NetworkImage(_photos.first),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
+                image: _photos.isNotEmpty ? _buildDecorationImage(_photos.first) : null,
               ),
               child: _photos.isEmpty
                   ? const Center(
@@ -216,16 +215,33 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
                         Positioned(
                           bottom: 4,
                           right: 4,
-                          child: GestureDetector(
-                            onTap: () => _editPhoto(0),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () => _removePhoto(0),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.delete, color: Colors.white, size: 12),
+                                ),
                               ),
-                              child: const Icon(Icons.edit, color: Colors.white, size: 12),
-                            ),
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: () => _editPhoto(0),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.edit, color: Colors.white, size: 12),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -582,14 +598,192 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
            _selectedCategoryName.isNotEmpty;
   }
 
-  void _addPhoto() {
-    // TODO: Implement photo picker
-    print('Add photo');
+  Future<void> _addPhoto() async {
+    if (_photos.length >= 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Maximum 4 photos allowed')),
+      );
+      return;
+    }
+
+    try {
+      // Show image source selection
+      final ImageSource? source = await _showImageSourceSelection();
+      if (source == null) return;
+
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        // Save image to app documents directory
+        final String savedPath = await _saveImageToAppDirectory(image);
+
+        setState(() {
+          _photos.add(savedPath);
+          _isDirty = true;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding photo: $e')),
+      );
+    }
   }
 
-  void _editPhoto(int index) {
-    // TODO: Implement photo editor
-    print('Edit photo $index');
+  Future<void> _editPhoto(int index) async {
+    if (index >= _photos.length) return;
+
+    try {
+      // Show image source selection
+      final ImageSource? source = await _showImageSourceSelection();
+      if (source == null) return;
+
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        // Delete old image file if it exists
+        final oldPath = _photos[index];
+        if (oldPath.startsWith('/') && File(oldPath).existsSync()) {
+          try {
+            await File(oldPath).delete();
+          } catch (e) {
+            print('Error deleting old image: $e');
+          }
+        }
+
+        // Save new image to app documents directory
+        final String savedPath = await _saveImageToAppDirectory(image);
+
+        setState(() {
+          _photos[index] = savedPath;
+          _isDirty = true;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating photo: $e')),
+      );
+    }
+  }
+
+  Future<ImageSource?> _showImageSourceSelection() async {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.camera_alt),
+            title: const Text('Take Photo'),
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library),
+            title: const Text('Choose from Gallery'),
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cancel),
+            title: const Text('Cancel'),
+            onTap: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String> _saveImageToAppDirectory(XFile image) async {
+    final Directory appDir = await getApplicationDocumentsDirectory();
+    final String imagesDir = '${appDir.path}/menu_images';
+
+    // Create images directory if it doesn't exist
+    await Directory(imagesDir).create(recursive: true);
+
+    // Generate unique filename
+    final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final String extension = image.path.split('.').last;
+    final String fileName = 'menu_${timestamp}.$extension';
+    final String savedPath = '$imagesDir/$fileName';
+
+    // Copy image to app directory
+    await File(image.path).copy(savedPath);
+
+    return savedPath;
+  }
+
+  ImageProvider _getImageProvider(String imagePath) {
+    // Check if it's a local file path
+    if (imagePath.startsWith('/') && File(imagePath).existsSync()) {
+      return FileImage(File(imagePath));
+    }
+    // Check if it's a network URL
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return NetworkImage(imagePath);
+    }
+    // Fallback - this shouldn't happen, but handle gracefully
+    throw Exception('Invalid image path: $imagePath');
+  }
+
+  DecorationImage? _buildDecorationImage(String imagePath) {
+    try {
+      return DecorationImage(
+        image: _getImageProvider(imagePath),
+        fit: BoxFit.cover,
+      );
+    } catch (e) {
+      print('Error loading image: $e');
+      return null;
+    }
+  }
+
+  Future<void> _removePhoto(int index) async {
+    if (index >= _photos.length) return;
+
+    // Show confirmation dialog
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Photo'),
+        content: const Text('Are you sure you want to remove this photo?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final String photoPath = _photos[index];
+
+      // Delete file if it's a local file
+      if (photoPath.startsWith('/') && File(photoPath).existsSync()) {
+        try {
+          await File(photoPath).delete();
+        } catch (e) {
+          print('Error deleting photo file: $e');
+        }
+      }
+
+      setState(() {
+        _photos.removeAt(index);
+        _isDirty = true;
+      });
+    }
   }
 
   void _improveDescription() {

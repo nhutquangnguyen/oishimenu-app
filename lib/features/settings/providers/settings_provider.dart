@@ -56,7 +56,8 @@ class AppSettings {
   factory AppSettings.fromMap(Map<String, dynamic> map) {
     final languageStr = map['language'] as String? ?? 'vi_VN';
     final parts = languageStr.split('_');
-    final locale = Locale(parts[0], parts.length > 1 ? parts[1] : '');
+    // Only use language code, ignore country code to match supported locales
+    final locale = Locale(parts[0]);
 
     return AppSettings(
       language: AppLanguage.fromLocale(locale),

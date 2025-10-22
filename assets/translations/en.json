@@ -6,7 +6,7 @@
   "email": "Email",
   "password": "Password",
 
-  "dashboard": "Dashboard",
+  "dashboard_tab": "Dashboard",
   "menu": "Menu",
   "orders": "Orders",
   "pos": "POS",
@@ -39,6 +39,21 @@
   "print_receipts": "Print receipts",
   "settings": "Settings",
   "app_settings": "App settings",
+
+  "settings_page": {
+    "language": "Language",
+    "theme": "Theme",
+    "light_mode": "Light",
+    "dark_mode": "Dark",
+    "system_mode": "System",
+    "app_info": "App Information",
+    "version": "Version",
+    "features": "Features",
+    "account": "Account",
+    "profile": "Profile",
+    "help_support": "Help & Support",
+    "sign_out": "Sign Out"
+  },
 
   "todays_revenue": "Today's Revenue",
   "avg_order": "Avg Order",
@@ -361,6 +376,14 @@
     "unknown": "Unknown"
   },
 
+  "menu_details": {
+    "items": "Items",
+    "option_groups": "Option Groups",
+    "search": "Search",
+    "out_of_stock": "Out of Stock ({count})",
+    "availability": "Availability"
+  },
+
   "menu": {
     "items": "Items",
     "option_groups": "Option Groups",
@@ -441,6 +464,38 @@
     "example": "Example: Phở Bò - 65000",
     "categories_with_colons": "Categories can be specified with colons:",
     "category_example": "Noodles:\nPhở Bò - 65000\nBún Chả - 55000"
+  },
+
+  "dashboard": {
+    "group_by": "Group by",
+    "hour": "Hour",
+    "day": "Day",
+    "week_day": "Weekday",
+    "today": "Today",
+    "this_week": "This Week",
+    "this_month": "This Month",
+    "last_30_days": "Last 30 Days",
+    "all_branches": "All Branches",
+    "main_branch": "Main Branch",
+    "secondary_branch": "Secondary Branch",
+    "revenue": "Revenue",
+    "quantity": "Quantity",
+    "best_sellers": "Best Sellers",
+    "show_all": "Show All",
+    "show_less": "Show Less",
+    "items": "items",
+    "sold": "sold",
+    "analytics_breakdown": "Analytics Breakdown",
+    "payment_types": "Payment Types",
+    "order_sources": "Order Sources",
+    "cash": "Cash",
+    "card": "Card",
+    "digital_wallet": "Digital Wallet",
+    "other": "Other",
+    "dine_in": "Dine In",
+    "take_away": "Take Away",
+    "grab": "Grab",
+    "shopee": "Shopee"
   },
 
   "menu_item_editor": {

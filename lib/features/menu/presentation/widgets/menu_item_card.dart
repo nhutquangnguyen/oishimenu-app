@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../../../../models/menu_item.dart';
 
 class MenuItemCard extends StatelessWidget {
@@ -21,161 +22,86 @@ class MenuItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[200]!,
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+          child: Row(
             children: [
-              // Header row with name and availability
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          menuItem.name,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: menuItem.availableStatus
-                                ? Theme.of(context).colorScheme.onSurface
-                                : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _getCategoryColor(categoryName).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            categoryName,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: _getCategoryColor(categoryName),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+              // Product image or placeholder
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _getCategoryColor(categoryName).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _getCategoryColor(categoryName).withOpacity(0.3),
+                    width: 1,
                   ),
-                  // Availability toggle
-                  Switch.adaptive(
-                    value: menuItem.availableStatus,
-                    onChanged: (_) => onToggleAvailability?.call(),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
+                  child: _buildImage(),
+                ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(width: 12),
 
-              // Description
-              if (menuItem.description?.isNotEmpty == true)
-                Text(
-                  menuItem.description!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-
-              const SizedBox(height: 12),
-
-              // Price and actions row
-              Row(
-                children: [
-                  // Price
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
+              // Item details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Item name
+                    Text(
+                      menuItem.name,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: menuItem.availableStatus
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: Text(
-                      '₫${menuItem.price.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
+
+                    const SizedBox(height: 2),
+
+                    // Price
+                    Text(
+                      '${menuItem.price.toStringAsFixed(0)}đ',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
                         color: Theme.of(context).colorScheme.primary,
-                        fontSize: 16,
                       ),
                     ),
-                  ),
-
-                  const Spacer(),
-
-                  // Action buttons
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (onEdit != null)
-                        IconButton(
-                          onPressed: onEdit,
-                          icon: Icon(
-                            Icons.edit_outlined,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          tooltip: 'Edit',
-                        ),
-                      if (onDelete != null)
-                        IconButton(
-                          onPressed: onDelete,
-                          icon: Icon(
-                            Icons.delete_outline,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                          tooltip: 'Delete',
-                        ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
 
-              // Cost price info (for staff/admin)
-              if (menuItem.costPrice != null && menuItem.costPrice! > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Cost: ₫${menuItem.costPrice!.toStringAsFixed(2)} • ',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      Text(
-                        'Margin: ${((menuItem.price - menuItem.costPrice!) / menuItem.price * 100).toStringAsFixed(1)}%',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+              // Availability toggle
+              Transform.scale(
+                scale: 0.8,
+                child: Switch.adaptive(
+                  value: menuItem.availableStatus,
+                  onChanged: (_) => onToggleAvailability?.call(),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  activeColor: Colors.green,
                 ),
+              ),
             ],
           ),
         ),
@@ -183,20 +109,152 @@ class MenuItemCard extends StatelessWidget {
     );
   }
 
+  Widget _buildImage() {
+    // Check if the menu item has photos
+    if (menuItem.photos.isNotEmpty) {
+      final firstPhoto = menuItem.photos.first;
+
+      // Check if it's a local file path
+      if (firstPhoto.startsWith('/')) {
+        final file = File(firstPhoto);
+        if (file.existsSync()) {
+          return Image.file(
+            file,
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return _buildPlaceholderIcon();
+            },
+          );
+        }
+      }
+
+      // Check if it's a network URL
+      if (firstPhoto.startsWith('http://') || firstPhoto.startsWith('https://')) {
+        return Image.network(
+          firstPhoto,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildPlaceholderIcon();
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            );
+          },
+        );
+      }
+    }
+
+    // Fallback to category icon
+    return _buildPlaceholderIcon();
+  }
+
+  Widget _buildPlaceholderIcon() {
+    return Icon(
+      _getCategoryIcon(categoryName),
+      color: _getCategoryColor(categoryName),
+      size: 24,
+    );
+  }
+
   Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
+    final lowerCategory = category.toLowerCase();
+    switch (lowerCategory) {
       case 'appetizers':
+      case 'món khai vị':
+      case 'khai vị':
         return Colors.orange[600]!;
       case 'main course':
+      case 'món chính':
+      case 'chính':
         return Colors.red[600]!;
       case 'desserts':
+      case 'tráng miệng':
+      case 'dessert':
         return Colors.pink[600]!;
       case 'beverages':
+      case 'đồ uống':
+      case 'nước uống':
+      case 'thức uống':
         return Colors.blue[600]!;
       case 'vietnamese specials':
+      case 'đặc sản việt nam':
+      case 'món việt':
         return Colors.green[600]!;
+      case 'coffee':
+      case 'cà phê':
+      case 'cà phê - coffee':
+        return Colors.brown[600]!;
+      case 'combo':
+      case 'combo nâng lượng':
+      case 'combo trà chiều':
+        return Colors.purple[600]!;
+      case 'matcha':
+        return Colors.lightGreen[600]!;
+      case 'ưu đãi hôm nay':
+      case 'món mới':
+        return Colors.amber[600]!;
+      case 'ẩm thực- xứ đài':
+      case 'ẩm thực':
+        return Colors.teal[600]!;
       default:
         return Colors.grey[600]!;
+    }
+  }
+
+  IconData _getCategoryIcon(String category) {
+    final lowerCategory = category.toLowerCase();
+    switch (lowerCategory) {
+      case 'appetizers':
+      case 'món khai vị':
+      case 'khai vị':
+        return Icons.restaurant;
+      case 'main course':
+      case 'món chính':
+      case 'chính':
+        return Icons.dinner_dining;
+      case 'desserts':
+      case 'tráng miệng':
+      case 'dessert':
+        return Icons.cake;
+      case 'beverages':
+      case 'đồ uống':
+      case 'nước uống':
+      case 'thức uống':
+        return Icons.local_drink;
+      case 'vietnamese specials':
+      case 'đặc sản việt nam':
+      case 'món việt':
+        return Icons.star;
+      case 'coffee':
+      case 'cà phê':
+      case 'cà phê - coffee':
+        return Icons.coffee;
+      case 'combo':
+      case 'combo nâng lượng':
+      case 'combo trà chiều':
+        return Icons.set_meal;
+      case 'matcha':
+        return Icons.eco;
+      case 'ưu đãi hôm nay':
+        return Icons.local_offer;
+      case 'món mới':
+        return Icons.new_releases;
+      case 'ẩm thực- xứ đài':
+      case 'ẩm thực':
+        return Icons.food_bank;
+      default:
+        return Icons.fastfood;
     }
   }
 }

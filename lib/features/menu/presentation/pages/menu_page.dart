@@ -102,7 +102,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           ),
           // Search and filter bar
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Column(
               children: [
                 Row(
@@ -198,18 +198,18 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_tabController.index == 0) {
-            // Add new menu item
-            _showAddMenuItemDialog();
-          } else {
-            // Add new option group
-            _showAddOptionGroupDialog();
-          }
-        },
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _tabController.index == 0
+          ? FloatingActionButton.extended(
+              onPressed: _goToScanMenu,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Scan a printed menu'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+            )
+          : FloatingActionButton(
+              onPressed: _showAddOptionGroupDialog,
+              child: const Icon(Icons.add),
+            ),
     );
   }
 
@@ -259,7 +259,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     return RefreshIndicator(
       onRefresh: _loadMenuData,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: itemsByCategory.entries.map((entry) {
           final categoryName = entry.key;
           final items = entry.value;
@@ -276,12 +276,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                   });
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                  margin: const EdgeInsets.only(bottom: 6),
                   child: Row(
                     children: [
                       Expanded(
@@ -289,13 +285,15 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                           categoryName.toUpperCase(),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 15,
+                            color: Colors.black87,
                           ),
                         ),
                       ),
                       Icon(
                         isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                         color: Colors.grey[600],
+                        size: 20,
                       ),
                     ],
                   ),
@@ -304,7 +302,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
               // Category Items
               if (isExpanded)
                 ...items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8, left: 16),
+                  padding: const EdgeInsets.only(bottom: 4),
                   child: MenuItemCard(
                     menuItem: item,
                     categoryName: categoryName,
@@ -314,7 +312,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                     onDelete: () => _deleteMenuItem(item),
                   ),
                 )),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
             ],
           );
         }).toList(),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
+import '../localization/app_localizations.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   final Widget child;
@@ -170,7 +171,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
           // Navigation options
           Text(
-            'Features',
+            AppLocalizations.tr('settings_page.features'),
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -184,7 +185,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
           // Account options
           Text(
-            'Account',
+            AppLocalizations.tr('settings_page.account'),
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -194,7 +195,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
           _buildAccountOptionTile(
             icon: Icons.person_outline,
-            title: 'Profile',
+            title: AppLocalizations.tr('settings_page.profile'),
             onTap: () {
               Navigator.pop(context);
               // Navigate to profile
@@ -202,7 +203,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           ),
           _buildAccountOptionTile(
             icon: Icons.settings_outlined,
-            title: 'Settings',
+            title: AppLocalizations.settings,
             onTap: () {
               Navigator.pop(context);
               context.go('/settings');
@@ -210,7 +211,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           ),
           _buildAccountOptionTile(
             icon: Icons.help_outline,
-            title: 'Help & Support',
+            title: AppLocalizations.tr('settings_page.help_support'),
             onTap: () {
               Navigator.pop(context);
               // Navigate to help
@@ -218,7 +219,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           ),
           _buildAccountOptionTile(
             icon: Icons.logout,
-            title: 'Sign Out',
+            title: AppLocalizations.tr('settings_page.sign_out'),
             iconColor: Colors.red,
             textColor: Colors.red,
             onTap: () async {
