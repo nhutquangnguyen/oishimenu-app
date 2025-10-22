@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -7,8 +8,9 @@ import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../services/menu_service.dart';
 import '../../../../services/menu_option_service.dart';
+import '../../../auth/providers/auth_provider.dart';
 
-class MenuItemEditorPage extends StatefulWidget {
+class MenuItemEditorPage extends ConsumerStatefulWidget {
   final String? menuItemId;
   final MenuItem? menuItem;
 
@@ -19,10 +21,10 @@ class MenuItemEditorPage extends StatefulWidget {
   });
 
   @override
-  State<MenuItemEditorPage> createState() => _MenuItemEditorPageState();
+  ConsumerState<MenuItemEditorPage> createState() => _MenuItemEditorPageState();
 }
 
-class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
+class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -39,6 +41,8 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
   List<Map<String, dynamic>> _categories = [];
   bool _isLoading = false;
   bool _isDirty = false;
+  bool _originalAvailabilityStatus = true;
+  DateTime? _originalCreatedAt;
 
   @override
   void initState() {
@@ -65,6 +69,12 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final optionGroups = await _optionService.getAllOptionGroups();
       final categories = await _menuService.getCategories();
 
@@ -74,10 +84,47 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
           'id': e.key,
           'name': e.value,
         }).toList();
+      });
+
+      // If we have a menuItemId, load the existing menu item data
+      if (widget.menuItemId != null) {
+        await _loadExistingMenuItem();
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      print('Error loading data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadExistingMenuItem() async {
+    if (widget.menuItemId == null) return;
+
+    try {
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) return;
+
+      final menuItems = await _menuService.getAllMenuItems(userId: currentUser.id);
+      final menuItem = menuItems.firstWhere(
+        (item) => item.id == widget.menuItemId,
+        orElse: () => throw Exception('Menu item not found'),
+      );
+
+      // Populate form fields with existing data
+      _nameController.text = menuItem.name;
+      _descriptionController.text = menuItem.description ?? '';
+      _priceController.text = menuItem.price.toString();
+
+      setState(() {
+        _photos = List.from(menuItem.photos);
+        _selectedCategoryName = menuItem.categoryName;
+        _originalAvailabilityStatus = menuItem.availableStatus;
+        _originalCreatedAt = menuItem.createdAt;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading data: $e');
+      print('Error loading existing menu item: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -102,7 +149,7 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
           onPressed: _handleCancel,
         ),
         title: Text(
-          widget.menuItem == null ? 'Add item' : 'Edit item',
+          widget.menuItemId == null ? 'Add item' : 'Edit item',
           style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600),
         ),
         actions: [
@@ -129,15 +176,11 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
                     const SizedBox(height: 24),
                     _buildDescriptionSection(),
                     const SizedBox(height: 24),
-                    _buildTranslationsSection(),
-                    const SizedBox(height: 24),
                     _buildCategorySection(),
                     const SizedBox(height: 24),
                     _buildPriceSection(),
                     const SizedBox(height: 24),
                     _buildOptionGroupsSection(),
-                    const SizedBox(height: 24),
-                    _buildAvailabilitySection(),
                     const SizedBox(height: 32),
                     _buildDeleteButton(),
                     const SizedBox(height: 100), // Space for bottom button
@@ -311,32 +354,11 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
                       '${_descriptionController.text.length}/300',
                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                    GestureDetector(
-                      onTap: _improveDescription,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.green[50],
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.auto_awesome, color: Colors.green[600], size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Improve',
-                              style: TextStyle(color: Colors.green[600], fontSize: 12, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -348,26 +370,6 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
     );
   }
 
-  Widget _buildTranslationsSection() {
-    return GestureDetector(
-      onTap: _editTranslations,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Row(
-          children: [
-            const Text(
-              'Edit translations',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            const Spacer(),
-            Icon(Icons.warning_amber, color: Colors.orange[600], size: 20),
-            const SizedBox(width: 8),
-            Icon(Icons.chevron_right, color: Colors.grey[600]),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildCategorySection() {
     return Column(
@@ -497,44 +499,6 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
     );
   }
 
-  Widget _buildAvailabilitySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Text(
-              'Availability schedule',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            Text(' *', style: TextStyle(color: Colors.red)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _selectAvailabilitySchedule,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'All opening hours',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
-                Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildDeleteButton() {
     if (widget.menuItem == null) return const SizedBox();
@@ -628,9 +592,11 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error adding photo: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding photo: $e')),
+        );
+      }
     }
   }
 
@@ -669,9 +635,11 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating photo: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating photo: $e')),
+        );
+      }
     }
   }
 
@@ -791,11 +759,6 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
     print('Improve description');
   }
 
-  void _editTranslations() {
-    // TODO: Implement translations editor
-    print('Edit translations');
-  }
-
   void _selectCategory() {
     showModalBottomSheet(
       context: context,
@@ -817,11 +780,6 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
   void _rearrangeOptionGroups() {
     // TODO: Implement option group reordering
     print('Rearrange option groups');
-  }
-
-  void _selectAvailabilitySchedule() {
-    // TODO: Implement availability schedule selector
-    print('Select availability schedule');
   }
 
   void _deleteItem() {
@@ -850,11 +808,22 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
   Future<void> _performDelete() async {
     if (widget.menuItem == null) return;
 
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to delete menu items'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      await _menuService.deleteMenuItem(widget.menuItem!.id);
+      await _menuService.deleteMenuItem(widget.menuItem!.id, userId: currentUser.id);
       if (mounted) {
-        Navigator.pop(context, true);
+        context.go('/menu');
       }
     } catch (e) {
       if (mounted) {
@@ -883,8 +852,11 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
+                Navigator.pop(context); // Close dialog
+                // Use Future.microtask to ensure dialog is closed before navigating back
+                Future.microtask(() {
+                  if (mounted) context.go('/menu');
+                });
               },
               child: const Text('Leave'),
             ),
@@ -892,38 +864,59 @@ class _MenuItemEditorPageState extends State<MenuItemEditorPage> {
         ),
       );
     } else {
-      Navigator.pop(context);
+      context.go('/menu');
     }
   }
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to save menu items'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final menuItem = MenuItem(
-        id: widget.menuItem?.id ?? '',
+        id: widget.menuItemId ?? '',
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         price: double.parse(_priceController.text),
         categoryName: _selectedCategoryName,
         photos: _photos,
-        availableStatus: widget.menuItem?.availableStatus ?? true,
-        createdAt: widget.menuItem?.createdAt ?? DateTime.now(),
+        availableStatus: widget.menuItemId == null ? true : _originalAvailabilityStatus,
+        createdAt: widget.menuItemId == null ? DateTime.now() : (_originalCreatedAt ?? DateTime.now()),
         updatedAt: DateTime.now(),
       );
 
-      if (widget.menuItem == null) {
-        await _menuService.createMenuItem(menuItem);
+      print('Save handler - widget.menuItemId is null: ${widget.menuItemId == null}');
+      print('Save handler - menuItem.id: ${menuItem.id}');
+
+      if (widget.menuItemId == null) {
+        print('Taking CREATE path');
+        final result = await _menuService.createMenuItem(menuItem, userId: currentUser.id);
+        if (result == null) {
+          throw Exception('Failed to create menu item');
+        }
+        print('CREATE successful with ID: $result');
       } else {
-        final success = await _menuService.updateMenuItem(menuItem);
+        print('Taking UPDATE path');
+        final success = await _menuService.updateMenuItem(menuItem, userId: currentUser.id);
         if (!success) {
           throw Exception('Failed to update menu item');
         }
+        print('UPDATE successful');
       }
 
       if (mounted) {
-        Navigator.pop(context, true);
+        context.go('/menu');
       }
     } catch (e) {
       if (mounted) {

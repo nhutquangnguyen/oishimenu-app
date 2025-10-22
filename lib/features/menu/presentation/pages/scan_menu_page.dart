@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/menu_item.dart';
 import '../../services/menu_service.dart';
+import '../../../auth/providers/auth_provider.dart';
 
-class ScanMenuPage extends StatefulWidget {
+class ScanMenuPage extends ConsumerStatefulWidget {
   const ScanMenuPage({super.key});
 
   @override
-  State<ScanMenuPage> createState() => _ScanMenuPageState();
+  ConsumerState<ScanMenuPage> createState() => _ScanMenuPageState();
 }
 
-class _ScanMenuPageState extends State<ScanMenuPage> {
+class _ScanMenuPageState extends ConsumerState<ScanMenuPage> {
   final MenuService _menuService = MenuService();
   bool _isScanning = false;
   bool _isProcessing = false;
@@ -689,7 +691,18 @@ Rice Dishes:
 
   Future<void> _importSingleItem(MenuItem item, int index) async {
     try {
-      final result = await _menuService.createMenuItem(item);
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please log in to import menu items'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final result = await _menuService.createMenuItem(item, userId: currentUser.id);
       if (result != null) {
         setState(() {
           _extractedItems.removeAt(index);
@@ -718,12 +731,23 @@ Rice Dishes:
   Future<void> _importAllItems() async {
     if (_extractedItems.isEmpty) return;
 
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to import menu items'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     int successCount = 0;
     int errorCount = 0;
 
     for (final item in _extractedItems) {
       try {
-        final result = await _menuService.createMenuItem(item);
+        final result = await _menuService.createMenuItem(item, userId: currentUser.id);
         if (result != null) {
           successCount++;
         } else {

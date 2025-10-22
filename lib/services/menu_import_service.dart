@@ -14,12 +14,12 @@ class MenuImportService {
   final MenuOptionService _menuOptionService = MenuOptionService();
 
   /// Import menu data from asset file
-  Future<MenuImportResult> importFromAsset(String assetPath) async {
+  Future<MenuImportResult> importFromAsset(String assetPath, {required String userId}) async {
     try {
       final jsonString = await rootBundle.loadString(assetPath);
       final data = jsonDecode(jsonString) as Map<String, dynamic>;
 
-      return await importFromJsonData(data);
+      return await importFromJsonData(data, userId: userId);
     } catch (e) {
       return MenuImportResult(
         success: false,
@@ -29,7 +29,7 @@ class MenuImportService {
   }
 
   /// Import menu data from JSON file
-  Future<MenuImportResult> importFromJsonFile(String filePath) async {
+  Future<MenuImportResult> importFromJsonFile(String filePath, {required String userId}) async {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
@@ -39,7 +39,7 @@ class MenuImportService {
       final jsonString = await file.readAsString();
       final data = jsonDecode(jsonString) as Map<String, dynamic>;
 
-      return await importFromJsonData(data);
+      return await importFromJsonData(data, userId: userId);
     } catch (e) {
       return MenuImportResult(
         success: false,
@@ -49,7 +49,7 @@ class MenuImportService {
   }
 
   /// Import menu data from JSON data map
-  Future<MenuImportResult> importFromJsonData(Map<String, dynamic> data) async {
+  Future<MenuImportResult> importFromJsonData(Map<String, dynamic> data, {required String userId}) async {
     int categoriesImported = 0;
     int menuItemsImported = 0;
     int optionGroupsImported = 0;
@@ -84,7 +84,7 @@ class MenuImportService {
       if (data.containsKey('menuItems')) {
         final menuItems = data['menuItems'] as List<dynamic>;
         for (final itemData in menuItems) {
-          final item = await _importMenuItem(itemData);
+          final item = await _importMenuItem(itemData, userId: userId);
           if (item != null) {
             menuItemsImported++;
           }
@@ -95,7 +95,7 @@ class MenuImportService {
       if (data.containsKey('menuItemOptionRelationships')) {
         final relationships = data['menuItemOptionRelationships'] as List<dynamic>;
         for (final relData in relationships) {
-          final connected = await _importMenuItemOptionRelationship(relData);
+          final connected = await _importMenuItemOptionRelationship(relData, userId: userId);
           if (connected) {
             relationshipsImported++;
           }
@@ -146,7 +146,7 @@ class MenuImportService {
   }
 
   /// Import a single menu item
-  Future<MenuItem?> _importMenuItem(Map<String, dynamic> data) async {
+  Future<MenuItem?> _importMenuItem(Map<String, dynamic> data, {required String userId}) async {
     try {
       // Handle availability status
       bool availableStatus = true;
@@ -175,7 +175,7 @@ class MenuImportService {
         updatedAt: _parseDateTime(data['updatedAt']) ?? DateTime.now(),
       );
 
-      final itemId = await _menuService.createMenuItem(menuItem);
+      final itemId = await _menuService.createMenuItem(menuItem, userId: userId);
       return itemId != null ? menuItem.copyWith(id: itemId) : null;
     } catch (e) {
       debugPrint('Failed to import menu item: $e');
@@ -255,7 +255,7 @@ class MenuImportService {
   }
 
   /// Import menu item to option group relationship
-  Future<bool> _importMenuItemOptionRelationship(Map<String, dynamic> data) async {
+  Future<bool> _importMenuItemOptionRelationship(Map<String, dynamic> data, {required String userId}) async {
     try {
       final menuItemId = data['menuItemId']?.toString();
       final optionGroupIds = data['optionGroupIds'] as List<dynamic>?;
@@ -270,7 +270,7 @@ class MenuImportService {
   if (menuItemName.isEmpty) return false;
 
       // Find the menu item by name (this is a simplified approach)
-      final allMenuItems = await _menuService.getAllMenuItems();
+      final allMenuItems = await _menuService.getAllMenuItems(userId: userId);
       final menuItem = allMenuItems.firstWhere(
         (item) => item.name == menuItemName,
         orElse: () => throw Exception('Menu item not found: $menuItemName'),

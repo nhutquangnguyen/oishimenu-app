@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../services/menu_service.dart';
 import '../../../../services/menu_option_service.dart';
 import '../widgets/menu_item_card.dart';
 import '../../../../core/localization/app_localizations.dart';
+import '../../../auth/providers/auth_provider.dart';
 
-class MenuPage extends StatefulWidget {
+class MenuPage extends ConsumerStatefulWidget {
   const MenuPage({super.key});
 
   @override
-  State<MenuPage> createState() => _MenuPageState();
+  ConsumerState<MenuPage> createState() => _MenuPageState();
 }
 
-class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
+class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMixin {
   late TabController _tabController;
   final MenuService _menuService = MenuService();
   final MenuOptionService _menuOptionService = MenuOptionService();
@@ -58,7 +59,13 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   Future<void> _loadMenuData() async {
     setState(() => _isLoading = true);
     try {
-      final menuItems = await _menuService.getAllMenuItems();
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final menuItems = await _menuService.getAllMenuItems(userId: currentUser.id);
       final categories = await _menuService.getCategories();
       final optionGroups = await _menuOptionService.getAllOptionGroups();
 
@@ -127,19 +134,19 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Scan button
+                    // Add menu item button
                     GestureDetector(
-                      onTap: _goToScanMenu,
+                      onTap: _addMenuItem,
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          border: Border.all(color: Colors.blue[300]!),
+                          color: Colors.green[50],
+                          border: Border.all(color: Colors.green[300]!),
                           borderRadius: BorderRadius.circular(25),
                         ),
                         child: Icon(
-                          Icons.qr_code_scanner,
-                          color: Colors.blue[600],
+                          Icons.add,
+                          color: Colors.green[600],
                           size: 20,
                         ),
                       ),
@@ -200,9 +207,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       ),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton.extended(
-              onPressed: _goToScanMenu,
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Scan a printed menu'),
+              onPressed: _addMenuItem,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Menu Item'),
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
             )
@@ -612,7 +619,10 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   }
 
   void _toggleAvailability(MenuItem menuItem) async {
-    await _menuService.updateMenuItemStatus(menuItem.id, !menuItem.availableStatus);
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) return;
+
+    await _menuService.updateMenuItemStatus(menuItem.id, !menuItem.availableStatus, userId: currentUser.id);
     await _loadMenuData();
   }
 
@@ -665,12 +675,15 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await _menuService.deleteMenuItem(menuItem.id);
-              await _loadMenuData();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${menuItem.name} deleted')),
-                );
+              final currentUser = ref.read(currentUserProvider);
+              if (currentUser != null) {
+                await _menuService.deleteMenuItem(menuItem.id, userId: currentUser.id);
+                await _loadMenuData();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${menuItem.name} deleted')),
+                  );
+                }
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -701,7 +714,10 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   Future<void> _toggleMenuItemAvailability(MenuItem item) async {
     try {
-      await _menuService.updateMenuItemStatus(item.id, !item.availableStatus);
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) return;
+
+      await _menuService.updateMenuItemStatus(item.id, !item.availableStatus, userId: currentUser.id);
       // Refresh the data to show the updated availability
       await _loadMenuData();
     } catch (e) {
@@ -738,15 +754,18 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
     if (confirm == true) {
       try {
-        await _menuService.deleteMenuItem(item.id);
-        await _loadMenuData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Menu item deleted successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+        final currentUser = ref.read(currentUserProvider);
+        if (currentUser != null) {
+          await _menuService.deleteMenuItem(item.id, userId: currentUser.id);
+          await _loadMenuData();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Menu item deleted successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -929,11 +948,11 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _goToScanMenu() async {
-    // Navigate to scan menu page and wait for result
-    final result = await context.push('/menu/scan');
+  Future<void> _addMenuItem() async {
+    // Navigate to add new menu item page and wait for result
+    final result = await context.push('/menu/items/new');
 
-    // If items were successfully imported, refresh the data
+    // If the menu item was successfully created, refresh the data
     if (result == true && mounted) {
       await _loadMenuData();
     }

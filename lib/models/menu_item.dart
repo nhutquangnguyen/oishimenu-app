@@ -71,6 +71,7 @@ class MenuItem {
       'name': name,
       'price': price,
       'description': description,
+      'category_name': categoryName, // Include category name for service conversion
       'photos': photos.isNotEmpty ? photos.join(',') : null,
       'available_status': availableStatus ? 1 : 0,
       'availability_schedule': availabilitySchedule?.toString(),

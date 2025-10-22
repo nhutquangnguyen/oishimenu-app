@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/menu_item.dart';
 import '../../../menu/services/menu_service.dart';
+import '../../../auth/providers/auth_provider.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
 
@@ -44,8 +45,14 @@ class _PosPageState extends ConsumerState<PosPage> {
 
   Future<void> _loadMenuData() async {
     try {
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final categories = await _menuService.getCategories();
-      final menuItems = await _menuService.getAllMenuItems();
+      final menuItems = await _menuService.getAllMenuItems(userId: currentUser.id);
 
       setState(() {
         _categories = {'Tất cả': 'Tất cả', ...categories};

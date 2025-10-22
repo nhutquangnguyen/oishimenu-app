@@ -9,7 +9,6 @@ import 'core/constants/app_constants.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
-import 'services/sample_data_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,13 +23,7 @@ void main() async {
   final authService = AuthService();
   await authService.initialize();
 
-  // Initialize sample data (for desktop/mobile platforms)
-  try {
-    final sampleDataService = SampleDataService();
-    await sampleDataService.initializeSampleData();
-  } catch (e) {
-    print('Sample data initialization failed (expected on web): $e');
-  }
+  // Sample data initialization removed - each user manages their own menu data
 
   runApp(
     EasyLocalization(

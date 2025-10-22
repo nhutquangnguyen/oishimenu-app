@@ -687,7 +687,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
         await _saveOptionsForGroup(groupId);
 
         if (mounted) {
-          Navigator.pop(context, true);
+          context.go('/menu/option-groups');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(widget.optionGroupId == null
@@ -866,7 +866,9 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Close editor
+              Future.microtask(() {
+                if (mounted) context.go('/menu/option-groups');
+              });
             },
             child: const Text('Bỏ qua'),
           ),

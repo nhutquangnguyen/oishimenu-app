@@ -44,7 +44,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDatabase,
       onUpgrade: _upgradeDatabase,
     );
@@ -85,13 +85,15 @@ class DatabaseHelper {
         description TEXT,
         price REAL NOT NULL,
         category_id INTEGER,
+        user_id INTEGER NOT NULL,
         cost_price REAL,
         available_status INTEGER DEFAULT 1,
         availability_schedule TEXT, -- JSON for scheduling availability
         photos TEXT, -- JSON array of photo paths
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
-        FOREIGN KEY (category_id) REFERENCES menu_categories (id)
+        FOREIGN KEY (category_id) REFERENCES menu_categories (id),
+        FOREIGN KEY (user_id) REFERENCES users (id)
       )
     ''');
 
@@ -471,6 +473,33 @@ class DatabaseHelper {
           FOREIGN KEY (counted_by) REFERENCES users (id)
         )
       ''');
+    }
+
+    if (oldVersion < 5 && newVersion >= 5) {
+      // Add user_id column to menu_items for version 5 (multi-user support)
+      await db.execute('''
+        ALTER TABLE menu_items ADD COLUMN user_id INTEGER
+      ''');
+
+      // Get the admin user ID to assign existing menu items
+      final adminUsers = await db.query(
+        'users',
+        where: 'email = ? OR role = ?',
+        whereArgs: ['admin@oishimenu.com', 'admin'],
+        limit: 1,
+      );
+
+      final adminUserId = adminUsers.isNotEmpty ? adminUsers.first['id'] : 1;
+
+      // Update all existing menu items to belong to admin user
+      await db.update(
+        'menu_items',
+        {'user_id': adminUserId},
+        where: 'user_id IS NULL',
+      );
+
+      // Make user_id column NOT NULL after data migration
+      // Note: SQLite doesn't support ALTER COLUMN, so we'll enforce this in the application layer
     }
   }
 

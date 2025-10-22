@@ -6,13 +6,18 @@ import '../../../core/utils/parse_utils.dart';
 class MenuService {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
 
-  Future<List<MenuItem>> getAllMenuItems() async {
+  Future<List<MenuItem>> getAllMenuItems({required String userId}) async {
     try {
       final db = await _databaseHelper.database;
-      final List<Map<String, dynamic>> maps = await db.query(
-        'menu_items',
-        orderBy: 'category_id ASC, name ASC',
-      );
+      final List<Map<String, dynamic>> maps = await db.rawQuery('''
+        SELECT
+          menu_items.*,
+          menu_categories.name as category_name
+        FROM menu_items
+        LEFT JOIN menu_categories ON menu_items.category_id = menu_categories.id
+        WHERE menu_items.user_id = ?
+        ORDER BY menu_items.category_id ASC, menu_items.name ASC
+      ''', [int.tryParse(userId) ?? 0]);
 
       return List.generate(maps.length, (i) {
         return MenuItem.fromMap(maps[i]);
@@ -23,15 +28,18 @@ class MenuService {
     }
   }
 
-  Future<List<MenuItem>> getMenuItemsByCategory(int categoryId) async {
+  Future<List<MenuItem>> getMenuItemsByCategory(int categoryId, {required String userId}) async {
     try {
       final db = await _databaseHelper.database;
-      final List<Map<String, dynamic>> maps = await db.query(
-        'menu_items',
-        where: 'category_id = ?',
-        whereArgs: [categoryId],
-        orderBy: 'name ASC',
-      );
+      final List<Map<String, dynamic>> maps = await db.rawQuery('''
+        SELECT
+          menu_items.*,
+          menu_categories.name as category_name
+        FROM menu_items
+        LEFT JOIN menu_categories ON menu_items.category_id = menu_categories.id
+        WHERE menu_items.category_id = ? AND menu_items.user_id = ?
+        ORDER BY menu_items.name ASC
+      ''', [categoryId, int.tryParse(userId) ?? 0]);
 
       return List.generate(maps.length, (i) {
         return MenuItem.fromMap(maps[i]);
@@ -81,7 +89,7 @@ class MenuService {
     }
   }
 
-  Future<void> updateMenuItemStatus(String itemId, bool isAvailable) async {
+  Future<void> updateMenuItemStatus(String itemId, bool isAvailable, {required String userId}) async {
     try {
       final db = await _databaseHelper.database;
       await db.update(
@@ -90,21 +98,21 @@ class MenuService {
           'available_status': isAvailable ? 1 : 0,
           'updated_at': DateTime.now().millisecondsSinceEpoch,
         },
-        where: 'id = ?',
-        whereArgs: [int.tryParse(itemId) ?? 0],
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [int.tryParse(itemId) ?? 0, int.tryParse(userId) ?? 0],
       );
     } catch (e) {
       print('Error updating menu item status: $e');
     }
   }
 
-  Future<void> deleteMenuItem(String itemId) async {
+  Future<void> deleteMenuItem(String itemId, {required String userId}) async {
     try {
       final db = await _databaseHelper.database;
       await db.delete(
         'menu_items',
-        where: 'id = ?',
-        whereArgs: [int.tryParse(itemId) ?? 0],
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [int.tryParse(itemId) ?? 0, int.tryParse(userId) ?? 0],
       );
     } catch (e) {
       print('Error deleting menu item: $e');
@@ -136,9 +144,10 @@ class MenuService {
     }
   }
 
-  Future<String?> createMenuItem(MenuItem menuItem) async {
+  Future<String?> createMenuItem(MenuItem menuItem, {required String userId}) async {
     try {
       final db = await _databaseHelper.database;
+      print('Creating menu item: ${menuItem.name} in category: ${menuItem.categoryName}');
 
       // Find or create category ID
       final categories = await getCategories();
@@ -151,8 +160,11 @@ class MenuService {
         }
       }
 
+      print('Found category ID: $categoryId for category: ${menuItem.categoryName}');
+
       // If category doesn't exist, create it
       if (categoryId == null) {
+        print('Category not found, creating new category: ${menuItem.categoryName}');
         final newCategory = MenuCategory(
           id: '',
           name: menuItem.categoryName,
@@ -160,18 +172,22 @@ class MenuService {
           updatedAt: DateTime.now(),
         );
         categoryId = await createCategory(newCategory);
+        print('Created new category with ID: $categoryId');
       }
 
       if (categoryId == null) {
         throw Exception('Failed to create or find category');
       }
 
-      // Create menu item with category_id
+      // Create menu item with category_id and user_id
       final itemData = menuItem.toMap();
       itemData['category_id'] = int.tryParse(categoryId);
-      itemData.remove('categoryName'); // Remove the name field, use ID instead
+      itemData['user_id'] = int.tryParse(userId) ?? 0;
+      itemData.remove('category_name'); // Remove the name field, use ID instead
 
+      print('Inserting menu item data: $itemData');
       final id = await db.insert('menu_items', itemData);
+      print('Successfully created menu item with ID: $id');
       return id.toString();
     } catch (e) {
       print('Error creating menu item: $e');
@@ -179,9 +195,10 @@ class MenuService {
     }
   }
 
-  Future<bool> updateMenuItem(MenuItem menuItem) async {
+  Future<bool> updateMenuItem(MenuItem menuItem, {required String userId}) async {
     try {
       final db = await _databaseHelper.database;
+      print('Updating menu item: ${menuItem.name} (ID: ${menuItem.id}) in category: ${menuItem.categoryName}');
 
       // Find or create category ID
       final categories = await getCategories();
@@ -194,8 +211,11 @@ class MenuService {
         }
       }
 
+      print('Found category ID: $categoryId for category: ${menuItem.categoryName}');
+
       // If category doesn't exist, create it
       if (categoryId == null) {
+        print('Category not found, creating new category: ${menuItem.categoryName}');
         final newCategory = MenuCategory(
           id: '',
           name: menuItem.categoryName,
@@ -203,6 +223,7 @@ class MenuService {
           updatedAt: DateTime.now(),
         );
         categoryId = await createCategory(newCategory);
+        print('Created new category with ID: $categoryId');
       }
 
       if (categoryId == null) {
@@ -212,15 +233,20 @@ class MenuService {
       // Update menu item with category_id
       final itemData = menuItem.toMap();
       itemData['category_id'] = int.tryParse(categoryId);
-      itemData.remove('categoryName'); // Remove the name field, use ID instead
+      itemData['user_id'] = int.tryParse(userId) ?? 0;
+      itemData.remove('category_name'); // Remove the name field, use ID instead
+
+      print('Updating menu item data: $itemData');
+      print('WHERE id = ${menuItem.id} AND user_id = $userId');
 
       final result = await db.update(
         'menu_items',
         itemData,
-        where: 'id = ?',
-        whereArgs: [int.tryParse(menuItem.id) ?? 0],
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [int.tryParse(menuItem.id) ?? 0, int.tryParse(userId) ?? 0],
       );
 
+      print('Update result: $result rows affected');
       return result > 0;
     } catch (e) {
       print('Error updating menu item: $e');

@@ -206,7 +206,9 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
             title: AppLocalizations.settings,
             onTap: () {
               Navigator.pop(context);
-              context.go('/settings');
+              Future.microtask(() {
+                if (mounted) context.go('/settings');
+              });
             },
           ),
           _buildAccountOptionTile(
@@ -254,7 +256,9 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () {
         Navigator.pop(context);
-        context.go(item.route);
+        Future.microtask(() {
+          if (mounted) context.go(item.route);
+        });
       },
     );
   }
