@@ -25,15 +25,25 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   Map<String, String> _categories = {};
   List<OptionGroup> _optionGroups = [];
   bool _isLoading = true;
-  String _searchQuery = '';
   Map<String, bool> _expandedCategories = {};
   Map<String, bool> _expandedOptionGroups = {};
+  int _currentTabIndex = 0; // Track tab state independently
+  bool _isNavigating = false; // Prevent double navigation
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _loadMenuData();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    }
   }
 
   @override
@@ -46,17 +56,22 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       final tabIndex = int.tryParse(tabParam) ?? 0;
       if (tabIndex >= 0 && tabIndex < 2) {
         _tabController.animateTo(tabIndex);
+        setState(() {
+          _currentTabIndex = tabIndex;
+        });
       }
     }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
 
   Future<void> _loadMenuData() async {
+    final currentTabIndex = _tabController.index; // Preserve current tab
     setState(() => _isLoading = true);
     try {
       final currentUser = ref.read(currentUserProvider);
@@ -75,19 +90,17 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         _optionGroups = optionGroups;
         _isLoading = false;
       });
+
+      // Restore the original tab index
+      if (_tabController.index != currentTabIndex) {
+        _tabController.index = currentTabIndex;
+      }
     } catch (e) {
       print('Error loading menu data: $e');
       setState(() => _isLoading = false);
     }
   }
 
-  List<MenuItem> get _filteredMenuItems {
-    if (_searchQuery.isEmpty) return _menuItems;
-    return _menuItems.where((item) {
-      return item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-             (item.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
-    }).toList();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,93 +120,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
               ],
             ),
           ),
-          // Search and filter bar
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        onChanged: (value) => setState(() => _searchQuery = value),
-                        decoration: InputDecoration(
-                          hintText: AppLocalizations.menuSearch,
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () => setState(() => _searchQuery = ''),
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Add menu item button
-                    GestureDetector(
-                      onTap: _addMenuItem,
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green[50],
-                          border: Border.all(color: Colors.green[300]!),
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Icon(
-                          Icons.add,
-                          color: Colors.green[600],
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[400]!),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(AppLocalizations.menuOutOfStock(12)),
-                          const SizedBox(width: 8),
-                          Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[400]!),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.schedule, size: 16),
-                          const SizedBox(width: 4),
-                          Text(AppLocalizations.menuAvailability),
-                          const SizedBox(width: 8),
-                          Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -205,18 +131,14 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           ),
         ],
       ),
-      floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton.extended(
-              onPressed: _addMenuItem,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Menu Item'),
+      floatingActionButton: _currentTabIndex == 0
+          ? FloatingActionButton(
+              onPressed: _showAddOptions,
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
-            )
-          : FloatingActionButton(
-              onPressed: _showAddOptionGroupDialog,
               child: const Icon(Icons.add),
-            ),
+            )
+          : null,
     );
   }
 
@@ -227,35 +149,42 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       );
     }
 
-    // Group menu items by category
+    // Initialize all categories (including empty ones)
     Map<String, List<MenuItem>> itemsByCategory = {};
-    for (var item in _filteredMenuItems) {
-      if (!itemsByCategory.containsKey(item.categoryName)) {
-        itemsByCategory[item.categoryName] = [];
-      }
-      itemsByCategory[item.categoryName]!.add(item);
+
+    // First, create entries for all categories
+    for (final categoryName in _categories.values) {
+      itemsByCategory[categoryName] = [];
     }
 
-    if (itemsByCategory.isEmpty) {
+    // Then add menu items to their respective categories
+    for (var item in _menuItems) {
+      if (itemsByCategory.containsKey(item.categoryName)) {
+        itemsByCategory[item.categoryName]!.add(item);
+      } else {
+        // Handle items with categories not in our categories list
+        itemsByCategory[item.categoryName] = [item];
+      }
+    }
+
+    if (_categories.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _searchQuery.isNotEmpty ? Icons.search_off : Icons.restaurant_menu_outlined,
+              Icons.category_outlined,
               size: 64,
               color: Colors.grey,
             ),
             const SizedBox(height: 16),
             Text(
-              _searchQuery.isNotEmpty ? AppLocalizations.menuNoItemsFound : AppLocalizations.noMenuItemsYet,
+              'No categories yet',
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              _searchQuery.isNotEmpty
-                ? AppLocalizations.menuTryDifferentSearch
-                : AppLocalizations.addFirstMenuItem,
+              'Add your first category to get started',
               style: const TextStyle(color: Colors.grey),
             ),
           ],
@@ -307,18 +236,49 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
                 ),
               ),
               // Category Items
-              if (isExpanded)
-                ...items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: MenuItemCard(
-                    menuItem: item,
-                    categoryName: categoryName,
-                    onTap: () => _editMenuItem(item),
-                    onToggleAvailability: () => _toggleAvailability(item),
-                    onEdit: () => _editMenuItem(item),
-                    onDelete: () => _deleteMenuItem(item),
-                  ),
-                )),
+              if (isExpanded) ...[
+                if (items.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    margin: const EdgeInsets.only(bottom: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.restaurant_menu_outlined,
+                          color: Colors.grey[400],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'No items in this category yet',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ...items.map((item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: MenuItemCard(
+                      menuItem: item,
+                      categoryName: categoryName,
+                      onTap: () => _editMenuItem(item),
+                      onToggleAvailability: () => _toggleAvailability(item),
+                      onDelete: () => _deleteMenuItem(item),
+                    ),
+                  )),
+              ],
               const SizedBox(height: 8),
             ],
           );
@@ -335,25 +295,12 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       );
     }
 
-    // Filter option groups based on search query
-    final filteredGroups = _searchQuery.isEmpty
-        ? _optionGroups
-        : _optionGroups.where((group) {
-            final query = _searchQuery.toLowerCase();
-            final matchesName = group.name.toLowerCase().contains(query);
-            final matchesDescription = group.description?.toLowerCase().contains(query) ?? false;
-            final matchesOptions = group.options.any((option) =>
-                option.name.toLowerCase().contains(query));
-            return matchesName || matchesDescription || matchesOptions;
-          }).toList();
+    final filteredGroups = _optionGroups;
 
     if (filteredGroups.isEmpty) {
-      final isSearchEmpty = _searchQuery.isEmpty;
-      final iconData = isSearchEmpty ? Icons.tune_outlined : Icons.search_off;
-      final title = isSearchEmpty ? 'Chưa có nhóm tùy chọn' : 'Không tìm thấy';
-      final subtitle = isSearchEmpty
-          ? 'Thêm nhóm tùy chọn đầu tiên của bạn'
-          : 'Thử từ khóa tìm kiếm khác';
+      final iconData = Icons.tune_outlined;
+      final title = 'Chưa có nhóm tùy chọn';
+      final subtitle = 'Thêm nhóm tùy chọn đầu tiên của bạn';
 
       return Center(
         child: Column(
@@ -370,14 +317,12 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
               subtitle,
               style: const TextStyle(color: Colors.grey),
             ),
-            if (isSearchEmpty) ...[
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => _showAddOptionGroupDialog(),
-                icon: const Icon(Icons.add),
-                label: const Text('Thêm nhóm tùy chọn'),
-              ),
-            ],
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _showAddOptionGroupDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm nhóm tùy chọn'),
+            ),
           ],
         ),
       );
@@ -704,11 +649,18 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   }
 
   Future<void> _editMenuItem(MenuItem item) async {
-    // Navigate to edit screen and wait for result
-    final result = await context.push('/menu/items/${item.id}/edit');
-    // If the menu item was successfully updated, refresh the data
-    if (result == true && mounted) {
-      await _loadMenuData();
+    if (_isNavigating) return; // Prevent double navigation
+
+    _isNavigating = true;
+    try {
+      // Navigate to edit screen and wait for result
+      final result = await context.push('/menu/items/${item.id}/edit');
+      // If the menu item was successfully updated, refresh the data
+      if (result == true && mounted) {
+        await _loadMenuData();
+      }
+    } finally {
+      _isNavigating = false;
     }
   }
 
@@ -791,12 +743,19 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   }
 
   Future<void> _editOptionGroup(OptionGroup group) async {
-    // Navigate to edit screen and wait for result
-    final result = await context.push('/menu/option-groups/${group.id}/edit?from=menu');
+    if (_isNavigating) return; // Prevent double navigation
 
-    // If the option group was successfully updated, refresh the data
-    if (result == true && mounted) {
-      await _loadMenuData();
+    _isNavigating = true;
+    try {
+      // Navigate to edit screen and wait for result
+      final result = await context.push('/menu/option-groups/${group.id}/edit?from=menu');
+
+      // If the option group was successfully updated, refresh the data
+      if (result == true && mounted) {
+        await _loadMenuData();
+      }
+    } finally {
+      _isNavigating = false;
     }
   }
 
@@ -948,13 +907,182 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     );
   }
 
-  Future<void> _addMenuItem() async {
-    // Navigate to add new menu item page and wait for result
-    final result = await context.push('/menu/items/new');
+  void _showAddOptions() {
+    if (_isNavigating) return; // Prevent double navigation
 
-    // If the menu item was successfully created, refresh the data
-    if (result == true && mounted) {
-      await _loadMenuData();
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      isDismissible: true,
+      enableDrag: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Add New',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.restaurant_menu, color: Colors.green[600]),
+              ),
+              title: const Text('Add Menu Item'),
+              subtitle: const Text('Add a new item to your menu'),
+              onTap: () {
+                Navigator.pop(context);
+                // Small delay to ensure modal dismissal completes
+                Future.delayed(const Duration(milliseconds: 50), () {
+                  if (mounted) _addMenuItem();
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.category, color: Colors.blue[600]),
+              ),
+              title: const Text('Add Category'),
+              subtitle: const Text('Create a new category for your items'),
+              onTap: () {
+                Navigator.pop(context);
+                // Small delay to ensure modal dismissal completes
+                Future.delayed(const Duration(milliseconds: 50), () {
+                  if (mounted) _addCategory();
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addCategory() async {
+    if (!mounted) return;
+
+    try {
+      String? categoryName = await showDialog<String>(
+        context: context,
+        barrierDismissible: true,
+        useRootNavigator: true,
+        builder: (dialogContext) => _buildAddCategoryDialog(),
+      );
+
+      if (categoryName != null && categoryName.trim().isNotEmpty && mounted) {
+        try {
+          final category = MenuCategory(
+            id: '',
+            name: categoryName.trim(),
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+
+          final result = await _menuService.createCategory(category);
+          if (result != null && mounted) {
+            await _loadMenuData();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Category "$categoryName" created successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error creating category: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Error already handled in inner try-catch
+    }
+  }
+
+  Widget _buildAddCategoryDialog() {
+    final controller = TextEditingController();
+
+    return AlertDialog(
+      title: const Text('Add New Category'),
+      content: TextField(
+        controller: controller,
+        decoration: const InputDecoration(
+          hintText: 'Enter category name',
+          border: OutlineInputBorder(),
+        ),
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        onSubmitted: (value) {
+          if (value.trim().isNotEmpty) {
+            Navigator.of(context, rootNavigator: true).pop(value.trim());
+          }
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context, rootNavigator: true).pop();
+          },
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            final text = controller.text.trim();
+            if (text.isNotEmpty) {
+              Navigator.of(context, rootNavigator: true).pop(text);
+            }
+          },
+          child: const Text('Add'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addMenuItem() async {
+    if (_isNavigating) return; // Prevent double navigation
+
+    _isNavigating = true;
+    try {
+      // Navigate to add new menu item page and wait for result
+      final result = await context.push('/menu/items/new');
+
+      // If the menu item was successfully created, refresh the data
+      if (result == true && mounted) {
+        await _loadMenuData();
+      }
+    } finally {
+      _isNavigating = false;
     }
   }
 }

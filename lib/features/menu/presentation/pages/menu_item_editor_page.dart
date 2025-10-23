@@ -926,7 +926,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       await _saveOptionGroupRelationships(savedMenuItemId);
 
       if (mounted) {
-        context.go('/menu');
+        context.pop(true);  // Return true to trigger refresh in calling page
       }
     } catch (e) {
       if (mounted) {

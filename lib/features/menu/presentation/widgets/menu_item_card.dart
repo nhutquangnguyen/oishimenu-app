@@ -7,7 +7,6 @@ class MenuItemCard extends StatelessWidget {
   final String categoryName;
   final VoidCallback? onTap;
   final VoidCallback? onToggleAvailability;
-  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
   const MenuItemCard({
@@ -16,7 +15,6 @@ class MenuItemCard extends StatelessWidget {
     required this.categoryName,
     this.onTap,
     this.onToggleAvailability,
-    this.onEdit,
     this.onDelete,
   });
 
