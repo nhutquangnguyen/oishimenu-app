@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'services/database_helper.dart';
 import 'services/inventory_service.dart';
+import 'services/menu_option_service.dart';
 
 void main() {
   runApp(const ProviderScope(child: DatabaseResetApp()));
@@ -32,6 +33,7 @@ class DatabaseResetPage extends StatefulWidget {
 
 class _DatabaseResetPageState extends State<DatabaseResetPage> {
   bool _isResetting = false;
+  bool _isCleaning = false;
   String _status = '';
 
   Future<void> _resetDatabase() async {
@@ -90,6 +92,38 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
     }
   }
 
+  Future<void> _cleanupDatabase() async {
+    setState(() {
+      _isCleaning = true;
+      _status = 'Starting database cleanup...';
+    });
+
+    try {
+      final menuOptionService = MenuOptionService();
+
+      setState(() {
+        _status = 'Cleaning up orphaned junction records...';
+      });
+
+      final results = await menuOptionService.performDatabaseCleanup();
+
+      final totalCleaned = results.values.fold(0, (sum, count) => sum + count);
+
+      setState(() {
+        _status = '✅ Database cleanup complete! Cleaned $totalCleaned orphaned records.\n\n'
+            'Option group junctions: ${results['optionGroupJunctions'] ?? 0}\n'
+            'Menu item option groups: ${results['menuItemOptionGroupJunctions'] ?? 0}';
+        _isCleaning = false;
+      });
+
+    } catch (e) {
+      setState(() {
+        _status = '❌ Cleanup Error: $e';
+        _isCleaning = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,23 +172,39 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
               const SizedBox(height: 24),
             ],
 
-            if (_isResetting)
+            if (_isResetting || _isCleaning)
               const CircularProgressIndicator()
-            else
+            else ...[
+              ElevatedButton.icon(
+                onPressed: _cleanupDatabase,
+                icon: const Icon(Icons.cleaning_services),
+                label: const Text('Clean Database (Fix Option Groups)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+              ),
+              const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _resetDatabase,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Reset Database & Create Inventory'),
+                label: const Text('Full Reset & Create Inventory'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[600],
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 ),
               ),
+            ],
 
             const SizedBox(height: 24),
             const Text(
-              'This will:\n'
+              'Clean Database:\n'
+              '• Remove orphaned option group records (recommended first)\n'
+              '• Fix performance issues and navigation errors\n'
+              '• Keep all existing data\n\n'
+              'Full Reset:\n'
               '• Delete existing database\n'
               '• Create fresh schema with inventory tables\n'
               '• Add sample Vietnamese restaurant ingredients\n'

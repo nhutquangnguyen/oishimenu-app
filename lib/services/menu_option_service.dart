@@ -439,4 +439,78 @@ class MenuOptionService {
       return false;
     }
   }
+
+  /// Clean up orphaned junction records that point to non-existent menu options
+  Future<int> cleanupOrphanedOptionGroupJunctions() async {
+    try {
+      final db = await _databaseHelper.database;
+
+      // Find orphaned junction records where the option_id doesn't exist in menu_options table
+      final orphanedRecords = await db.rawQuery('''
+        SELECT ogo.* FROM option_group_options ogo
+        LEFT JOIN menu_options mo ON ogo.option_id = mo.id
+        WHERE mo.id IS NULL
+      ''');
+
+      if (orphanedRecords.isEmpty) {
+        print('✅ No orphaned option group junction records found');
+        return 0;
+      }
+
+      print('🧹 Found ${orphanedRecords.length} orphaned junction records to clean up');
+
+      // Delete orphaned records
+      final deletedCount = await db.rawDelete('''
+        DELETE FROM option_group_options
+        WHERE option_id NOT IN (SELECT id FROM menu_options)
+      ''');
+
+      print('✅ Cleaned up $deletedCount orphaned option group junction records');
+      return deletedCount;
+    } catch (e) {
+      print('Error cleaning up orphaned option group junctions: $e');
+      return 0;
+    }
+  }
+
+  /// Clean up orphaned menu item option group junction records
+  Future<int> cleanupOrphanedMenuItemOptionGroupJunctions() async {
+    try {
+      final db = await _databaseHelper.database;
+
+      // Find orphaned junction records where the menu_item_id or option_group_id doesn't exist
+      final deletedCount = await db.rawDelete('''
+        DELETE FROM menu_item_option_groups
+        WHERE menu_item_id NOT IN (SELECT id FROM menu_items)
+           OR option_group_id NOT IN (SELECT id FROM option_groups)
+      ''');
+
+      if (deletedCount > 0) {
+        print('✅ Cleaned up $deletedCount orphaned menu item option group junction records');
+      }
+      return deletedCount;
+    } catch (e) {
+      print('Error cleaning up orphaned menu item option group junctions: $e');
+      return 0;
+    }
+  }
+
+  /// Perform comprehensive database cleanup
+  Future<Map<String, int>> performDatabaseCleanup() async {
+    try {
+      print('🧹 Starting comprehensive database cleanup...');
+
+      final results = <String, int>{};
+      results['optionGroupJunctions'] = await cleanupOrphanedOptionGroupJunctions();
+      results['menuItemOptionGroupJunctions'] = await cleanupOrphanedMenuItemOptionGroupJunctions();
+
+      final totalCleaned = results.values.fold(0, (sum, count) => sum + count);
+      print('✅ Database cleanup completed. Total records cleaned: $totalCleaned');
+
+      return results;
+    } catch (e) {
+      print('Error during database cleanup: $e');
+      return {};
+    }
+  }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/menu_item.dart';
+import '../../../../models/menu_options.dart';
 import '../../../menu/services/menu_service.dart';
+import '../../../../services/menu_option_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
@@ -9,7 +11,7 @@ import '../../../auth/providers/auth_provider.dart';
 class CartItem {
   final MenuItem menuItem;
   int quantity;
-  List<String> selectedOptions;
+  List<SelectedOption> selectedOptions;
 
   CartItem({
     required this.menuItem,
@@ -17,7 +19,17 @@ class CartItem {
     this.selectedOptions = const [],
   });
 
-  double get totalPrice => menuItem.price * quantity;
+  double get totalPrice {
+    double basePrice = menuItem.price * quantity;
+    double optionsPrice = selectedOptions.fold(0.0, (sum, option) => sum + option.optionPrice) * quantity;
+    return basePrice + optionsPrice;
+  }
+
+  // Helper method to get a unique identifier for cart items with different options
+  String get uniqueKey {
+    final optionIds = selectedOptions.map((opt) => opt.optionId).toList()..sort();
+    return '${menuItem.id}_${optionIds.join('_')}';
+  }
 }
 
 class PosPage extends ConsumerStatefulWidget {
@@ -29,6 +41,7 @@ class PosPage extends ConsumerStatefulWidget {
 
 class _PosPageState extends ConsumerState<PosPage> {
   final MenuService _menuService = MenuService();
+  final MenuOptionService _menuOptionService = MenuOptionService();
   List<MenuItem> _menuItems = [];
   Map<String, String> _categories = {};
   List<CartItem> _cartItems = [];
@@ -74,13 +87,34 @@ class _PosPageState extends ConsumerState<PosPage> {
     return _menuItems.where((item) => item.categoryName == _selectedCategory).toList();
   }
 
-  void _addToCart(MenuItem item) {
+  Future<void> _addToCart(MenuItem item) async {
+    // Check if this menu item has linked option groups
+    final optionGroups = await _menuOptionService.getOptionGroupsForMenuItem(item.id);
+
+    if (optionGroups.isNotEmpty) {
+      // Show option selection modal
+      _showOptionSelectionModal(item, optionGroups);
+    } else {
+      // Add directly to cart without options
+      _addToCartWithOptions(item, []);
+    }
+  }
+
+  void _addToCartWithOptions(MenuItem item, List<SelectedOption> selectedOptions) {
     setState(() {
-      final existingIndex = _cartItems.indexWhere((cartItem) => cartItem.menuItem.id == item.id);
+      // Create a cart item with the selected options
+      final newCartItem = CartItem(menuItem: item, selectedOptions: selectedOptions);
+
+      // Find existing cart item with same menu item and same options
+      final existingIndex = _cartItems.indexWhere((cartItem) =>
+        cartItem.menuItem.id == item.id && cartItem.uniqueKey == newCartItem.uniqueKey);
+
       if (existingIndex >= 0) {
+        // Increase quantity of existing item with same options
         _cartItems[existingIndex].quantity++;
       } else {
-        _cartItems.add(CartItem(menuItem: item));
+        // Add new cart item
+        _cartItems.add(newCartItem);
       }
     });
   }
@@ -424,7 +458,40 @@ class _PosPageState extends ConsumerState<PosPage> {
                   return Card(
                     child: ListTile(
                       title: Text(cartItem.menuItem.name),
-                      subtitle: Text('${cartItem.menuItem.price.toStringAsFixed(0)}đ'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Base price
+                          Text(
+                            'Base: ${cartItem.menuItem.price.toStringAsFixed(0)}đ',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                          // Selected options
+                          if (cartItem.selectedOptions.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            ...cartItem.selectedOptions.map((option) => Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                '+ ${option.optionName}${option.optionPrice > 0 ? ' (+${option.optionPrice.toStringAsFixed(0)}đ)' : ''}',
+                                style: TextStyle(
+                                  color: Colors.orange[700],
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            )),
+                          ],
+                          // Total price per item
+                          const SizedBox(height: 4),
+                          Text(
+                            'Total per item: ${(cartItem.totalPrice / cartItem.quantity).toStringAsFixed(0)}đ',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -538,14 +605,303 @@ class _PosPageState extends ConsumerState<PosPage> {
     });
 
     // Close any open dialogs safely
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
+    try {
+      if (Navigator.canPop(context) && mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      // Ignore navigation errors during payment completion
+      debugPrint('Navigation error during payment completion: $e');
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Thanh toán thành công bằng $method'),
         backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _showOptionSelectionModal(MenuItem menuItem, List<OptionGroup> optionGroups) {
+    // Track selected options for each group
+    Map<String, SelectedOption?> selectedOptionsMap = {};
+    Map<String, List<String>> selectedMultipleOptionsMap = {};
+
+    // Initialize selected options
+    for (final group in optionGroups) {
+      if (group.maxSelection > 1) {
+        selectedMultipleOptionsMap[group.id] = [];
+      } else {
+        selectedOptionsMap[group.id] = null;
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, modalSetState) {
+          bool canAddToCart = true;
+          String? errorMessage;
+
+          // Validate selections
+          for (final group in optionGroups) {
+            if (group.isRequired) {
+              if (group.maxSelection > 1) {
+                final selectedCount = selectedMultipleOptionsMap[group.id]?.length ?? 0;
+                if (selectedCount < group.minSelection) {
+                  canAddToCart = false;
+                  errorMessage = 'Please select at least ${group.minSelection} options from "${group.name}"';
+                  break;
+                }
+              } else {
+                if (selectedOptionsMap[group.id] == null) {
+                  canAddToCart = false;
+                  errorMessage = 'Please select an option from "${group.name}"';
+                  break;
+                }
+              }
+            }
+          }
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      Text(
+                        menuItem.name,
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (menuItem.description?.isNotEmpty == true) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          menuItem.description!,
+                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Text(
+                        '${menuItem.price.toStringAsFixed(0)}đ',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Option groups
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: optionGroups.length,
+                    itemBuilder: (context, groupIndex) {
+                      final group = optionGroups[groupIndex];
+                      final isMultiple = group.maxSelection > 1;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Group header
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          group.name,
+                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                      if (group.isRequired)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Text(
+                                            'REQUIRED',
+                                            style: TextStyle(
+                                              color: Colors.red,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  if (group.description?.isNotEmpty == true) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      group.description!,
+                                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    isMultiple
+                                        ? 'Select ${group.minSelection} to ${group.maxSelection} options'
+                                        : 'Select 1 option',
+                                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Options
+                            ...group.options.asMap().entries.map((entry) {
+                              final optionIndex = entry.key;
+                              final option = entry.value;
+
+                              return Container(
+                                decoration: BoxDecoration(
+                                  border: optionIndex > 0 ? Border(top: BorderSide(color: Colors.grey[200]!)) : null,
+                                ),
+                                child: isMultiple
+                                    ? CheckboxListTile(
+                                        title: Text(option.name),
+                                        subtitle: option.price > 0 ? Text('+${option.price.toStringAsFixed(0)}đ') : null,
+                                        value: selectedMultipleOptionsMap[group.id]?.contains(option.id) ?? false,
+                                        onChanged: (value) {
+                                          modalSetState(() {
+                                            final currentSelections = selectedMultipleOptionsMap[group.id] ?? [];
+                                            if (value == true) {
+                                              if (currentSelections.length < group.maxSelection) {
+                                                selectedMultipleOptionsMap[group.id] = [...currentSelections, option.id];
+                                              }
+                                            } else {
+                                              selectedMultipleOptionsMap[group.id] = currentSelections.where((id) => id != option.id).toList();
+                                            }
+                                          });
+                                        },
+                                        activeColor: Colors.green[600],
+                                        controlAffinity: ListTileControlAffinity.trailing,
+                                      )
+                                    : RadioListTile<String>(
+                                        title: Text(option.name),
+                                        subtitle: option.price > 0 ? Text('+${option.price.toStringAsFixed(0)}đ') : null,
+                                        value: option.id,
+                                        groupValue: selectedOptionsMap[group.id]?.optionId,
+                                        onChanged: (value) {
+                                          modalSetState(() {
+                                            selectedOptionsMap[group.id] = SelectedOption(
+                                              optionGroupId: group.id,
+                                              optionGroupName: group.name,
+                                              optionId: option.id,
+                                              optionName: option.name,
+                                              optionPrice: option.price,
+                                            );
+                                          });
+                                        },
+                                        activeColor: Colors.green[600],
+                                      ),
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Error message
+                if (errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      errorMessage,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
+                // Add to cart button
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: canAddToCart ? () {
+                        // Collect all selected options
+                        List<SelectedOption> selectedOptions = [];
+
+                        // Add single selections
+                        selectedOptionsMap.forEach((groupId, selectedOption) {
+                          if (selectedOption != null) {
+                            selectedOptions.add(selectedOption);
+                          }
+                        });
+
+                        // Add multiple selections
+                        selectedMultipleOptionsMap.forEach((groupId, selectedOptionIds) {
+                          final group = optionGroups.firstWhere((g) => g.id == groupId);
+                          for (final optionId in selectedOptionIds) {
+                            final option = group.options.firstWhere((o) => o.id == optionId);
+                            selectedOptions.add(SelectedOption(
+                              optionGroupId: groupId,
+                              optionGroupName: group.name,
+                              optionId: option.id,
+                              optionName: option.name,
+                              optionPrice: option.price,
+                            ));
+                          }
+                        });
+
+                        Navigator.pop(context);
+                        _addToCartWithOptions(menuItem, selectedOptions);
+                      } : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[600],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Add to Cart'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

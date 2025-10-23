@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../models/menu_options.dart';
+import '../../../models/menu_item.dart';
 import '../providers/option_group_provider.dart';
 import '../utils/validation.dart';
+import '../../../services/menu_option_service.dart';
+import '../../menu/services/menu_service.dart';
+import '../../auth/providers/auth_provider.dart';
 
 /// Main editor page for creating and editing option groups
 /// Implements the complete UI specification including validation, preview, etc.
@@ -40,10 +44,16 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
   // Editing state
   OptionGroup? _originalGroup;
 
+  // Menu item linking state
+  List<MenuItem> _availableMenuItems = [];
+  List<String> _linkedMenuItemIds = [];
+  bool _isLoadingMenuItems = false;
+
   @override
   void initState() {
     super.initState();
     _loadOptionGroup();
+    _loadMenuItems();
   }
 
   @override
@@ -65,10 +75,13 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
       );
 
       setState(() {
-        _originalGroup = group;
+        // Create a deep copy to prevent shared object references
+        _originalGroup = group.copyWith(
+          options: group.options.map((option) => option.copyWith()).toList(),
+        );
         _nameController.text = group.name;
         _descriptionController.text = group.description ?? '';
-        _options = List.from(group.options);
+        _options = group.options.map((option) => option.copyWith()).toList();
         _isRequired = group.isRequired;
         _allowMultiple = group.maxSelection > 1;
         _minSelections = group.minSelection;
@@ -76,6 +89,35 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
       });
     } catch (e) {
       _showError('Không thể tải nhóm tùy chọn: $e');
+    }
+  }
+
+  Future<void> _loadMenuItems() async {
+    setState(() => _isLoadingMenuItems = true);
+    try {
+      final menuService = MenuService();
+      final menuOptionService = MenuOptionService();
+      final currentUser = ref.read(currentUserProvider);
+
+      if (currentUser == null) return;
+
+      // Load all menu items
+      final menuItems = await menuService.getAllMenuItems(userId: currentUser.id);
+
+      // If editing existing group, load linked menu items
+      List<String> linkedIds = [];
+      if (widget.optionGroupId != null) {
+        linkedIds = await menuOptionService.getMenuItemsUsingOptionGroup(widget.optionGroupId!);
+      }
+
+      setState(() {
+        _availableMenuItems = menuItems;
+        _linkedMenuItemIds = linkedIds;
+        _isLoadingMenuItems = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingMenuItems = false);
+      _showError('Không thể tải danh sách món ăn: $e');
     }
   }
 
@@ -215,8 +257,8 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
           _buildSelectionRulesSection(),
           const SizedBox(height: 24),
 
-          // Translations section
-          _buildTranslationsSection(),
+          // Linked menu items section
+          _buildLinkedMenuItemsSection(),
           const SizedBox(height: 24),
 
           // Preview section
@@ -398,58 +440,144 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
     );
   }
 
-  Widget _buildTranslationsSection() {
-    return InkWell(
-      onTap: () => _showTranslationsDialog(),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
+  Widget _buildLinkedMenuItemsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            const Icon(Icons.translate, color: Colors.blue),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Edit translations',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Some translations are unavailable. You can enter them manually.',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+            const Text(
+              'Linked Menu Items',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Colors.orange,
-                shape: BoxShape.circle,
+            const Spacer(),
+            if (!_isLoadingMenuItems)
+              TextButton.icon(
+                onPressed: () {
+                  print('🔗 Manage Links button pressed');
+                  _showMenuItemLinkingModal();
+                },
+                icon: const Icon(Icons.link, size: 16),
+                label: const Text('Manage Links'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blue[600],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.grey[400],
-            ),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          'Select which menu items will show this option group when customers order.',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        if (_isLoadingMenuItems)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_linkedMenuItemIds.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey[50],
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.link_off, color: Colors.grey[400], size: 32),
+                const SizedBox(height: 8),
+                Text(
+                  'No menu items linked',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'This option group won\'t appear when customers order',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.restaurant_menu, color: Colors.green[600], size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_linkedMenuItemIds.length} linked menu items',
+                      style: TextStyle(
+                        color: Colors.green[700],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _linkedMenuItemIds.map((itemId) {
+                    final menuItem = _availableMenuItems.firstWhere(
+                      (item) => item.id == itemId,
+                      orElse: () => MenuItem(
+                        id: itemId,
+                        name: 'Unknown Item',
+                        price: 0,
+                        categoryName: 'Unknown',
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
+                      ),
+                    );
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
+                      child: Text(
+                        menuItem.name,
+                        style: TextStyle(
+                          color: Colors.blue[800],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -687,7 +815,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
         await _saveOptionsForGroup(groupId);
 
         if (mounted) {
-          context.go('/menu/option-groups');
+          context.go('/menu');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(widget.optionGroupId == null
@@ -836,14 +964,225 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
     );
   }
 
-  void _showTranslationsDialog() {
-    // TODO: Implement translations dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Translations dialog - Coming soon!'),
-        backgroundColor: Colors.orange,
+  void _showMenuItemLinkingModal() {
+    print('🔧 _showMenuItemLinkingModal called');
+    print('📋 Current _linkedMenuItemIds: $_linkedMenuItemIds');
+    print('📋 Available menu items count: ${_availableMenuItems.length}');
+
+    // Create a copy of current linked items for the modal
+    List<String> tempLinkedIds = List.from(_linkedMenuItemIds);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, modalSetState) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Link Menu Items',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Select which menu items will show this option group when customers order them.',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Menu items list
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _availableMenuItems.length,
+                    itemBuilder: (context, index) {
+                      final menuItem = _availableMenuItems[index];
+                      final isLinked = tempLinkedIds.contains(menuItem.id);
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                          color: isLinked ? Colors.blue[50] : Colors.white,
+                        ),
+                        child: CheckboxListTile(
+                          title: Text(
+                            menuItem.name,
+                            style: TextStyle(
+                              fontWeight: isLinked ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${menuItem.price.toStringAsFixed(0)}đ'),
+                              Text(
+                                menuItem.categoryName,
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          value: isLinked,
+                          onChanged: (value) {
+                            modalSetState(() {
+                              if (value == true) {
+                                tempLinkedIds.add(menuItem.id);
+                              } else {
+                                tempLinkedIds.remove(menuItem.id);
+                              }
+                            });
+                          },
+                          activeColor: Colors.blue[600],
+                          controlAffinity: ListTileControlAffinity.trailing,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Footer with action buttons
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${tempLinkedIds.length} items selected',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          print('💾 Save Links button pressed! tempLinkedIds: $tempLinkedIds');
+                          // Save the changes
+                          await _updateMenuItemLinks(tempLinkedIds);
+                          print('✅ Save Links completed, closing modal');
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Save Links'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
+  }
+
+  Future<void> _updateMenuItemLinks(List<String> newLinkedIds) async {
+    print('🚀 _updateMenuItemLinks called with newLinkedIds: $newLinkedIds');
+    print('🏷️ Current optionGroupId: ${widget.optionGroupId}');
+
+    setState(() => _isDirty = true);
+
+    // If this is an existing option group, save the links immediately
+    if (widget.optionGroupId != null) {
+      try {
+        final menuOptionService = MenuOptionService();
+
+        // Keep track of the old linked IDs before updating the state
+        final oldLinkedIds = List<String>.from(_linkedMenuItemIds);
+
+        print('🔗 Updating menu item links for option group ${widget.optionGroupId}');
+        print('📋 Old linked IDs: $oldLinkedIds');
+        print('📋 New linked IDs: $newLinkedIds');
+
+        // Remove existing links that are no longer needed
+        for (final oldId in oldLinkedIds) {
+          if (!newLinkedIds.contains(oldId)) {
+            print('🗑️ Disconnecting menu item $oldId from option group ${widget.optionGroupId}');
+            await menuOptionService.disconnectMenuItemFromOptionGroup(oldId, widget.optionGroupId!);
+          }
+        }
+
+        // Add new links
+        for (final newId in newLinkedIds) {
+          if (!oldLinkedIds.contains(newId)) {
+            print('🔗 Connecting menu item $newId to option group ${widget.optionGroupId}');
+            await menuOptionService.connectMenuItemToOptionGroup(newId, widget.optionGroupId!);
+          }
+        }
+
+        // Reload the linked menu items from database to ensure UI is in sync
+        final updatedLinkedIds = await menuOptionService.getMenuItemsUsingOptionGroup(widget.optionGroupId!);
+
+        // Update the UI state with the actual database state
+        setState(() {
+          _linkedMenuItemIds = updatedLinkedIds;
+        });
+
+        print('✅ Successfully updated menu item links. Final linked IDs: $updatedLinkedIds');
+      } catch (e) {
+        print('❌ Failed to update menu item links: $e');
+        _showError('Failed to update menu item links: $e');
+      }
+    } else {
+      // For new option groups, just update the UI state
+      // The links will be saved when the option group is saved
+      setState(() {
+        _linkedMenuItemIds = newLinkedIds;
+      });
+    }
   }
 
   void _showDeleteConfirmation() {
@@ -867,7 +1206,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
             onPressed: () {
               Navigator.pop(context); // Close dialog
               Future.microtask(() {
-                if (mounted) context.go('/menu/option-groups');
+                if (mounted) context.go('/menu');
               });
             },
             child: const Text('Bỏ qua'),

@@ -156,7 +156,7 @@ class OptionGroup {
       description: description ?? this.description,
       minSelection: minSelection ?? this.minSelection,
       maxSelection: maxSelection ?? this.maxSelection,
-      options: options ?? this.options,
+      options: options ?? this.options.map((option) => option.copyWith()).toList(),
       isRequired: isRequired ?? this.isRequired,
       displayOrder: displayOrder ?? this.displayOrder,
       isActive: isActive ?? this.isActive,

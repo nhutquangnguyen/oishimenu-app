@@ -111,6 +111,9 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         orElse: () => throw Exception('Menu item not found'),
       );
 
+      // Load existing option groups for this menu item
+      final existingOptionGroups = await _optionService.getOptionGroupsForMenuItem(menuItem.id);
+
       // Populate form fields with existing data
       _nameController.text = menuItem.name;
       _descriptionController.text = menuItem.description ?? '';
@@ -119,6 +122,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       setState(() {
         _photos = List.from(menuItem.photos);
         _selectedCategoryName = menuItem.categoryName;
+        _selectedOptionGroupIds = existingOptionGroups.map((group) => group.id).toList();
         _originalAvailabilityStatus = menuItem.availableStatus;
         _originalCreatedAt = menuItem.createdAt;
         _isLoading = false;
@@ -899,12 +903,14 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       print('Save handler - widget.menuItemId is null: ${widget.menuItemId == null}');
       print('Save handler - menuItem.id: ${menuItem.id}');
 
+      String savedMenuItemId;
       if (widget.menuItemId == null) {
         print('Taking CREATE path');
         final result = await _menuService.createMenuItem(menuItem, userId: currentUser.id);
         if (result == null) {
           throw Exception('Failed to create menu item');
         }
+        savedMenuItemId = result;
         print('CREATE successful with ID: $result');
       } else {
         print('Taking UPDATE path');
@@ -912,8 +918,12 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         if (!success) {
           throw Exception('Failed to update menu item');
         }
+        savedMenuItemId = widget.menuItemId!;
         print('UPDATE successful');
       }
+
+      // Save option group relationships
+      await _saveOptionGroupRelationships(savedMenuItemId);
 
       if (mounted) {
         context.go('/menu');
@@ -929,6 +939,33 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       }
     }
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _saveOptionGroupRelationships(String menuItemId) async {
+    try {
+      // For updates, we need to clear existing relationships first
+      if (widget.menuItemId != null) {
+        final existingOptionGroups = await _optionService.getOptionGroupsForMenuItem(menuItemId);
+        for (final optionGroup in existingOptionGroups) {
+          await _optionService.disconnectMenuItemFromOptionGroup(menuItemId, optionGroup.id);
+        }
+      }
+
+      // Connect the menu item to all selected option groups
+      for (int i = 0; i < _selectedOptionGroupIds.length; i++) {
+        final optionGroupId = _selectedOptionGroupIds[i];
+        await _optionService.connectMenuItemToOptionGroup(
+          menuItemId,
+          optionGroupId,
+          displayOrder: i,
+        );
+      }
+
+      print('Successfully saved ${_selectedOptionGroupIds.length} option group relationships');
+    } catch (e) {
+      print('Error saving option group relationships: $e');
+      // Don't throw - we want the menu item to be saved even if option groups fail
+    }
   }
 
   Widget _buildCategorySelectionModal() {
@@ -1086,6 +1123,5 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
 
   void _addCategory() {
     // TODO: Implement add category functionality
-    print('Add category');
   }
 }
