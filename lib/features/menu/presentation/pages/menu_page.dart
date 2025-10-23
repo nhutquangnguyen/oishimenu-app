@@ -131,14 +131,12 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           ),
         ],
       ),
-      floatingActionButton: _currentTabIndex == 0
-          ? FloatingActionButton(
-              onPressed: _showAddOptions,
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.add),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _currentTabIndex == 0 ? _showAddOptions : _showAddOptionGroupDialog,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.add),
+      ),
     );
   }
 
