@@ -211,7 +211,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         return ReorderableListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           itemCount: orderedCategories.length,
-          buildDefaultDragHandles: false, // Disable default drag handles
           onReorder: (oldIndex, newIndex) => _reorderCategories(oldIndex, newIndex, orderedCategories),
           itemBuilder: (context, index) {
             final category = orderedCategories[index];
@@ -225,7 +224,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
               category: category,
               items: categoryItems,
               isExpanded: isExpanded,
-              index: index,
             );
           },
         );
@@ -238,61 +236,40 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     required MenuCategory category,
     required List<MenuItem> items,
     required bool isExpanded,
-    required int index,
   }) {
     return Column(
       key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category Header with drag handle
-        Container(
-          margin: const EdgeInsets.only(bottom: 6),
-          child: Row(
-            children: [
-              // Drag handle for categories
-              ReorderableDragStartListener(
-                index: index,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(
-                    Icons.drag_handle,
-                    color: Colors.grey[400],
-                    size: 20,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _expandedCategories[category.name] = !isExpanded;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            category.name.toUpperCase(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                          color: Colors.grey[600],
-                          size: 20,
-                        ),
-                      ],
+        // Category Header - long press to drag
+        InkWell(
+          onTap: () {
+            setState(() {
+              _expandedCategories[category.name] = !isExpanded;
+            });
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    category.name.toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.black87,
                     ),
                   ),
                 ),
-              ),
-            ],
+                Icon(
+                  isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                  color: Colors.grey[600],
+                  size: 20,
+                ),
+              ],
+            ),
           ),
         ),
         // Category Items
@@ -329,43 +306,23 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
             )
           else
             Container(
-              margin: const EdgeInsets.only(left: 28),
+              margin: const EdgeInsets.only(left: 8),
               child: ReorderableListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: items.length,
-                buildDefaultDragHandles: false,
                 onReorder: (oldIndex, newIndex) => _reorderMenuItems(oldIndex, newIndex, items, category),
                 itemBuilder: (context, index) {
                   final item = items[index];
                   return Container(
                     key: ValueKey('${item.id}_${category.id}_item'),
                     margin: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        // Drag handle for menu items
-                        ReorderableDragStartListener(
-                          index: index,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            child: Icon(
-                              Icons.drag_indicator,
-                              color: Colors.grey[400],
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: MenuItemCard(
-                            menuItem: item,
-                            categoryName: category.name,
-                            onTap: () => _editMenuItem(item),
-                            onToggleAvailability: () => _toggleAvailability(item),
-                            onDelete: () => _deleteMenuItem(item),
-                          ),
-                        ),
-                      ],
+                    child: MenuItemCard(
+                      menuItem: item,
+                      categoryName: category.name,
+                      onTap: () => _editMenuItem(item),
+                      onToggleAvailability: () => _toggleAvailability(item),
+                      onDelete: () => _deleteMenuItem(item),
                     ),
                   );
                 },
