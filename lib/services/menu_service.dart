@@ -38,12 +38,38 @@ class MenuService {
 
   Future<String> addCategory(MenuCategory category) async {
     final db = await _databaseHelper.database;
+
+    // Check for duplicate category name
+    final existing = await db.query(
+      'menu_categories',
+      where: 'LOWER(name) = ? AND is_active = 1',
+      whereArgs: [category.name.toLowerCase()],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      throw Exception('Category with name "${category.name}" already exists');
+    }
+
     final id = await db.insert('menu_categories', category.toMap());
     return id.toString();
   }
 
   Future<void> updateCategory(MenuCategory category) async {
     final db = await _databaseHelper.database;
+
+    // Check for duplicate category name (excluding current category)
+    final existing = await db.query(
+      'menu_categories',
+      where: 'LOWER(name) = ? AND is_active = 1 AND id != ?',
+      whereArgs: [category.name.toLowerCase(), int.tryParse(category.id)],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      throw Exception('Category with name "${category.name}" already exists');
+    }
+
     await db.update(
       'menu_categories',
       category.toMap(),
@@ -153,6 +179,18 @@ class MenuService {
   Future<String> addMenuItem(MenuItem item, String categoryId) async {
     final db = await _databaseHelper.database;
 
+    // Check for duplicate menu item name within the same category
+    final existing = await db.query(
+      'menu_items',
+      where: 'LOWER(name) = ? AND category_id = ? AND is_available = 1',
+      whereArgs: [item.name.toLowerCase(), int.tryParse(categoryId)],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      throw Exception('Menu item with name "${item.name}" already exists in this category');
+    }
+
     final itemMap = item.toMap();
     itemMap['category_id'] = int.tryParse(categoryId);
 
@@ -170,6 +208,18 @@ class MenuService {
 
   Future<void> updateMenuItem(MenuItem item, String categoryId) async {
     final db = await _databaseHelper.database;
+
+    // Check for duplicate menu item name within the same category (excluding current item)
+    final existing = await db.query(
+      'menu_items',
+      where: 'LOWER(name) = ? AND category_id = ? AND is_available = 1 AND id != ?',
+      whereArgs: [item.name.toLowerCase(), int.tryParse(categoryId), int.tryParse(item.id)],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      throw Exception('Menu item with name "${item.name}" already exists in this category');
+    }
 
     final itemMap = item.toMap();
     itemMap['category_id'] = int.tryParse(categoryId);

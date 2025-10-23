@@ -68,7 +68,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
 
     try {
       final service = ref.read(optionGroupServiceProvider);
-      final groups = await service.getAllOptionGroups();
+      final groups = await service.getAllOptionGroups(includeUnavailableOptions: true);
       final group = groups.firstWhere(
         (g) => g.id == widget.optionGroupId,
         orElse: () => throw Exception('Option group not found'),
@@ -289,42 +289,71 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
             final option = entry.value;
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
-              child: InkWell(
-                onTap: () => _editOption(index),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          option.name.isEmpty ? 'Tùy chọn ${index + 1}' : option.name,
-                          style: const TextStyle(fontSize: 16),
-                          overflow: TextOverflow.ellipsis,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                  color: option.isAvailable ? null : Colors.grey[100],
+                ),
+                child: Row(
+                  children: [
+                    // Availability toggle
+                    Switch(
+                      value: option.isAvailable,
+                      onChanged: (value) {
+                        setState(() {
+                          _options[index] = option.copyWith(isAvailable: value);
+                          _isDirty = true;
+                        });
+                      },
+                      activeTrackColor: Colors.green[200],
+                      thumbColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return Colors.green[700];
+                        }
+                        return null;
+                      }),
+                    ),
+                    const SizedBox(width: 12),
+                    // Option details - tappable to edit
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _editOption(index),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                option.name.isEmpty ? 'Tùy chọn ${index + 1}' : option.name,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: option.isAvailable ? Colors.black : Colors.grey[600],
+                                  decoration: option.isAvailable ? null : TextDecoration.lineThrough,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (option.price > 0) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '+${option.price.toStringAsFixed(0)}đ',
+                                style: TextStyle(
+                                  color: option.isAvailable ? Colors.grey[600] : Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.chevron_right,
+                              color: Colors.grey[400],
+                              size: 20,
+                            ),
+                          ],
                         ),
                       ),
-                      if (option.price > 0) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          '+${option.price.toStringAsFixed(0)}đ',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey[400],
-                        size: 20,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -776,12 +805,26 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
     });
   }
 
-  void _validateForm() {
+  Future<void> _validateForm() async {
     final group = _buildOptionGroup();
     final validation = OptionGroupValidation.validateOptionGroup(group);
 
+    // Check for duplicate option group name
+    final service = ref.read(optionGroupServiceProvider);
+    final allGroups = await service.getAllOptionGroups();
+    final isNameUnique = OptionGroupValidation.isGroupNameUnique(
+      group.name,
+      allGroups,
+      excludeId: widget.optionGroupId,
+    );
+
+    final errors = Map<String, String>.from(validation.errors);
+    if (!isNameUnique) {
+      errors['name'] = 'DUPLICATE_GROUP_NAME';
+    }
+
     setState(() {
-      _validationErrors = validation.errors;
+      _validationErrors = errors;
     });
   }
 
@@ -973,6 +1016,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
                 id: option?.id ?? '', // Empty ID for new options
                 name: name,
                 price: price,
+                isAvailable: option?.isAvailable ?? true, // Preserve availability status
                 createdAt: option?.createdAt ?? DateTime.now(),
                 updatedAt: DateTime.now(),
               );

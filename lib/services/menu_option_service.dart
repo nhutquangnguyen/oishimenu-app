@@ -94,7 +94,8 @@ class MenuOptionService {
   // ============= Option Groups =============
 
   /// Get all option groups
-  Future<List<OptionGroup>> getAllOptionGroups() async {
+  /// [includeUnavailableOptions] - if true, includes unavailable options in each group (for admin/editor views)
+  Future<List<OptionGroup>> getAllOptionGroups({bool includeUnavailableOptions = false}) async {
     try {
       final db = await _databaseHelper.database;
       final List<Map<String, dynamic>> maps = await db.query(
@@ -107,7 +108,7 @@ class MenuOptionService {
       List<OptionGroup> groups = [];
       for (final map in maps) {
         final group = OptionGroup.fromMap(map);
-        final options = await getOptionsForGroup(group.id);
+        final options = await getOptionsForGroup(group.id, includeUnavailable: includeUnavailableOptions);
         groups.add(group.copyWith(options: options));
       }
 
@@ -144,7 +145,9 @@ class MenuOptionService {
   }
 
   /// Get options for a specific option group
-  Future<List<MenuOption>> getOptionsForGroup(String optionGroupId) async {
+  /// [includeUnavailable] - if true, includes options where is_available = 0 (for admin/editor views)
+  ///                       - if false, only returns available options (for customer-facing views)
+  Future<List<MenuOption>> getOptionsForGroup(String optionGroupId, {bool includeUnavailable = false}) async {
     try {
       final db = await _databaseHelper.database;
       final groupIdInt = int.tryParse(optionGroupId) ?? 0;
@@ -173,10 +176,13 @@ class MenuOptionService {
         }
       }
 
+      // Build the WHERE clause based on whether we want to include unavailable options
+      final availabilityFilter = includeUnavailable ? '' : 'AND mo.is_available = 1';
+
       final List<Map<String, dynamic>> maps = await db.rawQuery('''
         SELECT mo.* FROM menu_options mo
         INNER JOIN option_group_options ogo ON mo.id = ogo.option_id
-        WHERE ogo.option_group_id = ? AND mo.is_available = 1
+        WHERE ogo.option_group_id = ? $availabilityFilter
         ORDER BY ogo.display_order ASC, mo.name ASC
       ''', [groupIdInt]);
 
@@ -198,6 +204,19 @@ class MenuOptionService {
   Future<String?> createOptionGroup(OptionGroup optionGroup) async {
     try {
       final db = await _databaseHelper.database;
+
+      // Check for duplicate option group name
+      final existing = await db.query(
+        'option_groups',
+        where: 'LOWER(name) = ? AND is_active = 1',
+        whereArgs: [optionGroup.name.toLowerCase()],
+        limit: 1,
+      );
+
+      if (existing.isNotEmpty) {
+        throw Exception('Option group with name "${optionGroup.name}" already exists');
+      }
+
       final id = await db.insert('option_groups', optionGroup.toMap());
       return id.toString();
     } catch (e) {
@@ -210,6 +229,19 @@ class MenuOptionService {
   Future<bool> updateOptionGroup(OptionGroup optionGroup) async {
     try {
       final db = await _databaseHelper.database;
+
+      // Check for duplicate option group name (excluding current group)
+      final existing = await db.query(
+        'option_groups',
+        where: 'LOWER(name) = ? AND is_active = 1 AND id != ?',
+        whereArgs: [optionGroup.name.toLowerCase(), int.tryParse(optionGroup.id) ?? 0],
+        limit: 1,
+      );
+
+      if (existing.isNotEmpty) {
+        throw Exception('Option group with name "${optionGroup.name}" already exists');
+      }
+
       final rowsAffected = await db.update(
         'option_groups',
         optionGroup.toMap(),

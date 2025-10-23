@@ -89,7 +89,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
       final menuItems = await _menuService.getAllMenuItems(userId: currentUser.id);
       final categories = await _menuService.getCategories();
-      final optionGroups = await _menuOptionService.getAllOptionGroups();
+      final optionGroups = await _menuOptionService.getAllOptionGroups(includeUnavailableOptions: true);
 
       setState(() {
         _menuItems = menuItems;

@@ -8,15 +8,16 @@ final optionGroupServiceProvider = Provider<MenuOptionService>((ref) {
 });
 
 // Option groups list provider - fetches all active option groups
+// Includes unavailable options for admin/editor views
 final optionGroupsProvider = FutureProvider<List<OptionGroup>>((ref) async {
   final service = ref.watch(optionGroupServiceProvider);
-  return service.getAllOptionGroups();
+  return service.getAllOptionGroups(includeUnavailableOptions: true);
 });
 
 // Single option group provider with options
 final optionGroupProvider = FutureProvider.family<OptionGroup?, String>((ref, groupId) async {
   final service = ref.watch(optionGroupServiceProvider);
-  final groups = await service.getAllOptionGroups();
+  final groups = await service.getAllOptionGroups(includeUnavailableOptions: true);
   return groups.firstWhere(
     (group) => group.id == groupId,
     orElse: () => throw Exception('Option group not found'),
@@ -58,14 +59,14 @@ class OptionGroupNotifier extends AsyncNotifier<List<OptionGroup>> {
   @override
   Future<List<OptionGroup>> build() async {
     final service = ref.read(optionGroupServiceProvider);
-    return service.getAllOptionGroups();
+    return service.getAllOptionGroups(includeUnavailableOptions: true);
   }
 
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     try {
       final service = ref.read(optionGroupServiceProvider);
-      final groups = await service.getAllOptionGroups();
+      final groups = await service.getAllOptionGroups(includeUnavailableOptions: true);
       state = AsyncValue.data(groups);
     } catch (error, stack) {
       state = AsyncValue.error(error, stack);

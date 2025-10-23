@@ -11,6 +11,7 @@ class OptionGroupValidation {
   static const String optionLabelLength = 'OPTION_LABEL_LENGTH_INVALID';
   static const String priceInvalid = 'PRICE_INVALID';
   static const String selectionConflict = 'SELECTION_CONFLICT_MIN_MAX';
+  static const String duplicateGroupName = 'DUPLICATE_GROUP_NAME';
   static const String defaultExceedsMax = 'DEFAULT_EXCEEDS_MAX';
   static const String currencyMismatch = 'CURRENCY_MISMATCH';
 
@@ -181,6 +182,8 @@ class OptionGroupValidation {
         return 'Phải có ít nhất 1 tùy chọn';
       case duplicateOptionLabel:
         return 'Tên tùy chọn không được trùng lặp';
+      case duplicateGroupName:
+        return 'Tên nhóm tùy chọn đã tồn tại';
       case optionLabelRequired:
         return 'Tên tùy chọn là bắt buộc';
       case optionLabelLength:

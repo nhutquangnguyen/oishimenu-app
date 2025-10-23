@@ -75,7 +75,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         return;
       }
 
-      final optionGroups = await _optionService.getAllOptionGroups();
+      final optionGroups = await _optionService.getAllOptionGroups(includeUnavailableOptions: true);
       final categories = await _menuService.getCategories();
 
       setState(() {
@@ -1136,30 +1136,105 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
-                    ..._availableOptionGroups.map((group) => CheckboxListTile(
-                      title: Text(group.name),
-                      subtitle: Text(
-                        group.isRequired
-                            ? 'Required: ${group.description ?? ''}'
-                            : 'Optional: ${group.description ?? ''}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                      value: _selectedOptionGroupIds.contains(group.id),
-                      onChanged: (value) {
-                        setModalState(() {
-                          if (value == true) {
-                            _selectedOptionGroupIds.add(group.id);
-                          } else {
-                            _selectedOptionGroupIds.remove(group.id);
-                          }
-                          _isDirty = true;
-                        });
-                        // Also update the parent widget state
-                        setState(() {});
-                      },
-                      activeColor: Colors.green[600],
-                      controlAffinity: ListTileControlAffinity.trailing,
-                    )),
+                    ..._availableOptionGroups.map((group) {
+                      // Debug logging
+                      print('🔍 Option group: ${group.name} - has ${group.options.length} options');
+                      for (final opt in group.options) {
+                        print('   - ${opt.name}: available=${opt.isAvailable}');
+                      }
+
+                      // Count available and unavailable options
+                      final availableCount = group.options.where((opt) => opt.isAvailable).length;
+                      final unavailableCount = group.options.where((opt) => !opt.isAvailable).length;
+                      final totalCount = group.options.length;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CheckboxListTile(
+                            title: Text(group.name),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  group.isRequired
+                                      ? 'Required: ${group.description ?? ''}'
+                                      : 'Optional: ${group.description ?? ''}',
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                ),
+                                if (totalCount > 0) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$totalCount option${totalCount != 1 ? 's' : ''} ($availableCount available${unavailableCount > 0 ? ', $unavailableCount off' : ''})',
+                                    style: TextStyle(
+                                      color: unavailableCount > 0 ? Colors.orange[700] : Colors.grey[600],
+                                      fontSize: 11,
+                                      fontWeight: unavailableCount > 0 ? FontWeight.w500 : FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            value: _selectedOptionGroupIds.contains(group.id),
+                            onChanged: (value) {
+                              setModalState(() {
+                                if (value == true) {
+                                  _selectedOptionGroupIds.add(group.id);
+                                } else {
+                                  _selectedOptionGroupIds.remove(group.id);
+                                }
+                                _isDirty = true;
+                              });
+                              // Also update the parent widget state
+                              setState(() {});
+                            },
+                            activeColor: Colors.green[600],
+                            controlAffinity: ListTileControlAffinity.trailing,
+                          ),
+                          // Show individual options with their status (always show if options exist)
+                          if (group.options.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 56, right: 16, bottom: 12, top: 4),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: group.options.map((option) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          option.isAvailable ? Icons.check_circle : Icons.cancel,
+                                          size: 14,
+                                          color: option.isAvailable ? Colors.green[600] : Colors.grey[400],
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            option.name,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: option.isAvailable ? Colors.grey[700] : Colors.grey[500],
+                                              decoration: option.isAvailable ? null : TextDecoration.lineThrough,
+                                            ),
+                                          ),
+                                        ),
+                                        if (option.price > 0)
+                                          Text(
+                                            '+${option.price.toStringAsFixed(0)}đ',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: option.isAvailable ? Colors.grey[600] : Colors.grey[400],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                        ],
+                      );
+                    }),
                     const SizedBox(height: 20),
                     ListTile(
                       title: Text(
