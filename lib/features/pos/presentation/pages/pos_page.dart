@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../../../models/customer.dart';
+import '../../../../models/order.dart' as order_model;
 import '../../../menu/services/menu_service.dart';
 import '../../../../services/menu_option_service.dart';
 import '../../../../services/customer_service.dart';
+import '../../../../services/order_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
@@ -45,6 +47,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   final MenuService _menuService = MenuService();
   final MenuOptionService _menuOptionService = MenuOptionService();
   final CustomerService _customerService = CustomerService();
+  final OrderService _orderService = OrderService();
   List<MenuItem> _menuItems = [];
   Map<String, String> _categories = {};
   List<CartItem> _cartItems = [];
@@ -603,25 +606,156 @@ class _PosPageState extends ConsumerState<PosPage> {
               ],
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _processPayment,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            Row(
+              children: [
+                // Save Order button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _saveOrder,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text(
+                      'Lưu đơn',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-                child: const Text(
-                  'Thanh toán',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                const SizedBox(width: 12),
+                // Check Out button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _processPayment,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text(
+                      'Thanh toán',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _saveOrder() async {
+    // Close the cart bottom sheet
+    Navigator.pop(context);
+
+    if (_cartItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Giỏ hàng trống'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Generate order number
+      final now = DateTime.now();
+      final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
+
+      // Convert cart items to order items
+      final orderItems = _cartItems.map((cartItem) {
+        // Convert SelectedOptions from menu_options to order model
+        final orderSelectedOptions = cartItem.selectedOptions.map((opt) {
+          return order_model.SelectedOption(
+            optionGroupId: opt.optionGroupId,
+            optionGroupName: opt.optionGroupName,
+            optionId: opt.optionId,
+            optionName: opt.optionName,
+            price: opt.optionPrice,
+          );
+        }).toList();
+
+        return order_model.OrderItem(
+          id: '',
+          menuItemId: cartItem.menuItem.id,
+          menuItemName: cartItem.menuItem.name,
+          basePrice: cartItem.menuItem.price,
+          quantity: cartItem.quantity,
+          selectedOptions: orderSelectedOptions,
+          subtotal: cartItem.totalPrice,
+        );
+      }).toList();
+
+      // Determine order type based on table
+      order_model.OrderType orderType;
+      if (_selectedTable == 'Mang về') {
+        orderType = order_model.OrderType.takeaway;
+      } else if (_selectedTable == 'Grab') {
+        orderType = order_model.OrderType.delivery;
+      } else {
+        orderType = order_model.OrderType.dineIn;
+      }
+
+      // Convert Customer to order model Customer
+      final orderCustomer = _selectedCustomer != null
+          ? order_model.Customer(
+              id: _selectedCustomer!.id,
+              name: _selectedCustomer!.name,
+              phone: _selectedCustomer!.phone,
+              email: _selectedCustomer!.email,
+              address: _selectedCustomer!.address,
+            )
+          : order_model.Customer(
+              id: '',
+              name: 'Walk-in Customer',
+            );
+
+      // Create order
+      final order = order_model.Order(
+        id: '',
+        orderNumber: orderNumber,
+        customer: orderCustomer,
+        items: orderItems,
+        subtotal: _totalAmount,
+        total: _totalAmount,
+        orderType: orderType,
+        status: order_model.OrderStatus.pending,
+        paymentMethod: order_model.PaymentMethod.cash,
+        paymentStatus: order_model.PaymentStatus.pending,
+        tableNumber: _selectedTable,
+        platform: 'POS',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Save to database
+      final orderId = await _orderService.createOrder(order);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đơn hàng #$orderNumber đã được lưu'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Keep cart for potential modifications
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi lưu đơn hàng: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _processPayment() {
@@ -661,28 +795,135 @@ class _PosPageState extends ConsumerState<PosPage> {
     });
   }
 
-  void _completePayment(String method) {
-    // Don't pop the dialog, close it by setting state instead
-    setState(() {
-      _cartItems.clear();
-    });
-
-    // Close any open dialogs safely
-    try {
-      if (Navigator.canPop(context) && mounted) {
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      // Ignore navigation errors during payment completion
-      debugPrint('Navigation error during payment completion: $e');
+  Future<void> _completePayment(String method) async {
+    if (_cartItems.isEmpty) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Giỏ hàng trống'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Thanh toán thành công bằng $method'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    try {
+      // Generate order number
+      final now = DateTime.now();
+      final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
+
+      // Convert cart items to order items
+      final orderItems = _cartItems.map((cartItem) {
+        final orderSelectedOptions = cartItem.selectedOptions.map((opt) {
+          return order_model.SelectedOption(
+            optionGroupId: opt.optionGroupId,
+            optionGroupName: opt.optionGroupName,
+            optionId: opt.optionId,
+            optionName: opt.optionName,
+            price: opt.optionPrice,
+          );
+        }).toList();
+
+        return order_model.OrderItem(
+          id: '',
+          menuItemId: cartItem.menuItem.id,
+          menuItemName: cartItem.menuItem.name,
+          basePrice: cartItem.menuItem.price,
+          quantity: cartItem.quantity,
+          selectedOptions: orderSelectedOptions,
+          subtotal: cartItem.totalPrice,
+        );
+      }).toList();
+
+      // Determine order type
+      order_model.OrderType orderType;
+      if (_selectedTable == 'Mang về') {
+        orderType = order_model.OrderType.takeaway;
+      } else if (_selectedTable == 'Grab') {
+        orderType = order_model.OrderType.delivery;
+      } else {
+        orderType = order_model.OrderType.dineIn;
+      }
+
+      // Determine payment method
+      order_model.PaymentMethod paymentMethod;
+      if (method == 'Tiền mặt') {
+        paymentMethod = order_model.PaymentMethod.cash;
+      } else if (method == 'Thẻ') {
+        paymentMethod = order_model.PaymentMethod.card;
+      } else {
+        paymentMethod = order_model.PaymentMethod.bankTransfer;
+      }
+
+      // Convert Customer
+      final orderCustomer = _selectedCustomer != null
+          ? order_model.Customer(
+              id: _selectedCustomer!.id,
+              name: _selectedCustomer!.name,
+              phone: _selectedCustomer!.phone,
+              email: _selectedCustomer!.email,
+              address: _selectedCustomer!.address,
+            )
+          : order_model.Customer(
+              id: '',
+              name: 'Walk-in Customer',
+            );
+
+      // Create order with paid status
+      final order = order_model.Order(
+        id: '',
+        orderNumber: orderNumber,
+        customer: orderCustomer,
+        items: orderItems,
+        subtotal: _totalAmount,
+        total: _totalAmount,
+        orderType: orderType,
+        status: order_model.OrderStatus.delivered, // Mark as delivered for completed payment
+        paymentMethod: paymentMethod,
+        paymentStatus: order_model.PaymentStatus.paid,
+        tableNumber: _selectedTable,
+        platform: 'POS',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Save to database
+      await _orderService.createOrder(order);
+
+      // Clear cart
+      setState(() {
+        _cartItems.clear();
+        _selectedCustomer = null;
+      });
+
+      // Close dialog
+      try {
+        if (Navigator.canPop(context) && mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        debugPrint('Navigation error: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đơn hàng #$orderNumber - Thanh toán thành công bằng $method'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi thanh toán: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showOptionSelectionModal(MenuItem menuItem, List<OptionGroup> optionGroups) {
