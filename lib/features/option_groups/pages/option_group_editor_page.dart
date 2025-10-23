@@ -74,6 +74,11 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
         orElse: () => throw Exception('Option group not found'),
       );
 
+      print('📥 Loading option group from database:');
+      print('   group.minSelection: ${group.minSelection}');
+      print('   group.maxSelection: ${group.maxSelection}');
+      print('   group.isRequired: ${group.isRequired}');
+
       setState(() {
         // Create a deep copy to prevent shared object references
         _originalGroup = group.copyWith(
@@ -86,6 +91,9 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
         _allowMultiple = group.maxSelection > 1;
         _minSelections = group.minSelection;
         _maxSelections = group.maxSelection;
+
+        print('   Setting _allowMultiple to: $_allowMultiple (because ${group.maxSelection} > 1 = ${group.maxSelection > 1})');
+        print('   Setting _maxSelections to: $_maxSelections');
       });
     } catch (e) {
       _showError('Không thể tải nhóm tùy chọn: $e');
@@ -135,17 +143,9 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            // Check if we came from the menu tab
-            final state = GoRouterState.of(context);
-            final fromMenu = state.uri.queryParameters['from'] == 'menu';
-
-            if (fromMenu) {
-              // Navigate back to menu page and show Option Groups tab
-              context.go('/menu?tab=1');
-            } else {
-              // Use default back navigation
-              context.pop();
-            }
+            // Always use pop to return to the previous page
+            // This ensures the calling page receives the result properly
+            context.pop();
           },
         ),
       ),
@@ -430,6 +430,16 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
               value: _allowMultiple,
               onChanged: (value) => setState(() {
                 _allowMultiple = value;
+                // When enabling multiple selection, set a reasonable default max
+                if (value && _maxSelections <= 1) {
+                  // Set to at least 2, even if there's only 1 option now
+                  // User can add more options later
+                  _maxSelections = 2;
+                }
+                // When disabling multiple selection, reset to 1
+                if (!value) {
+                  _maxSelections = 1;
+                }
                 _computeSelectionRules();
                 _validateForm();
               }),
@@ -776,6 +786,12 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
   }
 
   OptionGroup _buildOptionGroup() {
+    print('📦 Building option group:');
+    print('   _allowMultiple: $_allowMultiple');
+    print('   _minSelections: $_minSelections');
+    print('   _maxSelections: $_maxSelections');
+    print('   _isRequired: $_isRequired');
+
     return OptionGroup(
       id: widget.optionGroupId ?? '',
       name: _nameController.text.trim(),
@@ -794,28 +810,39 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
   }
 
   Future<void> _handleSave() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('💾 Save button clicked');
+    if (!_formKey.currentState!.validate()) {
+      print('❌ Form validation failed');
+      return;
+    }
 
     final group = _buildOptionGroup();
     final notifier = ref.read(optionGroupNotifierProvider.notifier);
+
+    print('🚀 Starting save process for: ${group.name}');
 
     try {
       String? groupId;
       if (widget.optionGroupId == null) {
         // Create new option group
+        print('➕ Creating new option group');
         groupId = await notifier.createOptionGroup(group);
+        print('✅ Created with ID: $groupId');
       } else {
         // Update existing option group
+        print('🔄 Updating existing option group');
         final success = await notifier.updateOptionGroup(group);
         groupId = success ? widget.optionGroupId : null;
+        print('✅ Update result: $success');
       }
 
       if (groupId != null) {
         // Save all options and link them to the group
+        print('💾 Saving options for group $groupId');
         await _saveOptionsForGroup(groupId);
 
         if (mounted) {
-          context.go('/menu');
+          print('✅ Showing success message and popping with groupId: $groupId');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(widget.optionGroupId == null
@@ -824,7 +851,14 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
               backgroundColor: Colors.green,
             ),
           );
+
+          // Navigate back with the option group ID
+          print('🔙 Calling context.pop($groupId)');
+          context.pop(groupId);
+          print('✅ context.pop completed');
         }
+      } else {
+        print('❌ groupId is null, not saving');
       }
     } catch (e) {
       if (mounted) {

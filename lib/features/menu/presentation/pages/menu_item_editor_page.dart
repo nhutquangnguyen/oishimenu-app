@@ -1166,9 +1166,23 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
                         'Create a new option group',
                         style: TextStyle(color: Colors.blue[600]),
                       ),
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(context);
-                        context.push('/menu/option-groups/new');
+                        // Navigate to create option group and wait for result (returns the new group ID)
+                        final newGroupId = await context.push('/menu/option-groups/new');
+                        // If option group was created (result is the group ID string)
+                        if (newGroupId != null && newGroupId is String && mounted) {
+                          await _loadData();
+                          // Auto-select the newly created option group
+                          if (!_selectedOptionGroupIds.contains(newGroupId)) {
+                            setState(() {
+                              _selectedOptionGroupIds.add(newGroupId);
+                              _isDirty = true;
+                            });
+                          }
+                          // Reopen the option group selection modal
+                          _selectOptionGroups();
+                        }
                       },
                     ),
                   ],

@@ -49,6 +49,13 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    // Reset navigation flag when returning to this page
+    if (_isNavigating) {
+      print('🔄 Resetting stuck _isNavigating flag in didChangeDependencies');
+      _isNavigating = false;
+    }
+
     // Check if we should show a specific tab from query parameter
     final state = GoRouterState.of(context);
     final tabParam = state.uri.queryParameters['tab'];
@@ -779,28 +786,54 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
   Future<void> _showAddOptionGroupDialog() async {
     // Navigate to dedicated option groups management page and wait for result
-    final result = await context.push('/menu/option-groups/new');
+    // Add from=menu parameter so the editor knows to return here
+    final result = await context.push('/menu/option-groups/new?from=menu');
 
-    // If the option group was successfully created, refresh the data
-    if (result == true && mounted) {
+    print('🔙 Returned from creating option group with result: $result');
+
+    // If the option group was successfully created (result is the group ID), refresh the data
+    if (result != null && mounted) {
+      print('✅ New option group created with ID: $result, refreshing data...');
       await _loadMenuData();
+      print('✅ Data refresh complete, option groups count: ${_optionGroups.length}');
+    } else {
+      print('❌ No result from option group creation');
     }
   }
 
   Future<void> _editOptionGroup(OptionGroup group) async {
-    if (_isNavigating) return; // Prevent double navigation
+    print('🔍 Edit option group clicked - _isNavigating: $_isNavigating');
+    if (_isNavigating) {
+      print('⚠️ Navigation blocked - already navigating');
+      return; // Prevent double navigation
+    }
 
-    _isNavigating = true;
+    print('✅ Starting navigation to edit option group ${group.id}');
+    setState(() {
+      _isNavigating = true;
+    });
+
     try {
       // Navigate to edit screen and wait for result
+      print('🚀 Pushing to edit screen');
       final result = await context.push('/menu/option-groups/${group.id}/edit?from=menu');
+      print('📥 Navigation returned with result: $result');
 
-      // If the option group was successfully updated, refresh the data
-      if (result == true && mounted) {
+      // If the option group was successfully updated (result is the group ID), refresh the data
+      if (result != null && mounted) {
+        print('🔄 Refreshing menu data');
         await _loadMenuData();
       }
+    } catch (e) {
+      print('❌ Error navigating to edit option group: $e');
     } finally {
-      _isNavigating = false;
+      print('🔓 Resetting _isNavigating flag');
+      if (mounted) {
+        setState(() {
+          _isNavigating = false;
+        });
+      }
+      print('✅ _isNavigating is now: $_isNavigating');
     }
   }
 

@@ -214,9 +214,11 @@ class OptionGroupValidation {
     } else {
       // Multi-select mode
       final maxCount = maxSelections ?? optionCount;
+      // Don't clamp to optionCount - allow setting higher max for future options
+      // Just ensure it's at least 2 for multiple selection mode
       return SelectionRules(
         min: isRequired ? 1 : 0,
-        max: maxCount.clamp(1, optionCount),
+        max: maxCount < 2 ? 2 : maxCount,
       );
     }
   }
