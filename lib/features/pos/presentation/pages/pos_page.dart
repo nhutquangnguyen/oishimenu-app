@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
+import '../../../../models/customer.dart';
 import '../../../menu/services/menu_service.dart';
 import '../../../../services/menu_option_service.dart';
+import '../../../../services/customer_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
@@ -42,13 +44,14 @@ class PosPage extends ConsumerStatefulWidget {
 class _PosPageState extends ConsumerState<PosPage> {
   final MenuService _menuService = MenuService();
   final MenuOptionService _menuOptionService = MenuOptionService();
+  final CustomerService _customerService = CustomerService();
   List<MenuItem> _menuItems = [];
   Map<String, String> _categories = {};
   List<CartItem> _cartItems = [];
   String _selectedCategory = 'Tất cả';
-  String _selectedTable = '';
+  String _selectedTable = 'Mang về';
+  Customer? _selectedCustomer;
   bool _isLoading = true;
-  bool _showTableSelection = true;
 
   @override
   void initState() {
@@ -133,76 +136,68 @@ class _PosPageState extends ConsumerState<PosPage> {
     return _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
   }
 
-  Widget _buildTableSelection() {
+  void _showTableSelectionDialog() {
     final tables = ['Mang về', 'Bàn 1', 'Bàn 2', 'Bàn 3', 'Bàn 4', 'Bàn 5', 'Bàn 6', 'Bàn 7', 'Bàn 8', 'Grab'];
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Chọn bàn',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 1.2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: tables.length,
-              itemBuilder: (context, index) {
-                final table = tables[index];
-                final isSpecial = table == 'Mang về' || table == 'Grab';
-
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedTable = table;
-                      _showTableSelection = false;
-                    });
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isSpecial ? Icons.delivery_dining : Icons.table_restaurant,
-                          size: 24,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          table,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chọn bàn'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: GridView.builder(
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 1.2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
             ),
+            itemCount: tables.length,
+            itemBuilder: (context, index) {
+              final table = tables[index];
+              final isSpecial = table == 'Mang về' || table == 'Grab';
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedTable = table;
+                  });
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _selectedTable == table ? Colors.blue[50] : Colors.white,
+                    border: Border.all(
+                      color: _selectedTable == table ? Colors.blue : Colors.grey[300]!,
+                      width: _selectedTable == table ? 2 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isSpecial ? Icons.delivery_dining : Icons.table_restaurant,
+                        size: 24,
+                        color: _selectedTable == table ? Colors.blue : Colors.grey[600],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        table,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _selectedTable == table ? Colors.blue : Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
@@ -210,18 +205,15 @@ class _PosPageState extends ConsumerState<PosPage> {
   Widget _buildMenuInterface() {
     return Column(
       children: [
-        // Header with table info
+        // Header with table info and customer
         Container(
           padding: const EdgeInsets.all(16),
           color: Colors.grey[50],
           child: Row(
             children: [
+              // Table selector button
               GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _showTableSelection = true;
-                  });
-                },
+                onTap: _showTableSelectionDialog,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
@@ -236,6 +228,29 @@ class _PosPageState extends ConsumerState<PosPage> {
                       Text(_selectedTable, style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.w500)),
                       const SizedBox(width: 4),
                       Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue[800]),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Customer button
+              GestureDetector(
+                onTap: _showCustomerDialog,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.cyan[100],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person, size: 16, color: Colors.cyan[800]),
+                      const SizedBox(width: 4),
+                      Text(
+                        _selectedCustomer?.name ?? 'Khách hàng',
+                        style: TextStyle(color: Colors.cyan[800], fontWeight: FontWeight.w500),
+                      ),
                     ],
                   ),
                 ),
@@ -448,6 +463,54 @@ class _PosPageState extends ConsumerState<PosPage> {
                   icon: const Icon(Icons.close),
                 ),
               ],
+            ),
+            // Order information section
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.table_restaurant, size: 16, color: Colors.grey[700]),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Nguồn đơn: $_selectedTable',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                      ),
+                    ],
+                  ),
+                  if (_selectedCustomer != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.person, size: 16, color: Colors.grey[700]),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Khách hàng: ${_selectedCustomer!.name}',
+                                style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                              ),
+                              if (_selectedCustomer!.phone != null && _selectedCustomer!.phone!.isNotEmpty)
+                                Text(
+                                  'SĐT: ${_selectedCustomer!.phone}',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -698,10 +761,10 @@ class _PosPageState extends ConsumerState<PosPage> {
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                         textAlign: TextAlign.center,
                       ),
-                      if (menuItem.description?.isNotEmpty == true) ...[
+                      if (menuItem.description.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
-                          menuItem.description!,
+                          menuItem.description,
                           style: TextStyle(color: Colors.grey[600], fontSize: 14),
                           textAlign: TextAlign.center,
                         ),
@@ -906,14 +969,182 @@ class _PosPageState extends ConsumerState<PosPage> {
     );
   }
 
+  void _showCustomerDialog() {
+    // Pre-populate with selected customer if exists
+    final phoneController = TextEditingController(text: _selectedCustomer?.phone ?? '');
+    final nameController = TextEditingController(text: _selectedCustomer?.name ?? '');
+    Customer? foundCustomer = _selectedCustomer;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Thông tin khách hàng'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Phone input
+                  TextField(
+                    controller: phoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Số điện thoại',
+                      hintText: 'Nhập số điện thoại',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
+                    onChanged: (value) async {
+                      if (value.length >= 9) {
+                        // Search for existing customer
+                        final customer = await _customerService.getCustomerByPhone(value);
+                        setState(() {
+                          foundCustomer = customer;
+                          if (customer != null) {
+                            nameController.text = customer.name;
+                          } else {
+                            nameController.text = '';
+                          }
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Show message if customer found
+                  if (foundCustomer != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Khách hàng đã tồn tại - Có thể chỉnh sửa tên',
+                              style: TextStyle(color: Colors.green[700]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  if (foundCustomer != null) const SizedBox(height: 16),
+
+                  // Name input - now always enabled to allow editing
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Tên khách hàng (tùy chọn)',
+                      hintText: 'Nhập tên',
+                      border: OutlineInputBorder(),
+                      helperText: 'Có thể chỉnh sửa tên cho khách hàng hiện có',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final phone = phoneController.text.trim();
+                  final name = nameController.text.trim();
+
+                  if (phone.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Vui lòng nhập số điện thoại'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  Customer customer;
+                  if (foundCustomer != null) {
+                    // Check if name was changed
+                    final nameChanged = name.isNotEmpty && name != foundCustomer!.name;
+
+                    if (nameChanged) {
+                      // Update existing customer with new name
+                      final updatedCustomer = foundCustomer!.copyWith(
+                        name: name,
+                        updatedAt: DateTime.now(),
+                      );
+
+                      final success = await _customerService.updateCustomer(updatedCustomer);
+                      if (!success) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Không thể cập nhật thông tin khách hàng'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+                      customer = updatedCustomer;
+                    } else {
+                      // Use existing customer without changes
+                      customer = foundCustomer!;
+                    }
+                  } else {
+                    // Create new customer
+                    final newCustomer = Customer(
+                      id: '',
+                      name: name.isNotEmpty ? name : 'Khách',
+                      phone: phone,
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
+                    );
+
+                    final customerId = await _customerService.createCustomer(newCustomer);
+                    if (customerId == null) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Không thể tạo khách hàng'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    customer = newCustomer.copyWith(id: customerId);
+                  }
+
+                  this.setState(() {
+                    _selectedCustomer = customer;
+                  });
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Xác nhận'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_showTableSelection) {
-      return Scaffold(
-        body: _buildTableSelection(),
-      );
-    }
-
     return Scaffold(
       body: _buildMenuInterface(),
     );
