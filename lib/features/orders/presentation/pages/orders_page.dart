@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../models/order.dart';
 import '../../../../services/order_service.dart';
+import '../../../pos/presentation/pages/pos_page.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -51,7 +52,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       order.status != OrderStatus.delivered &&
       order.status != OrderStatus.cancelled
     ).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Descending by time
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt)); // Ascending by time - older first
   }
 
   List<Order> get _historyOrders {
@@ -211,6 +212,65 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               final item = entry.value;
               return _buildActiveOrderItem(order, index, item);
             }),
+
+            const SizedBox(height: 8),
+
+            // Add Menu Item button
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue[600]!, Colors.blue[700]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _navigateToPosWithOrder(order),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.restaurant_menu,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Thêm món',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
             const Divider(height: 24),
 
@@ -762,5 +822,17 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         }
       }
     }
+  }
+
+  void _navigateToPosWithOrder(Order order) {
+    // Navigate to POS page with the existing order
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PosPage(existingOrder: order),
+      ),
+    ).then((_) {
+      // Reload orders when returning from POS
+      _loadOrders();
+    });
   }
 }

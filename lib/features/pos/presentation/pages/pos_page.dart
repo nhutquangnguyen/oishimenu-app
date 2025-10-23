@@ -37,7 +37,9 @@ class CartItem {
 }
 
 class PosPage extends ConsumerStatefulWidget {
-  const PosPage({super.key});
+  final order_model.Order? existingOrder;
+
+  const PosPage({super.key, this.existingOrder});
 
   @override
   ConsumerState<PosPage> createState() => _PosPageState();
@@ -55,6 +57,10 @@ class _PosPageState extends ConsumerState<PosPage> {
   String _selectedTable = 'Mang về';
   Customer? _selectedCustomer;
   bool _isLoading = true;
+
+  // Track if we're editing an existing order
+  String? _existingOrderId;
+  String? _existingOrderNumber;
 
   @override
   void initState() {
@@ -78,12 +84,71 @@ class _PosPageState extends ConsumerState<PosPage> {
         _menuItems = menuItems;
         _isLoading = false;
       });
+
+      // Load existing order if provided
+      if (widget.existingOrder != null) {
+        _loadExistingOrder(widget.existingOrder!);
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       print('Error loading menu data: $e');
     }
+  }
+
+  void _loadExistingOrder(order_model.Order order) {
+    // Convert order items to cart items
+    final cartItems = <CartItem>[];
+
+    for (final orderItem in order.items) {
+      // Find the menu item from loaded menu items
+      final menuItem = _menuItems.firstWhere(
+        (item) => item.id == orderItem.menuItemId,
+        orElse: () => MenuItem(
+          id: orderItem.menuItemId,
+          name: orderItem.menuItemName,
+          price: orderItem.basePrice,
+          categoryName: '',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      // Convert order selected options to POS selected options
+      final selectedOptions = orderItem.selectedOptions.map((opt) {
+        return SelectedOption(
+          optionGroupId: opt.optionGroupId,
+          optionGroupName: opt.optionGroupName,
+          optionId: opt.optionId,
+          optionName: opt.optionName,
+          optionPrice: opt.price,
+        );
+      }).toList();
+
+      cartItems.add(CartItem(
+        menuItem: menuItem,
+        quantity: orderItem.quantity,
+        selectedOptions: selectedOptions,
+      ));
+    }
+
+    setState(() {
+      _cartItems = cartItems;
+      _selectedTable = order.tableNumber ?? 'Mang về';
+      _selectedCustomer = Customer(
+        id: order.customer.id,
+        name: order.customer.name,
+        phone: order.customer.phone ?? '',
+        email: order.customer.email ?? '',
+        address: order.customer.address ?? '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      // Store the existing order ID and number for updates
+      _existingOrderId = order.id;
+      _existingOrderNumber = order.orderNumber;
+    });
   }
 
   List<MenuItem> get _filteredMenuItems {
@@ -662,9 +727,7 @@ class _PosPageState extends ConsumerState<PosPage> {
     }
 
     try {
-      // Generate order number
       final now = DateTime.now();
-      final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
 
       // Convert cart items to order items
       final orderItems = _cartItems.map((cartItem) {
@@ -714,38 +777,113 @@ class _PosPageState extends ConsumerState<PosPage> {
               name: 'Walk-in Customer',
             );
 
-      // Create order
-      final order = order_model.Order(
-        id: '',
-        orderNumber: orderNumber,
-        customer: orderCustomer,
-        items: orderItems,
-        subtotal: _totalAmount,
-        total: _totalAmount,
-        orderType: orderType,
-        status: order_model.OrderStatus.pending,
-        paymentMethod: order_model.PaymentMethod.cash,
-        paymentStatus: order_model.PaymentStatus.pending,
-        tableNumber: _selectedTable,
-        platform: 'POS',
-        createdAt: now,
-        updatedAt: now,
-      );
+      // Check if we're updating an existing order or creating a new one
+      String displayOrderNumber;
 
-      // Save to database
-      final orderId = await _orderService.createOrder(order);
+      if (_existingOrderId != null && _existingOrderNumber != null) {
+        // Update existing order
+        displayOrderNumber = _existingOrderNumber!;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đơn hàng #$orderNumber đã được lưu'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 2),
-          ),
+        final order = order_model.Order(
+          id: _existingOrderId!,
+          orderNumber: _existingOrderNumber!,
+          customer: orderCustomer,
+          items: orderItems,
+          subtotal: _totalAmount,
+          total: _totalAmount,
+          orderType: orderType,
+          status: order_model.OrderStatus.pending,
+          paymentMethod: order_model.PaymentMethod.cash,
+          paymentStatus: order_model.PaymentStatus.pending,
+          tableNumber: _selectedTable,
+          platform: 'POS',
+          createdAt: now, // Keep original creation time would be better, but we don't have it
+          updatedAt: now,
         );
+
+        await _orderService.updateOrder(order);
+      } else {
+        // Create new order
+        final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
+        displayOrderNumber = orderNumber;
+
+        final order = order_model.Order(
+          id: '',
+          orderNumber: orderNumber,
+          customer: orderCustomer,
+          items: orderItems,
+          subtotal: _totalAmount,
+          total: _totalAmount,
+          orderType: orderType,
+          status: order_model.OrderStatus.pending,
+          paymentMethod: order_model.PaymentMethod.cash,
+          paymentStatus: order_model.PaymentStatus.pending,
+          tableNumber: _selectedTable,
+          platform: 'POS',
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await _orderService.createOrder(order);
       }
 
-      // Keep cart for potential modifications
+      if (mounted) {
+        // If we were editing an existing order, navigate back to Orders page
+        if (_existingOrderId != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đơn hàng #$displayOrderNumber đã được cập nhật'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+
+          // Wait a moment for the snackbar to show, then navigate back
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              Navigator.of(context).pop(); // Go back to Orders page
+            }
+          });
+        } else {
+          // New order created - show informative notification and clear cart
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Đơn hàng #$displayOrderNumber đã được lưu',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Đơn hàng đã được thêm vào danh sách Đơn đang xử lý',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'Xem',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Navigate to Orders page
+                  Navigator.of(context).pushNamed('/orders');
+                },
+              ),
+            ),
+          );
+
+          // Clear cart for new order
+          setState(() {
+            _cartItems = [];
+            _selectedCustomer = null;
+            _selectedTable = 'Mang về';
+          });
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -914,8 +1052,8 @@ class _PosPageState extends ConsumerState<PosPage> {
         );
       }
     } catch (e) {
-      Navigator.pop(context);
       if (mounted) {
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Lỗi khi thanh toán: $e'),
