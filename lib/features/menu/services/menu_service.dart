@@ -16,7 +16,7 @@ class MenuService {
         FROM menu_items
         LEFT JOIN menu_categories ON menu_items.category_id = menu_categories.id
         WHERE menu_items.user_id = ?
-        ORDER BY menu_items.category_id ASC, menu_items.name ASC
+        ORDER BY menu_categories.display_order ASC, menu_items.display_order ASC, menu_items.created_at ASC
       ''', [int.tryParse(userId) ?? 0]);
 
       return List.generate(maps.length, (i) {
@@ -38,7 +38,7 @@ class MenuService {
         FROM menu_items
         LEFT JOIN menu_categories ON menu_items.category_id = menu_categories.id
         WHERE menu_items.category_id = ? AND menu_items.user_id = ?
-        ORDER BY menu_items.name ASC
+        ORDER BY menu_items.display_order ASC, menu_items.created_at ASC
       ''', [categoryId, int.tryParse(userId) ?? 0]);
 
       return List.generate(maps.length, (i) {
@@ -251,6 +251,73 @@ class MenuService {
     } catch (e) {
       print('Error updating menu item: $e');
       return false;
+    }
+  }
+
+  // Get all categories ordered by display_order
+  Future<List<MenuCategory>> getCategoriesOrdered() async {
+    try {
+      final maps = await _databaseHelper.getCategoriesOrdered();
+      return List.generate(maps.length, (i) {
+        return MenuCategory.fromMap(maps[i]);
+      });
+    } catch (e) {
+      print('Error fetching ordered categories: $e');
+      return [];
+    }
+  }
+
+  // Reorder categories
+  Future<bool> reorderCategories(List<MenuCategory> categories) async {
+    try {
+      final categoriesMap = categories.map((category) => {
+        'id': int.tryParse(category.id) ?? 0,
+        'name': category.name,
+      }).toList();
+
+      await _databaseHelper.reorderCategories(categoriesMap);
+      return true;
+    } catch (e) {
+      print('Error reordering categories: $e');
+      return false;
+    }
+  }
+
+  // Reorder menu items within a category
+  Future<bool> reorderMenuItems(List<MenuItem> menuItems, int categoryId) async {
+    try {
+      final menuItemsMap = menuItems.map((item) => {
+        'id': int.tryParse(item.id) ?? 0,
+        'name': item.name,
+      }).toList();
+
+      await _databaseHelper.reorderMenuItems(menuItemsMap, categoryId);
+      return true;
+    } catch (e) {
+      print('Error reordering menu items: $e');
+      return false;
+    }
+  }
+
+  // Get the next display order for a new menu item in a category
+  Future<int> getNextMenuItemDisplayOrder(int categoryId) async {
+    try {
+      final items = await _databaseHelper.getMenuItemsOrdered(categoryId);
+      return items.length; // Next order is the current count
+    } catch (e) {
+      print('Error getting next display order: $e');
+      return 0;
+    }
+  }
+
+  // Get the next display order for a new category
+  Future<int> getNextCategoryDisplayOrder() async {
+    try {
+      final categories = await _databaseHelper.getCategoriesOrdered();
+      return categories.length; // Next order is the current count
+    } catch (e) {
+      print('Error getting next category display order: $e');
+      return 0;
     }
   }
 }

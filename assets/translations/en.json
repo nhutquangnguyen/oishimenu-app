@@ -420,7 +420,14 @@
     "cost_display": "Cost: ₫{cost} • ",
     "margin_display": "Margin: {margin}%",
     "edit": "Edit",
-    "delete_tooltip": "Delete"
+    "delete_tooltip": "Delete",
+    "category_order_updated": "Category order updated successfully",
+    "menu_item_order_updated": "Menu item order updated successfully",
+    "failed_update_category_order": "Failed to update category order",
+    "failed_update_menu_item_order": "Failed to update menu item order",
+    "error_reordering_categories": "Error reordering categories: {error}",
+    "error_reordering_menu_items": "Error reordering menu items: {error}",
+    "drag_to_reorder": "Drag to reorder"
   },
 
   "scan_menu": {

@@ -44,7 +44,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createDatabase,
       onUpgrade: _upgradeDatabase,
     );
@@ -501,6 +501,35 @@ class DatabaseHelper {
       // Make user_id column NOT NULL after data migration
       // Note: SQLite doesn't support ALTER COLUMN, so we'll enforce this in the application layer
     }
+
+    if (oldVersion < 6 && newVersion >= 6) {
+      // Add display_order column to menu_items for version 6 (reordering support)
+      await db.execute('''
+        ALTER TABLE menu_items ADD COLUMN display_order INTEGER DEFAULT 0
+      ''');
+
+      // Initialize display_order values for existing menu items
+      // Group by category and set sequential order within each category
+      final categories = await db.query('menu_categories', orderBy: 'display_order ASC');
+
+      for (final category in categories) {
+        final items = await db.query(
+          'menu_items',
+          where: 'category_id = ?',
+          whereArgs: [category['id']],
+          orderBy: 'created_at ASC'
+        );
+
+        for (int i = 0; i < items.length; i++) {
+          await db.update(
+            'menu_items',
+            {'display_order': i},
+            where: 'id = ?',
+            whereArgs: [items[i]['id']],
+          );
+        }
+      }
+    }
   }
 
   Future<void> _createDefaultAdmin(Database db) async {
@@ -657,5 +686,72 @@ class DatabaseHelper {
     final String path = join(databasesPath, 'oishimenu.db');
     await databaseFactory.deleteDatabase(path);
     _database = null;
+  }
+
+  // Category reordering methods
+  Future<void> reorderCategories(List<Map<String, dynamic>> categories) async {
+    final db = await database;
+    final batch = db.batch();
+
+    for (int i = 0; i < categories.length; i++) {
+      batch.update(
+        'menu_categories',
+        {'display_order': i, 'updated_at': DateTime.now().millisecondsSinceEpoch},
+        where: 'id = ?',
+        whereArgs: [categories[i]['id']],
+      );
+    }
+
+    await batch.commit(noResult: true);
+  }
+
+  // Menu item reordering methods
+  Future<void> reorderMenuItems(List<Map<String, dynamic>> menuItems, int categoryId) async {
+    final db = await database;
+    final batch = db.batch();
+
+    for (int i = 0; i < menuItems.length; i++) {
+      batch.update(
+        'menu_items',
+        {'display_order': i, 'updated_at': DateTime.now().millisecondsSinceEpoch},
+        where: 'id = ? AND category_id = ?',
+        whereArgs: [menuItems[i]['id'], categoryId],
+      );
+    }
+
+    await batch.commit(noResult: true);
+  }
+
+  // Get categories ordered by display_order
+  Future<List<Map<String, dynamic>>> getCategoriesOrdered() async {
+    final db = await database;
+    return await db.query(
+      'menu_categories',
+      where: 'is_active = ?',
+      whereArgs: [1],
+      orderBy: 'display_order ASC, created_at ASC',
+    );
+  }
+
+  // Get menu items ordered by display_order within category
+  Future<List<Map<String, dynamic>>> getMenuItemsOrdered(int categoryId) async {
+    final db = await database;
+    return await db.query(
+      'menu_items',
+      where: 'category_id = ?',
+      whereArgs: [categoryId],
+      orderBy: 'display_order ASC, created_at ASC',
+    );
+  }
+
+  // Get all menu items ordered by category and display_order
+  Future<List<Map<String, dynamic>>> getAllMenuItemsOrdered() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT mi.*, mc.name as category_name, mc.display_order as category_order
+      FROM menu_items mi
+      LEFT JOIN menu_categories mc ON mi.category_id = mc.id
+      ORDER BY mc.display_order ASC, mi.display_order ASC, mi.created_at ASC
+    ''');
   }
 }

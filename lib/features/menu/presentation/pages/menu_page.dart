@@ -194,96 +194,186 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
     return RefreshIndicator(
       onRefresh: _loadMenuData,
-      child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        children: itemsByCategory.entries.map((entry) {
-          final categoryName = entry.key;
-          final items = entry.value;
-          final isExpanded = _expandedCategories[categoryName] ?? true;
+      child: _buildDraggableView(),
+    );
+  }
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildDraggableView() {
+    return FutureBuilder<List<MenuCategory>>(
+      future: _menuService.getCategoriesOrdered(),
+      builder: (context, categorySnapshot) {
+        if (!categorySnapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final orderedCategories = categorySnapshot.data!;
+
+        return ReorderableListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: orderedCategories.length,
+          buildDefaultDragHandles: false, // Disable default drag handles
+          onReorder: (oldIndex, newIndex) => _reorderCategories(oldIndex, newIndex, orderedCategories),
+          itemBuilder: (context, index) {
+            final category = orderedCategories[index];
+            final categoryItems = _menuItems.where((item) =>
+              item.categoryName == category.name
+            ).toList();
+            final isExpanded = _expandedCategories[category.name] ?? true;
+
+            return _buildDraggableCategorySection(
+              key: ValueKey(category.id),
+              category: category,
+              items: categoryItems,
+              isExpanded: isExpanded,
+              index: index,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDraggableCategorySection({
+    required Key key,
+    required MenuCategory category,
+    required List<MenuItem> items,
+    required bool isExpanded,
+    required int index,
+  }) {
+    return Column(
+      key: key,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Category Header with drag handle
+        Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          child: Row(
             children: [
-              // Category Header
-              InkWell(
-                onTap: () {
-                  setState(() {
-                    _expandedCategories[categoryName] = !isExpanded;
-                  });
-                },
+              // Drag handle for categories
+              ReorderableDragStartListener(
+                index: index,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-                  margin: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          categoryName.toUpperCase(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                        color: Colors.grey[600],
-                        size: 20,
-                      ),
-                    ],
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    Icons.drag_handle,
+                    color: Colors.grey[400],
+                    size: 20,
                   ),
                 ),
               ),
-              // Category Items
-              if (isExpanded) ...[
-                if (items.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                    margin: const EdgeInsets.only(bottom: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
+              Expanded(
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _expandedCategories[category.name] = !isExpanded;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.restaurant_menu_outlined,
-                          color: Colors.grey[400],
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'No items in this category yet',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                              fontStyle: FontStyle.italic,
+                            category.name.toUpperCase(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.black87,
                             ),
+                          ),
+                        ),
+                        Icon(
+                          isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          color: Colors.grey[600],
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Category Items
+        if (isExpanded) ...[
+          if (items.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              margin: const EdgeInsets.only(bottom: 4, left: 28),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.restaurant_menu_outlined,
+                    color: Colors.grey[400],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'No items in this category yet',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              margin: const EdgeInsets.only(left: 28),
+              child: ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                buildDefaultDragHandles: false,
+                onReorder: (oldIndex, newIndex) => _reorderMenuItems(oldIndex, newIndex, items, category),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return Container(
+                    key: ValueKey('${item.id}_${category.id}_item'),
+                    margin: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        // Drag handle for menu items
+                        ReorderableDragStartListener(
+                          index: index,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            child: Icon(
+                              Icons.drag_indicator,
+                              color: Colors.grey[400],
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: MenuItemCard(
+                            menuItem: item,
+                            categoryName: category.name,
+                            onTap: () => _editMenuItem(item),
+                            onToggleAvailability: () => _toggleAvailability(item),
+                            onDelete: () => _deleteMenuItem(item),
                           ),
                         ),
                       ],
                     ),
-                  )
-                else
-                  ...items.map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: MenuItemCard(
-                      menuItem: item,
-                      categoryName: categoryName,
-                      onTap: () => _editMenuItem(item),
-                      onToggleAvailability: () => _toggleAvailability(item),
-                      onDelete: () => _deleteMenuItem(item),
-                    ),
-                  )),
-              ],
-              const SizedBox(height: 8),
-            ],
-          );
-        }).toList(),
-      ),
+                  );
+                },
+              ),
+            ),
+        ],
+        const SizedBox(height: 8),
+      ],
     );
   }
 
@@ -1083,6 +1173,221 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       }
     } finally {
       _isNavigating = false;
+    }
+  }
+
+  // Reordering methods
+  Future<void> _reorderCategories(int oldIndex, int newIndex, List<MenuCategory> categories) async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Adjust newIndex for the standard behavior expected by ReorderableListView
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+
+      // Create a new list with reordered categories
+      final List<MenuCategory> reorderedCategories = List.from(categories);
+      final MenuCategory movedCategory = reorderedCategories.removeAt(oldIndex);
+      reorderedCategories.insert(newIndex, movedCategory);
+
+      // Update the service with the new order
+      final success = await _menuService.reorderCategories(reorderedCategories);
+
+      if (success) {
+        // Refresh the data to reflect the changes
+        await _loadMenuData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Category order updated successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to update category order'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error reordering categories: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error reordering categories: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _reorderMenuItems(int oldIndex, int newIndex, List<MenuItem> items, MenuCategory category) async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Adjust newIndex for the standard behavior expected by ReorderableListView
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+
+      // Create a new list with reordered menu items
+      final List<MenuItem> reorderedItems = List.from(items);
+      final MenuItem movedItem = reorderedItems.removeAt(oldIndex);
+      reorderedItems.insert(newIndex, movedItem);
+
+      // Update the service with the new order
+      final categoryId = int.tryParse(category.id) ?? 0;
+      final success = await _menuService.reorderMenuItems(reorderedItems, categoryId);
+
+      if (success) {
+        // Refresh the data to reflect the changes
+        await _loadMenuData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Menu item order updated successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to update menu item order'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error reordering menu items: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error reordering menu items: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Item reordering dialog
+  void _showItemReorderDialog(MenuItem item, MenuCategory category, List<MenuItem> items) {
+    final currentIndex = items.indexOf(item);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Reorder "${item.name}"'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Current position: ${currentIndex + 1} of ${items.length}'),
+            const SizedBox(height: 16),
+            Text('Choose new position:', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 200,
+              width: double.maxFinite,
+              child: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final isCurrentPosition = index == currentIndex;
+                  return ListTile(
+                    leading: Text('${index + 1}'),
+                    title: Text(
+                      index == currentIndex ? item.name : items[index].name,
+                      style: TextStyle(
+                        fontWeight: isCurrentPosition ? FontWeight.bold : FontWeight.normal,
+                        color: isCurrentPosition ? Theme.of(context).colorScheme.primary : null,
+                      ),
+                    ),
+                    trailing: isCurrentPosition
+                      ? Icon(Icons.my_location, color: Theme.of(context).colorScheme.primary)
+                      : null,
+                    onTap: isCurrentPosition ? null : () {
+                      Navigator.pop(context);
+                      _moveItemToPosition(item, category, currentIndex, index);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _moveItemToPosition(MenuItem item, MenuCategory category, int oldIndex, int newIndex) async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Get all items in this category
+      final categoryItems = _menuItems.where((i) => i.categoryName == category.name).toList();
+
+      // Create reordered list
+      final reorderedItems = List<MenuItem>.from(categoryItems);
+      reorderedItems.removeAt(oldIndex);
+      reorderedItems.insert(newIndex, item);
+
+      // Update the service with the new order
+      final categoryId = int.tryParse(category.id) ?? 0;
+      final success = await _menuService.reorderMenuItems(reorderedItems, categoryId);
+
+      if (success) {
+        await _loadMenuData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Moved "${item.name}" to position ${newIndex + 1}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to reorder menu item'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error moving menu item: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error reordering item: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 }

@@ -13,6 +13,7 @@ class MenuItem {
   final List<MenuSize> sizes;
   final List<Recipe> recipes;
   final double? costPrice;
+  final int displayOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -28,6 +29,7 @@ class MenuItem {
     this.sizes = const [],
     this.recipes = const [],
     this.costPrice,
+    this.displayOrder = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -45,6 +47,7 @@ class MenuItem {
       sizes: [],  // Simplified for now
       recipes: [], // Simplified for now
       costPrice: map['cost_price']?.toDouble(),
+      displayOrder: map['display_order'] ?? 0,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] ?? 0),
     );
@@ -76,6 +79,7 @@ class MenuItem {
       'available_status': availableStatus ? 1 : 0,
       'availability_schedule': availabilitySchedule?.toString(),
       'cost_price': costPrice,
+      'display_order': displayOrder,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -93,6 +97,7 @@ class MenuItem {
     List<MenuSize>? sizes,
     List<Recipe>? recipes,
     double? costPrice,
+    int? displayOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
