@@ -247,52 +247,105 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.grey[300]!),
                 image: _photos.isNotEmpty ? _buildDecorationImage(_photos.first) : null,
+                color: _photos.isNotEmpty && _buildDecorationImage(_photos.first) == null
+                    ? Colors.grey[200]
+                    : null,
               ),
               child: _photos.isEmpty
                   ? const Center(
                       child: Icon(Icons.image, color: Colors.grey, size: 32),
                     )
-                  : Stack(
-                      children: [
-                        const Positioned(
-                          top: 4,
-                          left: 4,
-                          child: Icon(Icons.drag_handle, color: Colors.white, size: 16),
-                        ),
-                        Positioned(
-                          bottom: 4,
-                          right: 4,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              GestureDetector(
-                                onTap: () => _removePhoto(0),
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
+                  : _buildDecorationImage(_photos.first) == null
+                      ? Stack(
+                          children: [
+                            const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image, color: Colors.grey, size: 24),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Invalid',
+                                    style: TextStyle(color: Colors.grey, fontSize: 10),
                                   ),
-                                  child: const Icon(Icons.delete, color: Colors.white, size: 12),
-                                ),
+                                ],
                               ),
-                              const SizedBox(width: 4),
-                              GestureDetector(
-                                onTap: () => _editPhoto(0),
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
+                            ),
+                            Positioned(
+                              bottom: 4,
+                              right: 4,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => _removePhoto(0),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.delete, color: Colors.white, size: 12),
+                                    ),
                                   ),
-                                  child: const Icon(Icons.edit, color: Colors.white, size: 12),
-                                ),
+                                  const SizedBox(width: 4),
+                                  GestureDetector(
+                                    onTap: () => _editPhoto(0),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.edit, color: Colors.white, size: 12),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
+                        )
+                      : Stack(
+                          children: [
+                            const Positioned(
+                              top: 4,
+                              left: 4,
+                              child: Icon(Icons.drag_handle, color: Colors.white, size: 16),
+                            ),
+                            Positioned(
+                              bottom: 4,
+                              right: 4,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => _removePhoto(0),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.delete, color: Colors.white, size: 12),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  GestureDetector(
+                                    onTap: () => _editPhoto(0),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.edit, color: Colors.white, size: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
             ),
             const SizedBox(width: 16),
             // Add photo placeholder
@@ -692,27 +745,46 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
     return savedPath;
   }
 
-  ImageProvider _getImageProvider(String imagePath) {
-    // Check if it's a local file path
-    if (imagePath.startsWith('/') && File(imagePath).existsSync()) {
-      return FileImage(File(imagePath));
+  ImageProvider? _getImageProvider(String imagePath) {
+    try {
+      // Check if it's a local file path
+      if (imagePath.startsWith('/')) {
+        final file = File(imagePath);
+        if (file.existsSync()) {
+          return FileImage(file);
+        } else {
+          print('Image file does not exist: $imagePath');
+          return null;
+        }
+      }
+      // Check if it's a network URL
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return NetworkImage(imagePath);
+      }
+      // Invalid path format
+      print('Invalid image path format: $imagePath');
+      return null;
+    } catch (e) {
+      print('Error getting image provider: $e');
+      return null;
     }
-    // Check if it's a network URL
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return NetworkImage(imagePath);
-    }
-    // Fallback - this shouldn't happen, but handle gracefully
-    throw Exception('Invalid image path: $imagePath');
   }
 
   DecorationImage? _buildDecorationImage(String imagePath) {
     try {
+      final imageProvider = _getImageProvider(imagePath);
+      if (imageProvider == null) {
+        return null;
+      }
       return DecorationImage(
-        image: _getImageProvider(imagePath),
+        image: imageProvider,
         fit: BoxFit.cover,
+        onError: (exception, stackTrace) {
+          print('Error loading image: $exception');
+        },
       );
     } catch (e) {
-      print('Error loading image: $e');
+      print('Error building decoration image: $e');
       return null;
     }
   }
@@ -1032,92 +1104,98 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
   }
 
   Widget _buildOptionGroupSelectionModal() {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(top: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+    return StatefulBuilder(
+      builder: (BuildContext context, StateSetter setModalState) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
             ),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Select option groups',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                ..._availableOptionGroups.map((group) => CheckboxListTile(
-                  title: Text(group.name),
-                  subtitle: Text(
-                    group.isRequired
-                        ? 'Required: ${group.description ?? ''}'
-                        : 'Optional: ${group.description ?? ''}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                  value: _selectedOptionGroupIds.contains(group.id),
-                  onChanged: (value) {
-                    setState(() {
-                      if (value == true) {
-                        _selectedOptionGroupIds.add(group.id);
-                      } else {
-                        _selectedOptionGroupIds.remove(group.id);
-                      }
-                      _isDirty = true;
-                    });
-                  },
-                  activeColor: Colors.green[600],
-                  controlAffinity: ListTileControlAffinity.trailing,
-                )),
-                const SizedBox(height: 20),
-                ListTile(
-                  title: Text(
-                    'Create a new option group',
-                    style: TextStyle(color: Colors.blue[600]),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.push('/menu/option-groups/new');
-                  },
+          child: Column(
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[600],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Done'),
               ),
-            ),
+              const SizedBox(height: 20),
+              const Text(
+                'Select option groups',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    ..._availableOptionGroups.map((group) => CheckboxListTile(
+                      title: Text(group.name),
+                      subtitle: Text(
+                        group.isRequired
+                            ? 'Required: ${group.description ?? ''}'
+                            : 'Optional: ${group.description ?? ''}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                      value: _selectedOptionGroupIds.contains(group.id),
+                      onChanged: (value) {
+                        setModalState(() {
+                          if (value == true) {
+                            _selectedOptionGroupIds.add(group.id);
+                          } else {
+                            _selectedOptionGroupIds.remove(group.id);
+                          }
+                          _isDirty = true;
+                        });
+                        // Also update the parent widget state
+                        setState(() {});
+                      },
+                      activeColor: Colors.green[600],
+                      controlAffinity: ListTileControlAffinity.trailing,
+                    )),
+                    const SizedBox(height: 20),
+                    ListTile(
+                      title: Text(
+                        'Create a new option group',
+                        style: TextStyle(color: Colors.blue[600]),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/menu/option-groups/new');
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[600],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Done'),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
