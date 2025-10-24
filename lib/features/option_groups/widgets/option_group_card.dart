@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../models/menu_options.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/validation.dart';
@@ -123,13 +124,13 @@ class OptionGroupCard extends StatelessWidget {
                   PopupMenuButton<String>(
                     onSelected: (value) => _handleMenuAction(context, value),
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, size: 16),
-                            SizedBox(width: 8),
-                            Text('Chỉnh sửa'),
+                            const Icon(Icons.edit, size: 16),
+                            const SizedBox(width: 8),
+                            Text('option_groups_card.edit_button'.tr()),
                           ],
                         ),
                       ),
@@ -146,30 +147,30 @@ class OptionGroupCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 8),
                               Text(optionGroup.isRequired
-                                  ? 'Đặt thành tùy chọn'
-                                  : 'Đặt thành bắt buộc'),
+                                  ? 'option_groups_card.set_optional'.tr()
+                                  : 'option_groups_card.set_required'.tr()),
                             ],
                           ),
                         ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'duplicate',
                         child: Row(
                           children: [
-                            Icon(Icons.copy, size: 16),
-                            SizedBox(width: 8),
-                            Text('Nhân bản'),
+                            const Icon(Icons.copy, size: 16),
+                            const SizedBox(width: 8),
+                            Text('option_groups_card.duplicate_button'.tr()),
                           ],
                         ),
                       ),
                       if (onDelete != null) ...[
                         const PopupMenuDivider(),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'delete',
                           child: Row(
                             children: [
-                              Icon(Icons.delete, size: 16, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('Xóa', style: TextStyle(color: Colors.red)),
+                              const Icon(Icons.delete, size: 16, color: Colors.red),
+                              const SizedBox(width: 8),
+                              Text('option_groups_card.delete_button'.tr(), style: const TextStyle(color: Colors.red)),
                             ],
                           ),
                         ),
@@ -302,7 +303,7 @@ class OptionGroupCard extends StatelessWidget {
   void _showDuplicateSnackbar(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Nhân bản "${optionGroup.name}" - Coming soon!'),
+        content: Text('option_groups_card.duplicate_coming_soon'.tr(namedArgs: {'name': optionGroup.name})),
         backgroundColor: Colors.orange,
       ),
     );
