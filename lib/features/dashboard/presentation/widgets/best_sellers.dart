@@ -55,16 +55,17 @@ class _BestSellersState extends State<BestSellers> {
       final results = await db.rawQuery('''
         SELECT
           oi.menu_item_name as name,
-          mi.category_name as category,
+          COALESCE(mc.name, 'Other') as category,
           SUM(oi.quantity) as total_quantity,
           SUM(oi.total_price) as total_revenue
         FROM order_items oi
         INNER JOIN orders o ON CAST(oi.order_id AS TEXT) = CAST(o.id AS TEXT)
         LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+        LEFT JOIN menu_categories mc ON mi.category_id = mc.id
         WHERE (o.payment_status = 'PAID' OR o.status = 'DELIVERED')
           AND o.created_at >= ?
           AND o.created_at <= ?
-        GROUP BY oi.menu_item_id, oi.menu_item_name, mi.category_name
+        GROUP BY oi.menu_item_id, oi.menu_item_name, mc.name
         ORDER BY ${widget.sortByRevenue ? 'total_revenue' : 'total_quantity'} DESC
         LIMIT 15
       ''', [
