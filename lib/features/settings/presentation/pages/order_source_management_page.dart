@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order_source.dart';
 import '../../../../services/order_source_service.dart';
 
@@ -36,7 +37,7 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading order sources: $e')),
+          SnackBar(content: Text('settings_order_sources.error_loading'.tr(namedArgs: {'error': e.toString()}))),
         );
       }
     }
@@ -60,7 +61,7 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(isEdit ? 'Edit Order Source' : 'Add Order Source'),
+          title: Text(isEdit ? 'settings_order_sources.edit_title'.tr() : 'settings_order_sources.add_title'.tr()),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -69,10 +70,10 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                 // Name
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Name *',
-                    hintText: 'e.g., Shopee, GrabFood',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'settings_order_sources.name_field'.tr(),
+                    hintText: 'settings_order_sources.name_hint'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -80,9 +81,9 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                 // Type
                 DropdownButtonFormField<OrderSourceType>(
                   value: selectedType,
-                  decoration: const InputDecoration(
-                    labelText: 'Type *',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'settings_order_sources.type_field'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
                   items: OrderSourceType.values.map((type) {
                     return DropdownMenuItem(
@@ -101,15 +102,15 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                 // Icon Path
                 DropdownButtonFormField<String>(
                   value: selectedIconPath,
-                  decoration: const InputDecoration(
-                    labelText: 'Icon *',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'settings_order_sources.icon_field'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'onsite', child: Text('On-site (Restaurant)')),
-                    DropdownMenuItem(value: 'takeaway', child: Text('Takeaway (Bag)')),
-                    DropdownMenuItem(value: 'shopee', child: Text('Shopee (Cart)')),
-                    DropdownMenuItem(value: 'grabfood', child: Text('GrabFood (Delivery)')),
+                  items: [
+                    DropdownMenuItem(value: 'onsite', child: Text('settings_order_sources.icon_onsite'.tr())),
+                    DropdownMenuItem(value: 'takeaway', child: Text('settings_order_sources.icon_takeaway'.tr())),
+                    DropdownMenuItem(value: 'shopee', child: Text('settings_order_sources.icon_shopee'.tr())),
+                    DropdownMenuItem(value: 'grabfood', child: Text('settings_order_sources.icon_grabfood'.tr())),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -126,19 +127,19 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                   ],
-                  decoration: const InputDecoration(
-                    labelText: 'Commission Rate (%)',
-                    hintText: '0-100',
+                  decoration: InputDecoration(
+                    labelText: 'settings_order_sources.commission_field'.tr(),
+                    hintText: 'settings_order_sources.commission_hint'.tr(),
                     suffixText: '%',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // Requires Commission Input
                 CheckboxListTile(
-                  title: const Text('Requires Commission Input'),
-                  subtitle: const Text('Ask for amount when checking out'),
+                  title: Text('settings_order_sources.requires_input_title'.tr()),
+                  subtitle: Text('settings_order_sources.requires_input_subtitle'.tr()),
                   value: requiresCommissionInput,
                   onChanged: (value) {
                     setDialogState(() => requiresCommissionInput = value ?? false);
@@ -151,18 +152,18 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<CommissionInputType>(
                     value: commissionInputType,
-                    decoration: const InputDecoration(
-                      labelText: 'Input Type',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: 'settings_order_sources.input_type_field'.tr(),
+                      border: const OutlineInputBorder(),
                     ),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: CommissionInputType.beforeFee,
-                        child: Text('Amount Before Fee'),
+                        child: Text('settings_order_sources.input_type_before'.tr()),
                       ),
                       DropdownMenuItem(
                         value: CommissionInputType.afterFee,
-                        child: Text('Amount After Fee'),
+                        child: Text('settings_order_sources.input_type_after'.tr()),
                       ),
                     ],
                     onChanged: (value) {
@@ -176,8 +177,8 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
 
                 // Is Active
                 CheckboxListTile(
-                  title: const Text('Active'),
-                  subtitle: const Text('Show in checkout screen'),
+                  title: Text('settings_order_sources.active_title'.tr()),
+                  subtitle: Text('settings_order_sources.active_subtitle'.tr()),
                   value: isActive,
                   onChanged: (value) {
                     setDialogState(() => isActive = value ?? true);
@@ -190,13 +191,13 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text('settings_order_sources.cancel_button'.tr()),
             ),
             ElevatedButton(
               onPressed: () async {
                 if (nameController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Name is required')),
+                    SnackBar(content: Text('settings_order_sources.name_required'.tr())),
                   );
                   return;
                 }
@@ -224,11 +225,11 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                   Navigator.pop(context, true);
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
+                    SnackBar(content: Text('settings_order_sources.error_saving'.tr(namedArgs: {'error': e.toString()}))),
                   );
                 }
               },
-              child: Text(isEdit ? 'Update' : 'Add'),
+              child: Text(isEdit ? 'settings_order_sources.update_button'.tr() : 'settings_order_sources.add_button'.tr()),
             ),
           ],
         ),
@@ -244,17 +245,17 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Order Source'),
-        content: Text('Are you sure you want to delete "${source.name}"?'),
+        title: Text('settings_order_sources.delete_title'.tr()),
+        content: Text('settings_order_sources.delete_message'.tr(namedArgs: {'name': source.name})),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text('settings_order_sources.cancel_button'.tr()),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text('settings_order_sources.delete_button'.tr()),
           ),
         ],
       ),
@@ -266,13 +267,13 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
         _loadOrderSources();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Order source deleted')),
+            SnackBar(content: Text('settings_order_sources.delete_success'.tr())),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting: $e')),
+            SnackBar(content: Text('settings_order_sources.error_deleting'.tr(namedArgs: {'error': e.toString()}))),
           );
         }
       }
@@ -283,7 +284,7 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Order Source Management'),
+        title: Text('settings_order_sources.page_title'.tr()),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -295,14 +296,14 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                       Icon(Icons.source_outlined, size: 64, color: Colors.grey[400]),
                       const SizedBox(height: 16),
                       Text(
-                        'No order sources',
+                        'settings_order_sources.empty_state'.tr(),
                         style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
                         onPressed: () => _showEditDialog(null),
                         icon: const Icon(Icons.add),
-                        label: const Text('Add Order Source'),
+                        label: Text('settings_order_sources.add_button'.tr()),
                       ),
                     ],
                   ),
@@ -323,12 +324,12 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Type: ${source.type.value}'),
+                            Text('settings_order_sources.type_label'.tr(namedArgs: {'type': source.type.value})),
                             if (source.commissionRate > 0)
-                              Text('Commission: ${source.commissionRate}%'),
+                              Text('settings_order_sources.commission_label'.tr(namedArgs: {'rate': source.commissionRate.toString()})),
                             if (source.requiresCommissionInput)
                               Text(
-                                'Input: ${source.commissionInputType == CommissionInputType.beforeFee ? 'Before Fee' : 'After Fee'}',
+                                'settings_order_sources.input_label'.tr(namedArgs: {'type': source.commissionInputType == CommissionInputType.beforeFee ? 'settings_order_sources.input_type_before'.tr() : 'settings_order_sources.input_type_after'.tr()}),
                                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                               ),
                           ],
@@ -343,9 +344,9 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                                   color: Colors.grey[300],
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Text(
-                                  'Inactive',
-                                  style: TextStyle(fontSize: 12),
+                                child: Text(
+                                  'settings_order_sources.inactive_label'.tr(),
+                                  style: const TextStyle(fontSize: 12),
                                 ),
                               ),
                             IconButton(
