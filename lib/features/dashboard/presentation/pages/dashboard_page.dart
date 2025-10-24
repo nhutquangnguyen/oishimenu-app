@@ -6,6 +6,7 @@ import '../widgets/best_sellers.dart';
 import '../widgets/sales_chart.dart';
 import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../core/localization/app_localizations.dart';
+import '../../../../services/order_service.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -15,10 +16,96 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
+  final OrderService _orderService = OrderService();
   String _selectedTimeFrame = 'Today';
   String _selectedBranch = 'All Branches';
   String _selectedGroupBy = 'Hour';
   bool _sortByRevenue = true;
+
+  Map<String, dynamic>? _currentStats;
+  Map<String, dynamic>? _previousStats;
+  bool _isLoadingStats = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatistics();
+  }
+
+  Future<void> _loadStatistics() async {
+    setState(() {
+      _isLoadingStats = true;
+    });
+
+    final dateRanges = _getDateRangesForTimeFrame(_selectedTimeFrame);
+
+    try {
+      final currentStats = await _orderService.getOrderStatistics(
+        startDate: dateRanges['currentStart'],
+        endDate: dateRanges['currentEnd'],
+      );
+
+      final previousStats = await _orderService.getOrderStatistics(
+        startDate: dateRanges['previousStart'],
+        endDate: dateRanges['previousEnd'],
+      );
+
+      setState(() {
+        _currentStats = currentStats;
+        _previousStats = previousStats;
+        _isLoadingStats = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingStats = false;
+      });
+    }
+  }
+
+  Map<String, DateTime> _getDateRangesForTimeFrame(String timeFrame) {
+    final now = DateTime.now();
+    DateTime currentStart, currentEnd, previousStart, previousEnd;
+
+    switch (timeFrame) {
+      case 'Today':
+        currentStart = DateTime(now.year, now.month, now.day);
+        currentEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        previousStart = DateTime(now.year, now.month, now.day - 1);
+        previousEnd = DateTime(now.year, now.month, now.day - 1, 23, 59, 59);
+        break;
+      case 'This Week':
+        final weekStart = now.subtract(Duration(days: now.weekday - 1));
+        currentStart = DateTime(weekStart.year, weekStart.month, weekStart.day);
+        currentEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        previousStart = currentStart.subtract(const Duration(days: 7));
+        previousEnd = currentEnd.subtract(const Duration(days: 7));
+        break;
+      case 'This Month':
+        currentStart = DateTime(now.year, now.month, 1);
+        currentEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        previousStart = DateTime(now.year, now.month - 1, 1);
+        previousEnd = DateTime(now.year, now.month, 0, 23, 59, 59);
+        break;
+      case 'Last 30 Days':
+        currentStart = now.subtract(const Duration(days: 30));
+        currentEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        previousStart = currentStart.subtract(const Duration(days: 30));
+        previousEnd = currentStart.subtract(const Duration(days: 1));
+        break;
+      default:
+        currentStart = DateTime(now.year, now.month, now.day);
+        currentEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        previousStart = DateTime(now.year, now.month, now.day - 1);
+        previousEnd = DateTime(now.year, now.month, now.day - 1, 23, 59, 59);
+    }
+
+    return {
+      'currentStart': currentStart,
+      'currentEnd': currentEnd,
+      'previousStart': previousStart,
+      'previousEnd': previousEnd,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +115,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       body: RefreshIndicator(
         onRefresh: () async {
-          // Refresh dashboard data
-          await Future.delayed(const Duration(seconds: 1));
+          await _loadStatistics();
         },
         child: CustomScrollView(
           slivers: [
@@ -249,43 +335,52 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   Map<String, String> _getMetricsForSelection() {
-    // Sample data based on time frame and branch selection
-    Map<String, Map<String, String>> timeFrameData = {
-      'Today': {'revenue': '₫2,450,000', 'revenueChange': '+12.5%', 'orders': '87', 'ordersChange': '+5.2%'},
-      'This Week': {'revenue': '₫14,200,000', 'revenueChange': '+8.3%', 'orders': '542', 'ordersChange': '+12.1%'},
-      'This Month': {'revenue': '₫58,900,000', 'revenueChange': '+15.7%', 'orders': '2,103', 'ordersChange': '+9.8%'},
-      'Last 30 Days': {'revenue': '₫61,200,000', 'revenueChange': '+11.4%', 'orders': '2,287', 'ordersChange': '+6.3%'},
-      'Custom': {'revenue': '₫0', 'revenueChange': '0%', 'orders': '0', 'ordersChange': '0%'},
-    };
-
-    Map<String, String> baseMetrics = timeFrameData[_selectedTimeFrame] ?? timeFrameData['Today']!;
-
-    // Adjust for branch selection
-    if (_selectedBranch != 'All Branches') {
-      // Simulate branch-specific data (roughly 1/3 for individual branches)
-      double revenueDivider = _selectedBranch == 'Main Branch' ? 1.8 : 3.2;
-      double ordersDivider = _selectedBranch == 'Main Branch' ? 1.9 : 3.1;
-
-      String revenueStr = baseMetrics['revenue']!;
-      String ordersStr = baseMetrics['orders']!;
-
-      // Extract numbers and adjust
-      String revenueNum = revenueStr.replaceAll('₫', '').replaceAll(',', '');
-      double revenue = double.tryParse(revenueNum) ?? 0;
-      revenue = revenue / revenueDivider;
-
-      String ordersNum = ordersStr.replaceAll(',', '');
-      double orders = double.tryParse(ordersNum) ?? 0;
-      orders = orders / ordersDivider;
-
-      baseMetrics['revenue'] = '₫${revenue.toInt().toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (Match m) => '${m[1]},',
-      )}';
-      baseMetrics['orders'] = orders.toInt().toString();
+    if (_isLoadingStats || _currentStats == null || _previousStats == null) {
+      return {
+        'revenue': '₫0',
+        'revenueChange': '0%',
+        'orders': '0',
+        'ordersChange': '0%',
+      };
     }
 
-    return baseMetrics;
+    // Get current period data
+    final currentRevenue = (_currentStats!['total_revenue'] as num?)?.toDouble() ?? 0.0;
+    final currentOrders = (_currentStats!['total_orders'] as num?)?.toInt() ?? 0;
+
+    // Get previous period data for comparison
+    final previousRevenue = (_previousStats!['total_revenue'] as num?)?.toDouble() ?? 0.0;
+    final previousOrders = (_previousStats!['total_orders'] as num?)?.toInt() ?? 0;
+
+    // Calculate percentage changes
+    String revenueChange = '0%';
+    if (previousRevenue > 0) {
+      final change = ((currentRevenue - previousRevenue) / previousRevenue * 100);
+      revenueChange = '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}%';
+    } else if (currentRevenue > 0) {
+      revenueChange = '+100%';
+    }
+
+    String ordersChange = '0%';
+    if (previousOrders > 0) {
+      final change = ((currentOrders - previousOrders) / previousOrders * 100);
+      ordersChange = '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}%';
+    } else if (currentOrders > 0) {
+      ordersChange = '+100%';
+    }
+
+    // Format revenue with thousand separators
+    final revenueStr = currentRevenue.toInt().toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+
+    return {
+      'revenue': '₫$revenueStr',
+      'revenueChange': revenueChange,
+      'orders': currentOrders.toString(),
+      'ordersChange': ordersChange,
+    };
   }
 
   Widget _buildBestSellersHeader(BuildContext context) {
@@ -396,6 +491,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 setState(() {
                   _selectedTimeFrame = value!;
                 });
+                _loadStatistics();
               },
             ),
           ),
