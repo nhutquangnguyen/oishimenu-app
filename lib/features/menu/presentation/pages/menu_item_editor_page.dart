@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -622,7 +623,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
   Future<void> _addPhoto() async {
     if (_photos.length >= 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Maximum 4 photos allowed')),
+        SnackBar(content: Text('menu_item_editor.max_photos'.tr())),
       );
       return;
     }
@@ -651,7 +652,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding photo: $e')),
+          SnackBar(content: Text('menu_item_editor.error_adding_photo'.tr(namedArgs: {'error': e.toString()}))),
         );
       }
     }
@@ -694,7 +695,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating photo: $e')),
+          SnackBar(content: Text('menu_item_editor.error_updating_photo'.tr(namedArgs: {'error': e.toString()}))),
         );
       }
     }
@@ -708,17 +709,17 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         children: [
           ListTile(
             leading: const Icon(Icons.camera_alt),
-            title: const Text('Take Photo'),
+            title: Text('menu_item_editor.take_photo'.tr()),
             onTap: () => Navigator.pop(context, ImageSource.camera),
           ),
           ListTile(
             leading: const Icon(Icons.photo_library),
-            title: const Text('Choose from Gallery'),
+            title: Text('menu_item_editor.choose_from_gallery'.tr()),
             onTap: () => Navigator.pop(context, ImageSource.gallery),
           ),
           ListTile(
             leading: const Icon(Icons.cancel),
-            title: const Text('Cancel'),
+            title: Text('menu_item_editor.cancel_button'.tr()),
             onTap: () => Navigator.pop(context),
           ),
         ],
@@ -796,16 +797,16 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove Photo'),
-        content: const Text('Are you sure you want to remove this photo?'),
+        title: Text('menu_item_editor.remove_photo_title'.tr()),
+        content: Text('menu_item_editor.remove_photo_message'.tr()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text('menu_item_editor.cancel_button'.tr()),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+            child: Text('menu_item_editor.remove_button'.tr(), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -862,19 +863,19 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Item'),
-        content: const Text('Are you sure you want to delete this menu item?'),
+        title: Text('menu_item_editor.delete_item_title'.tr()),
+        content: Text('menu_item_editor.delete_item_message'.tr()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('menu_item_editor.cancel_button'.tr()),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _performDelete();
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text('menu_item_editor.delete_button'.tr(), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
