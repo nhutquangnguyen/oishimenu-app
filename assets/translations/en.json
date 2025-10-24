@@ -821,11 +821,26 @@
     "inactive_badge": "Inactive"
   },
 
+  "menu_page": {
+    "menu_items_tab": "Menu Items",
+    "option_groups_tab": "Option Groups",
+    "add_menu_item_title": "Add Menu Item",
+    "add_menu_item_subtitle": "Create a new menu item",
+    "add_category_title": "Add Category",
+    "add_category_subtitle": "Create a new category"
+  },
+
+  "inventory_page": {
+    "ingredients_tab": "Ingredients",
+    "stocktake_tab": "Stocktake"
+  },
+
   "navigation": {
     "home": "Home",
     "orders": "Orders",
     "pos": "POS",
     "finance": "Finance",
+    "finance_subtitle": "Financial reports",
     "more": "More",
     "menu": "Menu",
     "menu_subtitle": "Manage menu items",

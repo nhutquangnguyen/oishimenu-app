@@ -59,10 +59,10 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       route: '/pos',
     ),
     NavigationItem(
-      icon: Icons.analytics_outlined,
-      selectedIcon: Icons.analytics,
-      label: 'navigation.finance'.tr(),
-      route: '/analytics',
+      icon: Icons.restaurant_menu_outlined,
+      selectedIcon: Icons.restaurant_menu,
+      label: 'navigation.menu'.tr(),
+      route: '/menu',
     ),
     NavigationItem(
       icon: Icons.more_horiz,
@@ -75,10 +75,10 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
   // Secondary navigation items for "More" section
   List<MoreNavigationItem> get _secondaryNavigationItems => [
     MoreNavigationItem(
-      icon: Icons.restaurant_menu_outlined,
-      label: 'navigation.menu'.tr(),
-      route: '/menu',
-      subtitle: 'navigation.menu_subtitle'.tr(),
+      icon: Icons.analytics_outlined,
+      label: 'navigation.finance'.tr(),
+      route: '/analytics',
+      subtitle: 'navigation.finance_subtitle'.tr(),
     ),
     MoreNavigationItem(
       icon: Icons.inventory_2_outlined,

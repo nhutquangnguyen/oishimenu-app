@@ -815,11 +815,26 @@
     "inactive_badge": "Không hoạt động"
   },
 
+  "menu_page": {
+    "menu_items_tab": "Món ăn",
+    "option_groups_tab": "Nhóm tùy chọn",
+    "add_menu_item_title": "Thêm món ăn",
+    "add_menu_item_subtitle": "Tạo món ăn mới",
+    "add_category_title": "Thêm danh mục",
+    "add_category_subtitle": "Tạo danh mục mới"
+  },
+
+  "inventory_page": {
+    "ingredients_tab": "Nguyên liệu",
+    "stocktake_tab": "Kiểm kê"
+  },
+
   "navigation": {
     "home": "Trang chủ",
     "orders": "Đơn hàng",
     "pos": "POS",
     "finance": "Tài chính",
+    "finance_subtitle": "Báo cáo tài chính",
     "more": "Thêm",
     "menu": "Thực đơn",
     "menu_subtitle": "Quản lý món ăn",
