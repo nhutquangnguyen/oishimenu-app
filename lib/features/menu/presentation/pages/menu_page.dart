@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../services/menu_service.dart';
@@ -350,15 +351,15 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     final filteredGroups = _optionGroups;
 
     if (filteredGroups.isEmpty) {
-      final iconData = Icons.tune_outlined;
-      final title = 'Chưa có nhóm tùy chọn';
-      final subtitle = 'Thêm nhóm tùy chọn đầu tiên của bạn';
+      const iconData = Icons.tune_outlined;
+      final title = 'menu_page.no_option_groups_title'.tr();
+      final subtitle = 'menu_page.no_option_groups_subtitle'.tr();
 
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(iconData, size: 64, color: Colors.grey),
+            const Icon(iconData, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
               title,
@@ -373,7 +374,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
             ElevatedButton.icon(
               onPressed: () => _showAddOptionGroupDialog(),
               icon: const Icon(Icons.add),
-              label: const Text('Thêm nhóm tùy chọn'),
+              label: Text('menu_page.add_option_group_button'.tr()),
             ),
           ],
         ),
@@ -741,8 +742,8 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Menu Item'),
-        content: Text('Are you sure you want to delete "${item.name}"?'),
+        title: Text('menu_page.delete_item_title'.tr()),
+        content: Text('menu_page.delete_item_message'.tr(namedArgs: {'name': item.name})),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -750,7 +751,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text('menu_page.delete_button'.tr(), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -764,8 +765,8 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           await _loadMenuData();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Menu item deleted successfully'),
+              SnackBar(
+                content: Text('menu_page.delete_item_success'.tr()),
                 backgroundColor: Colors.green,
               ),
             );
@@ -775,7 +776,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error deleting item: $e'),
+              content: Text('menu_page.delete_item_error'.tr(namedArgs: {'error': e.toString()})),
               backgroundColor: Colors.red,
             ),
           );
@@ -842,15 +843,15 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Chỉnh sửa nhóm tùy chọn ⚡'),
+        title: Text('menu_page.edit_option_group_title'.tr()),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Đang chỉnh sửa: "${group.name}"'),
+              Text('menu_page.editing_group'.tr(namedArgs: {'name': group.name})),
               const SizedBox(height: 16),
               Text(
-                'Tính năng chỉnh sửa đang được phát triển.\nHiện tại bạn có thể xem và quản lý các nhóm tùy chọn.',
+                'menu_page.edit_group_message'.tr(),
                 style: TextStyle(color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
@@ -860,7 +861,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
+            child: Text('menu_page.close_button'.tr()),
           ),
           ElevatedButton(
             onPressed: () {
@@ -869,7 +870,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
               // For now, navigate to dedicated editor if needed
               context.go('/menu/option-groups/${group.id}/edit');
             },
-            child: const Text('Mở trình chỉnh sửa'),
+            child: Text('menu_page.open_editor_button'.tr()),
           ),
         ],
       ),
@@ -880,15 +881,15 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa nhóm tùy chọn'),
+        title: Text('menu_page.delete_option_group_title'.tr()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Bạn có chắc chắn muốn xóa "${group.name}"?'),
+            Text('menu_page.delete_option_group_message'.tr(namedArgs: {'name': group.name})),
             const SizedBox(height: 8),
             Text(
-              'Hành động này không thể hoàn tác.',
+              'menu_page.cannot_undo_message'.tr(),
               style: TextStyle(
                 color: Colors.red[600],
                 fontSize: 12,
@@ -899,7 +900,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+            child: Text('menu_page.cancel_button'.tr()),
           ),
           TextButton(
             onPressed: () async {
@@ -907,7 +908,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
               await _deleteOptionGroup(group);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Xóa'),
+            child: Text('menu_page.delete_button'.tr()),
           ),
         ],
       ),
@@ -925,14 +926,14 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đã xóa "${group.name}"'),
+              content: Text('menu_page.delete_group_success'.tr(namedArgs: {'name': group.name})),
               backgroundColor: Colors.green,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Lỗi khi xóa "${group.name}"'),
+              content: Text('menu_page.delete_group_error'.tr(namedArgs: {'name': group.name})),
               backgroundColor: Colors.red,
             ),
           );
@@ -942,7 +943,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: $e'),
+            content: Text('menu_page.error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -1023,8 +1024,8 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
                 ),
                 child: Icon(Icons.restaurant_menu, color: Colors.green[600]),
               ),
-              title: const Text('Add Menu Item'),
-              subtitle: const Text('Add a new item to your menu'),
+              title: Text('menu_page.add_menu_item_title'.tr()),
+              subtitle: Text('menu_page.add_menu_item_subtitle'.tr()),
               onTap: () {
                 Navigator.pop(context);
                 // Small delay to ensure modal dismissal completes
@@ -1043,8 +1044,8 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
                 ),
                 child: Icon(Icons.category, color: Colors.blue[600]),
               ),
-              title: const Text('Add Category'),
-              subtitle: const Text('Create a new category for your items'),
+              title: Text('menu_page.add_category_title'.tr()),
+              subtitle: Text('menu_page.add_category_subtitle'.tr()),
               onTap: () {
                 Navigator.pop(context);
                 // Small delay to ensure modal dismissal completes
@@ -1086,7 +1087,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Category "$categoryName" created successfully'),
+                  content: Text('menu_page.category_created_success'.tr(namedArgs: {'name': categoryName})),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -1096,7 +1097,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error creating category: $e'),
+                content: Text('menu_page.category_created_error'.tr(namedArgs: {'error': e.toString()})),
                 backgroundColor: Colors.red,
               ),
             );
@@ -1112,12 +1113,12 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     final controller = TextEditingController();
 
     return AlertDialog(
-      title: const Text('Add New Category'),
+      title: Text('menu_page.add_new_category_title'.tr()),
       content: TextField(
         controller: controller,
-        decoration: const InputDecoration(
-          hintText: 'Enter category name',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          hintText: 'menu_page.enter_category_name'.tr(),
+          border: const OutlineInputBorder(),
         ),
         autofocus: true,
         textCapitalization: TextCapitalization.words,
@@ -1132,7 +1133,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           onPressed: () {
             Navigator.of(context, rootNavigator: true).pop();
           },
-          child: const Text('Cancel'),
+          child: Text('menu_page.cancel_button'.tr()),
         ),
         TextButton(
           onPressed: () {
@@ -1141,7 +1142,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
               Navigator.of(context, rootNavigator: true).pop(text);
             }
           },
-          child: const Text('Add'),
+          child: Text('menu_page.add_button'.tr()),
         ),
       ],
     );
@@ -1187,18 +1188,18 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         await _loadMenuData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Category order updated successfully'),
+            SnackBar(
+              content: Text('menu_page.category_order_updated'.tr()),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to update category order'),
+            SnackBar(
+              content: Text('menu_page.category_order_failed'.tr()),
               backgroundColor: Colors.red,
             ),
           );
@@ -1209,7 +1210,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error reordering categories: $e'),
+            content: Text('menu_page.category_reorder_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -1242,18 +1243,18 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         await _loadMenuData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Menu item order updated successfully'),
+            SnackBar(
+              content: Text('menu_page.item_order_updated'.tr()),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to update menu item order'),
+            SnackBar(
+              content: Text('menu_page.item_order_failed'.tr()),
               backgroundColor: Colors.red,
             ),
           );
@@ -1264,7 +1265,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error reordering menu items: $e'),
+            content: Text('menu_page.item_reorder_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -1281,13 +1282,13 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Reorder "${item.name}"'),
+        title: Text('menu_page.reorder_item_title'.tr(namedArgs: {'name': item.name})),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Current position: ${currentIndex + 1} of ${items.length}'),
+            Text('menu_page.current_position'.tr(namedArgs: {'position': (currentIndex + 1).toString(), 'total': items.length.toString()})),
             const SizedBox(height: 16),
-            Text('Choose new position:', style: Theme.of(context).textTheme.titleSmall),
+            Text('menu_page.choose_new_position'.tr(), style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             SizedBox(
               height: 200,
@@ -1321,7 +1322,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('menu_page.cancel_button'.tr()),
           ),
         ],
       ),
@@ -1349,7 +1350,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Moved "${item.name}" to position ${newIndex + 1}'),
+              content: Text('menu_page.item_moved_success'.tr(namedArgs: {'name': item.name, 'position': (newIndex + 1).toString()})),
               backgroundColor: Colors.green,
             ),
           );
@@ -1357,8 +1358,8 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to reorder menu item'),
+            SnackBar(
+              content: Text('menu_page.item_reorder_failed'.tr()),
               backgroundColor: Colors.red,
             ),
           );
@@ -1369,7 +1370,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error reordering item: $e'),
+            content: Text('menu_page.item_move_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
