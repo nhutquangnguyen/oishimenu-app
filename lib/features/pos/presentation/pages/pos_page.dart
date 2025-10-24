@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../../../models/customer.dart';
@@ -323,26 +324,6 @@ class _PosPageState extends ConsumerState<PosPage> {
                   ),
                 ),
               ),
-              const Spacer(),
-              if (_cartItems.isNotEmpty)
-                GestureDetector(
-                  onTap: _showCartBottomSheet,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.green[100],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.shopping_cart, size: 16, color: Colors.green[800]),
-                        const SizedBox(width: 4),
-                        Text('${_cartItems.length}', style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -502,6 +483,83 @@ class _PosPageState extends ConsumerState<PosPage> {
                       },
                     ),
         ),
+
+        // Bottom Cart Button
+        if (_cartItems.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: GestureDetector(
+                onTap: _showCartBottomSheet,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue[600]!, Colors.blue[700]!],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Row(
+                          children: [
+                            SizedBox(width: 16),
+                            Icon(
+                              Icons.shopping_cart,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Giỏ hàng',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: Text(
+                          '${_totalAmount.toStringAsFixed(0)}đ',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -848,29 +906,43 @@ class _PosPageState extends ConsumerState<PosPage> {
           // New order created - show informative notification and clear cart
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              content: Row(
                 children: [
-                  Text(
-                    'Đơn hàng #$displayOrderNumber đã được lưu',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Đơn hàng đã được thêm vào danh sách Đơn đang xử lý',
-                    style: TextStyle(fontSize: 12),
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Đơn hàng #$displayOrderNumber đã được lưu',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Đơn hàng đã được thêm vào danh sách Đơn đang xử lý',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(
+                top: 80,
+                left: 10,
+                right: 10,
+              ),
               action: SnackBarAction(
                 label: 'Xem',
                 textColor: Colors.white,
                 onPressed: () {
                   // Navigate to Orders page
-                  Navigator.of(context).pushNamed('/orders');
+                  context.go('/orders');
                 },
               ),
             ),
@@ -1035,15 +1107,15 @@ class _PosPageState extends ConsumerState<PosPage> {
       });
 
       // Close dialog
-      try {
-        if (Navigator.canPop(context) && mounted) {
-          Navigator.pop(context);
-        }
-      } catch (e) {
-        debugPrint('Navigation error: $e');
-      }
-
       if (mounted) {
+        try {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        } catch (e) {
+          debugPrint('Navigation error: $e');
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Đơn hàng #$orderNumber - Thanh toán thành công bằng $method'),

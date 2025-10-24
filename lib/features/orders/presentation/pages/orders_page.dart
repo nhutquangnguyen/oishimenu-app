@@ -142,16 +142,26 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         itemCount: _activeOrders.length,
         itemBuilder: (context, index) {
           final order = _activeOrders[index];
-          return _buildActiveOrderCard(order);
+          return _buildActiveOrderCard(order, index);
         },
       ),
     );
   }
 
-  Widget _buildActiveOrderCard(Order order) {
+  Widget _buildActiveOrderCard(Order order, int index) {
+    // Alternate colors for better distinction
+    final bool isEven = index % 2 == 0;
+    final Color cardColor = isEven ? Colors.blue[50]! : Colors.orange[50]!;
+    final Color borderColor = isEven ? Colors.blue[200]! : Colors.orange[200]!;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
+      elevation: 3,
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: borderColor, width: 2),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -164,11 +174,33 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        order.orderNumber,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      // Clickable order number
+                      InkWell(
+                        onTap: () => _navigateToPosWithOrder(order),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.blue[300]!, width: 1),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.receipt_long, size: 16, color: Colors.blue[700]),
+                              const SizedBox(width: 6),
+                              Text(
+                                order.orderNumber,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue[800],
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -185,7 +217,12 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                     ],
                   ),
                 ),
-                _buildStatusChip(order.status),
+                // Cancel button
+                IconButton(
+                  onPressed: () => _showCancelOrderDialog(order),
+                  icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
+                  tooltip: 'Hủy đơn hàng',
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -834,5 +871,64 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       // Reload orders when returning from POS
       _loadOrders();
     });
+  }
+
+  Future<void> _showCancelOrderDialog(Order order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hủy đơn hàng'),
+        content: Text(
+          'Bạn có chắc chắn muốn hủy đơn hàng ${order.orderNumber}?\n\nHành động này không thể hoàn tác.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Không'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Hủy đơn'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        // Update order status to cancelled
+        final updatedOrder = order.copyWith(
+          status: OrderStatus.cancelled,
+          updatedAt: DateTime.now(),
+        );
+
+        await _orderService.updateOrder(updatedOrder);
+
+        // Reload orders
+        await _loadOrders();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đơn hàng ${order.orderNumber} đã bị hủy'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lỗi khi hủy đơn hàng: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 }
