@@ -605,19 +605,19 @@ class _PosPageState extends ConsumerState<PosPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Row(
                           children: [
-                            SizedBox(width: 16),
-                            Icon(
+                            const SizedBox(width: 16),
+                            const Icon(
                               Icons.shopping_cart,
                               color: Colors.white,
                               size: 24,
                             ),
-                            SizedBox(width: 12),
+                            const SizedBox(width: 12),
                             Text(
                               'pos_page.cart_header'.tr(),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
@@ -1136,7 +1136,7 @@ class _PosPageState extends ConsumerState<PosPage> {
     if (_cartItems.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('pos_page.empty_cart_error'.tr()),
             backgroundColor: Colors.red,
           ),
