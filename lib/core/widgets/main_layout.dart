@@ -20,8 +20,8 @@ final activeOrdersCountProvider = StreamProvider<int>((ref) async* {
       yield 0;
     }
 
-    // Refresh every 5 seconds
-    await Future.delayed(const Duration(seconds: 5));
+    // Refresh every 2 seconds for faster updates
+    await Future.delayed(const Duration(seconds: 2));
   }
 });
 
