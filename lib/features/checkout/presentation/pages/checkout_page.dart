@@ -124,12 +124,29 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     try {
       // Update order with payment information
       final now = DateTime.now();
-      final updatedOrder = widget.order.copyWith(
-        status: OrderStatus.delivered,
-        paymentStatus: PaymentStatus.paid,
-        paymentMethod: _selectedPaymentMethod,
+
+      // Create the order object with all required fields
+      final updatedOrder = Order(
+        id: widget.order.id,
+        orderNumber: widget.order.orderNumber,
+        customer: widget.order.customer,
+        items: widget.order.items,
+        subtotal: widget.order.subtotal,
+        deliveryFee: widget.order.deliveryFee,
         discount: _discountAmount,
+        tax: widget.order.tax,
+        serviceCharge: widget.order.serviceCharge,
         total: _total,
+        orderType: widget.order.orderType,
+        status: OrderStatus.delivered,
+        paymentMethod: _selectedPaymentMethod,
+        paymentStatus: PaymentStatus.paid,
+        deliveryInfo: widget.order.deliveryInfo,
+        tableNumber: widget.order.tableNumber,
+        platform: widget.order.platform,
+        assignedStaff: widget.order.assignedStaff,
+        notes: widget.order.notes,
+        createdAt: widget.order.createdAt,
         updatedAt: now,
       );
 
