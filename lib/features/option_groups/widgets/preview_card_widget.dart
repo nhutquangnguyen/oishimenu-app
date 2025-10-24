@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../models/menu_options.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/validation.dart';
@@ -69,7 +70,7 @@ class _PreviewCardWidgetState extends State<PreviewCardWidget> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Xem trước',
+              'preview_card.empty_title'.tr(),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -78,7 +79,7 @@ class _PreviewCardWidgetState extends State<PreviewCardWidget> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Nhập tên và thêm tùy chọn để xem trước',
+              'preview_card.empty_subtitle'.tr(),
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[500],
@@ -115,7 +116,7 @@ class _PreviewCardWidgetState extends State<PreviewCardWidget> {
             children: [
               Expanded(
                 child: Text(
-                  widget.groupName.trim().isEmpty ? 'Tên nhóm tùy chọn' : widget.groupName,
+                  widget.groupName.trim().isEmpty ? 'preview_card.group_name_placeholder'.tr() : widget.groupName,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -131,7 +132,7 @@ class _PreviewCardWidgetState extends State<PreviewCardWidget> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    'BẮT BUỘC',
+                    'preview_card.required_badge'.tr(),
                     style: TextStyle(
                       color: Colors.red[700],
                       fontSize: 10,
@@ -160,7 +161,7 @@ class _PreviewCardWidgetState extends State<PreviewCardWidget> {
         padding: const EdgeInsets.all(16),
         child: Center(
           child: Text(
-            'Chưa có tùy chọn nào',
+            'preview_card.no_options'.tr(),
             style: TextStyle(
               color: Colors.grey[500],
               fontSize: 14,
@@ -220,7 +221,7 @@ class _PreviewCardWidgetState extends State<PreviewCardWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          option.name.isEmpty ? 'Tùy chọn ${index + 1}' : option.name,
+                          option.name.isEmpty ? 'preview_card.option_placeholder'.tr(namedArgs: {'number': (index + 1).toString()}) : option.name,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -284,7 +285,7 @@ class _PreviewCardWidgetState extends State<PreviewCardWidget> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              validationMessage ?? 'Đã chọn $selectedCount/${widget.maxSelections}',
+              validationMessage ?? 'preview_card.selected_count'.tr(namedArgs: {'selected': selectedCount.toString(), 'max': widget.maxSelections.toString()}),
               style: TextStyle(
                 color: validationMessage != null ? Colors.red[700] : Colors.grey[600],
                 fontSize: 12,
@@ -322,14 +323,14 @@ class _PreviewCardWidgetState extends State<PreviewCardWidget> {
 
     if (widget.isRequired && selectedCount < widget.minSelections) {
       if (widget.minSelections == 1) {
-        return 'Vui lòng chọn ít nhất 1 tùy chọn';
+        return 'preview_card.validation_min_one'.tr();
       } else {
-        return 'Vui lòng chọn ít nhất ${widget.minSelections} tùy chọn';
+        return 'preview_card.validation_min'.tr(namedArgs: {'min': widget.minSelections.toString()});
       }
     }
 
     if (selectedCount > widget.maxSelections) {
-      return 'Chỉ có thể chọn tối đa ${widget.maxSelections} tùy chọn';
+      return 'preview_card.validation_max'.tr(namedArgs: {'max': widget.maxSelections.toString()});
     }
 
     return null;
