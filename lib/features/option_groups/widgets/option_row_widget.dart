@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../models/menu_options.dart';
 import '../utils/currency_formatter.dart';
 
@@ -102,34 +103,34 @@ class OptionRowWidget extends StatelessWidget {
                   PopupMenuButton<String>(
                     onSelected: (value) => _handleAction(value),
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, size: 16),
-                            SizedBox(width: 8),
-                            Text('Chỉnh sửa'),
+                            const Icon(Icons.edit, size: 16),
+                            const SizedBox(width: 8),
+                            Text('option_row.edit_button'.tr()),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'duplicate',
                         child: Row(
                           children: [
-                            Icon(Icons.copy, size: 16),
-                            SizedBox(width: 8),
-                            Text('Nhân bản'),
+                            const Icon(Icons.copy, size: 16),
+                            const SizedBox(width: 8),
+                            Text('option_row.duplicate_button'.tr()),
                           ],
                         ),
                       ),
                       const PopupMenuDivider(),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, size: 16, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Xóa', style: TextStyle(color: Colors.red)),
+                            const Icon(Icons.delete, size: 16, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text('option_row.delete_button'.tr(), style: const TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
