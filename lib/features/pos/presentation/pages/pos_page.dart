@@ -65,6 +65,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   // Track if we're editing an existing order
   String? _existingOrderId;
   String? _existingOrderNumber;
+  DateTime? _existingOrderCreatedAt;
 
   @override
   void initState() {
@@ -150,9 +151,10 @@ class _PosPageState extends ConsumerState<PosPage> {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      // Store the existing order ID and number for updates
+      // Store the existing order ID, number, and creation time for updates
       _existingOrderId = order.id;
       _existingOrderNumber = order.orderNumber;
+      _existingOrderCreatedAt = order.createdAt;
       // Load existing notes
       _orderNotes = order.notes ?? '';
     });
@@ -934,7 +936,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           tableNumber: _selectedTable,
           platform: 'POS',
           notes: _orderNotes.isEmpty ? null : _orderNotes,
-          createdAt: now, // Keep original creation time would be better, but we don't have it
+          createdAt: _existingOrderCreatedAt ?? now, // Preserve original creation time
           updatedAt: now,
         );
 
@@ -1034,6 +1036,9 @@ class _PosPageState extends ConsumerState<PosPage> {
             _selectedCustomer = null;
             _selectedTable = 'Mang về';
             _orderNotes = '';
+            _existingOrderId = null;
+            _existingOrderNumber = null;
+            _existingOrderCreatedAt = null;
           });
         }
       }
@@ -1188,6 +1193,9 @@ class _PosPageState extends ConsumerState<PosPage> {
         _cartItems.clear();
         _selectedCustomer = null;
         _orderNotes = '';
+        _existingOrderId = null;
+        _existingOrderNumber = null;
+        _existingOrderCreatedAt = null;
       });
 
       // Close dialog
