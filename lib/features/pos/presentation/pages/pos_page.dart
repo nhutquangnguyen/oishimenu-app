@@ -289,15 +289,12 @@ class _PosPageState extends ConsumerState<PosPage> {
           ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.85,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
+            sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildMenuItem(hotItems[index]),
+                (context, index) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildCompactMenuItem(hotItems[index]),
+                ),
                 childCount: hotItems.length,
               ),
             ),
@@ -325,15 +322,12 @@ class _PosPageState extends ConsumerState<PosPage> {
             ),
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.85,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
+              sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildMenuItem(items[index]),
+                  (context, index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _buildCompactMenuItem(items[index]),
+                  ),
                   childCount: items.length,
                 ),
               ),
@@ -348,7 +342,7 @@ class _PosPageState extends ConsumerState<PosPage> {
     );
   }
 
-  Widget _buildMenuItem(MenuItem item) {
+  Widget _buildCompactMenuItem(MenuItem item) {
     final cartItem = _cartItems.firstWhere(
       (cartItem) => cartItem.menuItem.id == item.id,
       orElse: () => CartItem(menuItem: item, quantity: 0),
@@ -357,90 +351,102 @@ class _PosPageState extends ConsumerState<PosPage> {
     return GestureDetector(
       onTap: () => _addToCart(item),
       child: Container(
+        height: 70,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[200]!),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                ),
-                child: item.photos.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                        child: Image.network(
-                          item.photos.first,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                            Icons.fastfood,
-                            size: 48,
-                            color: Colors.grey[400],
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        Icons.fastfood,
-                        size: 48,
-                        color: Colors.grey[400],
-                      ),
+            // Item image
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${item.price.toStringAsFixed(0)}đ',
-                    style: TextStyle(
-                      color: Colors.orange[700],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (cartItem.quantity > 0) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${cartItem.quantity}',
-                        style: TextStyle(
-                          color: Colors.blue[800],
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+              child: item.photos.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                      child: Image.network(
+                        item.photos.first,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.fastfood,
+                          size: 32,
+                          color: Colors.grey[400],
                         ),
+                      ),
+                    )
+                  : Icon(
+                      Icons.fastfood,
+                      size: 32,
+                      color: Colors.grey[400],
+                    ),
+            ),
+
+            // Item details
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${item.price.toStringAsFixed(0)}đ',
+                      style: TextStyle(
+                        color: Colors.orange[700],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
+
+            // Quantity badge
+            if (cartItem.quantity > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    '${cartItem.quantity}',
+                    style: TextStyle(
+                      color: Colors.blue[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Icon(
+                  Icons.add_circle_outline,
+                  color: Colors.grey[400],
+                  size: 24,
+                ),
+              ),
           ],
         ),
       ),
@@ -450,9 +456,43 @@ class _PosPageState extends ConsumerState<PosPage> {
   Widget _buildMenuInterface() {
     return Column(
       children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Tìm kiếm món ăn...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          _searchController.clear();
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: Colors.grey[100],
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+          ),
+        ),
+
         // Category filter dropdown
         Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: DropdownButtonFormField<String?>(
             value: _selectedCategory,
             decoration: InputDecoration(
@@ -480,40 +520,6 @@ class _PosPageState extends ConsumerState<PosPage> {
             onChanged: (value) {
               setState(() {
                 _selectedCategory = value;
-              });
-            },
-          ),
-        ),
-
-        // Search bar
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Tìm kiếm món ăn...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[100],
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
               });
             },
           ),
