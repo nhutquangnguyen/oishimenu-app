@@ -56,6 +56,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   List<MenuItem> _menuItems = [];
   List<CartItem> _cartItems = [];
   String _searchQuery = '';
+  String? _selectedCategory; // null means "Tất cả"
   String _selectedTable = 'Mang về';
   Customer? _selectedCustomer;
   bool _isLoading = true;
@@ -163,8 +164,22 @@ class _PosPageState extends ConsumerState<PosPage> {
     });
   }
 
+  // Get list of available categories (non-empty)
+  List<String> get _availableCategories {
+    final categories = <String>{};
+    for (var item in _menuItems) {
+      categories.add(item.categoryName);
+    }
+    return categories.toList()..sort();
+  }
+
   List<MenuItem> get _filteredMenuItems {
     var items = _menuItems;
+
+    // Filter by category
+    if (_selectedCategory != null) {
+      items = items.where((item) => item.categoryName == _selectedCategory).toList();
+    }
 
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
@@ -435,9 +450,44 @@ class _PosPageState extends ConsumerState<PosPage> {
   Widget _buildMenuInterface() {
     return Column(
       children: [
+        // Category filter dropdown
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: DropdownButtonFormField<String?>(
+            value: _selectedCategory,
+            decoration: InputDecoration(
+              labelText: 'Danh mục',
+              prefixIcon: const Icon(Icons.category),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('Tất cả danh mục'),
+              ),
+              ..._availableCategories.map((category) {
+                return DropdownMenuItem<String?>(
+                  value: category,
+                  child: Text(category),
+                );
+              }),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedCategory = value;
+              });
+            },
+          ),
+        ),
+
         // Search bar
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
