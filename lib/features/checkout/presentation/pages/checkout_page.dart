@@ -293,9 +293,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Nguồn đơn hàng',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        Row(
+          children: [
+            const Text(
+              'Nguồn đơn hàng',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '*',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[600],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         if (_isLoadingOrderSources)
@@ -638,9 +651,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Phương thức thanh toán',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        Row(
+          children: [
+            const Text(
+              'Phương thức thanh toán',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '*',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[600],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(
