@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// Widget for configuring option group selection rules
 /// Handles required/optional, single/multi selection, min/max counts
@@ -32,7 +33,7 @@ class SelectionRulesWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Quy tắc lựa chọn',
+          'selection_rules.title'.tr(),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -55,15 +56,15 @@ class SelectionRulesWidget extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Bắt buộc chọn',
-                          style: TextStyle(
+                        Text(
+                          'selection_rules.required_title'.tr(),
+                          style: const TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 16,
                           ),
                         ),
                         Text(
-                          'Khách hàng phải chọn ít nhất một tùy chọn',
+                          'selection_rules.required_subtitle'.tr(),
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -87,15 +88,15 @@ class SelectionRulesWidget extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Cho phép chọn nhiều',
-                          style: TextStyle(
+                        Text(
+                          'selection_rules.allow_multiple_title'.tr(),
+                          style: const TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 16,
                           ),
                         ),
                         Text(
-                          'Khách hàng có thể chọn nhiều hơn một tùy chọn',
+                          'selection_rules.allow_multiple_subtitle'.tr(),
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -124,15 +125,15 @@ class SelectionRulesWidget extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Số lượng tối đa',
-                            style: TextStyle(
+                          Text(
+                            'selection_rules.max_title'.tr(),
+                            style: const TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 16,
                             ),
                           ),
                           Text(
-                            'Tối đa bao nhiêu tùy chọn có thể được chọn',
+                            'selection_rules.max_subtitle'.tr(),
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 12,
@@ -159,15 +160,15 @@ class SelectionRulesWidget extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Số lượng tối thiểu',
-                              style: TextStyle(
+                            Text(
+                              'selection_rules.min_title'.tr(),
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w500,
                                 fontSize: 16,
                               ),
                             ),
                             Text(
-                              'Tối thiểu bao nhiêu tùy chọn phải được chọn',
+                              'selection_rules.min_subtitle'.tr(),
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 12,
@@ -268,19 +269,19 @@ class SelectionRulesWidget extends StatelessWidget {
   String _buildSelectionSummary() {
     if (!allowMultiple) {
       if (isRequired) {
-        return 'Khách hàng phải chọn đúng 1 tùy chọn';
+        return 'selection_rules.summary_single_required'.tr();
       } else {
-        return 'Khách hàng có thể chọn 0 hoặc 1 tùy chọn';
+        return 'selection_rules.summary_single_optional'.tr();
       }
     } else {
       if (isRequired) {
         if (minSelections == maxSelections) {
-          return 'Khách hàng phải chọn đúng $minSelections tùy chọn';
+          return 'selection_rules.summary_exact'.tr(namedArgs: {'count': minSelections.toString()});
         } else {
-          return 'Khách hàng phải chọn từ $minSelections đến $maxSelections tùy chọn';
+          return 'selection_rules.summary_range'.tr(namedArgs: {'min': minSelections.toString(), 'max': maxSelections.toString()});
         }
       } else {
-        return 'Khách hàng có thể chọn tối đa $maxSelections tùy chọn';
+        return 'selection_rules.summary_max_optional'.tr(namedArgs: {'max': maxSelections.toString()});
       }
     }
   }
