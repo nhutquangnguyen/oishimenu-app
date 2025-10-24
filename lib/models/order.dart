@@ -327,7 +327,7 @@ class Customer {
 
   factory Customer.fromMap(Map<String, dynamic> map) {
     return Customer(
-      id: map['id'] ?? '',
+      id: map['id']?.toString() ?? '',
       name: stringFromDynamic(map['name']),
       phone: stringFromDynamic(map['phone']),
       email: stringFromDynamic(map['email']),
