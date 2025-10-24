@@ -52,10 +52,12 @@ class _PosPageState extends ConsumerState<PosPage> {
   final MenuService _menuService = MenuService();
   final MenuOptionService _menuOptionService = MenuOptionService();
   final OrderService _orderService = OrderService();
+  final TextEditingController _searchController = TextEditingController();
   List<MenuItem> _menuItems = [];
   Map<String, String> _categories = {};
   List<CartItem> _cartItems = [];
   String _selectedCategory = 'Tất cả';
+  String _searchQuery = '';
   String _selectedTable = 'Mang về';
   Customer? _selectedCustomer;
   bool _isLoading = true;
@@ -70,6 +72,12 @@ class _PosPageState extends ConsumerState<PosPage> {
   void initState() {
     super.initState();
     _loadMenuData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMenuData() async {
@@ -160,10 +168,24 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   List<MenuItem> get _filteredMenuItems {
-    if (_selectedCategory == 'Tất cả') {
-      return _menuItems;
+    var items = _menuItems;
+
+    // Filter by category
+    if (_selectedCategory != 'Tất cả') {
+      items = items.where((item) => item.categoryName == _selectedCategory).toList();
     }
-    return _menuItems.where((item) => item.categoryName == _selectedCategory).toList();
+
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      items = items.where((item) {
+        final searchLower = _searchQuery.toLowerCase();
+        return item.name.toLowerCase().contains(searchLower) ||
+               item.description.toLowerCase().contains(searchLower) ||
+               item.categoryName.toLowerCase().contains(searchLower);
+      }).toList();
+    }
+
+    return items;
   }
 
   Future<void> _addToCart(MenuItem item) async {
@@ -215,6 +237,40 @@ class _PosPageState extends ConsumerState<PosPage> {
   Widget _buildMenuInterface() {
     return Column(
       children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Tìm kiếm món ăn...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          _searchController.clear();
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: Colors.grey[100],
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+          ),
+        ),
+
         // Category filter
         Container(
           height: 50,
@@ -259,7 +315,39 @@ class _PosPageState extends ConsumerState<PosPage> {
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _filteredMenuItems.isEmpty
-                  ? const Center(child: Text('Không có món nào'))
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _searchQuery.isNotEmpty ? Icons.search_off : Icons.restaurant_menu,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? 'Không tìm thấy món ăn phù hợp'
+                                : 'Không có món nào',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (_searchQuery.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Thử tìm kiếm với từ khóa khác',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    )
                   : GridView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
