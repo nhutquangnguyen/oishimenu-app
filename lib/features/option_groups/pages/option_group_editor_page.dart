@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import '../../../models/menu_options.dart';
 import '../../../models/menu_item.dart';
@@ -136,7 +137,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.optionGroupId == null ? 'Tạo nhóm tùy chọn' : 'Edit option group'),
+        title: Text(widget.optionGroupId == null ? 'option_groups_editor.create_title'.tr() : 'option_groups_editor.edit_title'.tr()),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         foregroundColor: Theme.of(context).colorScheme.onSurface,
@@ -221,7 +222,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  hintText: 'e.g., Drink Toppings',
+                  hintText: 'option_groups_editor.name_hint'.tr(),
                   errorText: _validationErrors['name'],
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -500,7 +501,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
                   _showMenuItemLinkingModal();
                 },
                 icon: const Icon(Icons.link, size: 16),
-                label: const Text('Manage Links'),
+                label: Text('option_groups_editor.manage_links_button'.tr()),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.blue[600],
                 ),
@@ -907,7 +908,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error saving option group: $e'),
+            content: Text('option_groups_editor.error_saving'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -969,23 +970,23 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(option == null ? 'Add Option' : 'Edit Option'),
+        title: Text(option == null ? 'option_groups_editor.add_option_title'.tr() : 'option_groups_editor.edit_option_title'.tr()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Option Name *',
-                hintText: 'e.g., Sương sáo',
+              decoration: InputDecoration(
+                labelText: 'option_groups_editor.option_name_field'.tr(),
+                hintText: 'option_groups_editor.option_name_hint'.tr(),
               ),
               autofocus: true,
             ),
             const SizedBox(height: 16),
             TextField(
               controller: priceController,
-              decoration: const InputDecoration(
-                labelText: 'Additional Price (VND)',
+              decoration: InputDecoration(
+                labelText: 'option_groups_editor.option_price_field'.tr(),
                 hintText: '0',
                 suffixText: 'đ',
               ),
@@ -996,7 +997,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('option_groups_editor.cancel_button'.tr()),
           ),
           ElevatedButton(
             onPressed: () {
@@ -1005,7 +1006,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
 
               if (name.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Option name is required')),
+                  SnackBar(content: Text('option_groups_editor.option_name_required'.tr())),
                 );
                 return;
               }
@@ -1035,7 +1036,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
 
               Navigator.pop(context);
             },
-            child: Text(option == null ? 'Add' : 'Save'),
+            child: Text(option == null ? 'option_groups_editor.add_button'.tr() : 'option_groups_editor.save_button'.tr()),
           ),
         ],
       ),
@@ -1179,7 +1180,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
                       const Spacer(),
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        child: Text('option_groups_editor.cancel_button'.tr()),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
@@ -1194,7 +1195,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
                           backgroundColor: Colors.blue[600],
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Save Links'),
+                        child: Text('option_groups_editor.save_links_button'.tr()),
                       ),
                     ],
                   ),
@@ -1277,8 +1278,8 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Thay đổi chưa được lưu'),
-        content: const Text('Bạn có muốn lưu thay đổi trước khi thoát?'),
+        title: Text('option_groups_editor.unsaved_title'.tr()),
+        content: Text('option_groups_editor.unsaved_message'.tr()),
         actions: [
           TextButton(
             onPressed: () {
@@ -1287,18 +1288,18 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
                 if (mounted) context.go('/menu');
               });
             },
-            child: const Text('Bỏ qua'),
+            child: Text('option_groups_editor.discard_button'.tr()),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+            child: Text('option_groups_editor.cancel_button'.tr()),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _handleSave();
             },
-            child: const Text('Lưu'),
+            child: Text('option_groups_editor.save_button'.tr()),
           ),
         ],
       ),
