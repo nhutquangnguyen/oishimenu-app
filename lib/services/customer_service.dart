@@ -52,7 +52,9 @@ class CustomerService {
       if (customer.phone != null && customer.phone!.isNotEmpty) {
         final existing = await getCustomerByPhone(customer.phone!);
         if (existing != null) {
-          throw Exception('Customer with phone "${customer.phone}" already exists');
+          // Return existing customer ID instead of throwing exception
+          print('Customer with phone "${customer.phone}" already exists, returning existing ID');
+          return existing.id;
         }
       }
 

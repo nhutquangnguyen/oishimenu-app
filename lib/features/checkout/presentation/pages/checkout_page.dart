@@ -93,13 +93,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Future<void> _searchCustomerByPhone(String phone) async {
-    if (phone.length >= 9) {
+    if (phone.length >= 3) {
       final customer = await _customerService.getCustomerByPhone(phone);
       setState(() {
         _foundCustomer = customer;
         if (customer != null) {
           _customerNameController.text = customer.name;
+        } else {
+          _customerNameController.clear();
         }
+      });
+    } else {
+      setState(() {
+        _foundCustomer = null;
+        _customerNameController.clear();
       });
     }
   }
@@ -200,6 +207,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               phone: updatedCustomer.phone,
               email: updatedCustomer.email,
               address: updatedCustomer.address,
+              createdAt: updatedCustomer.createdAt,
+              updatedAt: updatedCustomer.updatedAt,
             );
           } else {
             // Use existing customer without changes
@@ -209,27 +218,46 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               phone: _foundCustomer!.phone,
               email: _foundCustomer!.email,
               address: _foundCustomer!.address,
+              createdAt: _foundCustomer!.createdAt,
+              updatedAt: _foundCustomer!.updatedAt,
             );
           }
         } else {
-          // Create new customer
-          final newCustomer = customer_model.Customer(
-            id: '',
-            name: name.isNotEmpty ? name : 'checkout_page.default_customer_name'.tr(),
-            phone: phone,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          );
-
-          final customerId = await _customerService.createCustomer(newCustomer);
-          if (customerId != null) {
+          // Try searching one more time before creating
+          final existingCustomer = await _customerService.getCustomerByPhone(phone);
+          if (existingCustomer != null) {
+            // Found existing customer, use it
             orderCustomer = Customer(
-              id: customerId,
-              name: newCustomer.name,
-              phone: newCustomer.phone,
-              email: null,
-              address: null,
+              id: existingCustomer.id,
+              name: existingCustomer.name,
+              phone: existingCustomer.phone,
+              email: existingCustomer.email,
+              address: existingCustomer.address,
+              createdAt: existingCustomer.createdAt,
+              updatedAt: existingCustomer.updatedAt,
             );
+          } else {
+            // Create new customer
+            final newCustomer = customer_model.Customer(
+              id: '',
+              name: name.isNotEmpty ? name : 'checkout_page.default_customer_name'.tr(),
+              phone: phone,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+
+            final customerId = await _customerService.createCustomer(newCustomer);
+            if (customerId != null) {
+              orderCustomer = Customer(
+                id: customerId,
+                name: newCustomer.name,
+                phone: newCustomer.phone,
+                email: null,
+                address: null,
+                createdAt: newCustomer.createdAt,
+                updatedAt: newCustomer.updatedAt,
+              );
+            }
           }
         }
       }

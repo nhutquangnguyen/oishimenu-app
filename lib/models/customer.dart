@@ -30,8 +30,7 @@ class Customer {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id.isEmpty ? null : int.tryParse(id),
+    final map = <String, dynamic>{
       'name': name,
       'phone': phone,
       'email': email,
@@ -39,6 +38,13 @@ class Customer {
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
+
+    // Only include id if it's not empty (for updates)
+    if (id.isNotEmpty) {
+      map['id'] = int.tryParse(id);
+    }
+
+    return map;
   }
 
   Customer copyWith({

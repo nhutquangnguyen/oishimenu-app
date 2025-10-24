@@ -60,6 +60,8 @@ class OrderService {
       customer ??= Customer(
         id: '',
         name: 'Walk-in Customer',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       // Get order items
@@ -105,6 +107,8 @@ class OrderService {
       customer ??= Customer(
         id: '',
         name: 'Walk-in Customer',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       // Get order items
@@ -191,10 +195,13 @@ class OrderService {
       );
 
       // Insert updated order items
-      for (final item in order.items) {
-        final itemMap = item.toMap();
-        itemMap['order_id'] = int.tryParse(order.id);
-        await txn.insert('order_items', itemMap);
+      final orderIdInt = int.tryParse(order.id);
+      if (orderIdInt != null) {
+        for (final item in order.items) {
+          final itemMap = item.toMap();
+          itemMap['order_id'] = orderIdInt;
+          await txn.insert('order_items', itemMap);
+        }
       }
     });
   }

@@ -984,10 +984,14 @@ class _PosPageState extends ConsumerState<PosPage> {
               phone: _selectedCustomer!.phone,
               email: _selectedCustomer!.email,
               address: _selectedCustomer!.address,
+              createdAt: _selectedCustomer!.createdAt,
+              updatedAt: _selectedCustomer!.updatedAt,
             )
           : order_model.Customer(
               id: '',
               name: 'pos_page.walk_in_customer'.tr(),
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
             );
 
       // Check if we're updating an existing order or creating a new one
@@ -1192,10 +1196,14 @@ class _PosPageState extends ConsumerState<PosPage> {
               phone: _selectedCustomer!.phone,
               email: _selectedCustomer!.email,
               address: _selectedCustomer!.address,
+              createdAt: _selectedCustomer!.createdAt,
+              updatedAt: _selectedCustomer!.updatedAt,
             )
           : order_model.Customer(
               id: '',
               name: 'pos_page.walk_in_customer'.tr(),
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
             );
 
       // Create temporary order for checkout

@@ -316,6 +316,8 @@ class Customer {
   final String? phone;
   final String? email;
   final String? address;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Customer({
     required this.id,
@@ -323,6 +325,8 @@ class Customer {
     this.phone,
     this.email,
     this.address,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory Customer.fromMap(Map<String, dynamic> map) {
@@ -332,17 +336,28 @@ class Customer {
       phone: stringFromDynamic(map['phone']),
       email: stringFromDynamic(map['email']),
       address: stringFromDynamic(map['address']),
+      createdAt: map['created_at'] != null ? DateTime.fromMillisecondsSinceEpoch(map['created_at']) : null,
+      updatedAt: map['updated_at'] != null ? DateTime.fromMillisecondsSinceEpoch(map['updated_at']) : null,
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final map = <String, dynamic>{
       'name': name,
       'phone': phone,
       'email': email,
       'address': address,
+      'created_at': createdAt?.millisecondsSinceEpoch ?? now,
+      'updated_at': updatedAt?.millisecondsSinceEpoch ?? now,
     };
+
+    // Only include id if it's not empty (for updates)
+    if (id.isNotEmpty) {
+      map['id'] = int.tryParse(id);
+    }
+
+    return map;
   }
 }
 
