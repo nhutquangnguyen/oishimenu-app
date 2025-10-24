@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order.dart';
 import '../../../../services/order_service.dart';
 import '../../../pos/presentation/pages/pos_page.dart';
@@ -87,9 +88,9 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               unselectedLabelColor: Colors.grey[600],
               indicatorColor: Colors.blue[700],
               indicatorWeight: 3,
-              tabs: const [
-                Tab(text: 'Đơn đang xử lý'),
-                Tab(text: 'Lịch sử'),
+              tabs: [
+                Tab(text: 'orders_page.processing_tab'.tr()),
+                Tab(text: 'orders_page.history_tab'.tr()),
               ],
             ),
           ),
@@ -122,14 +123,14 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
             Icon(Icons.receipt_long, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              'Chưa có đơn hàng nào',
+              'orders_page.no_orders'.tr(),
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _loadOrders,
               icon: const Icon(Icons.refresh),
-              label: const Text('Tải lại'),
+              label: Text('orders_page.reload_button'.tr()),
             ),
           ],
         ),
@@ -222,7 +223,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                 IconButton(
                   onPressed: () => _showCancelOrderDialog(order),
                   icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
-                  tooltip: 'Hủy đơn hàng',
+                  tooltip: 'orders_page.cancel_order_tooltip'.tr(),
                 ),
               ],
             ),
@@ -325,9 +326,9 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Text(
-                          'Thêm món',
-                          style: TextStyle(
+                        Text(
+                          'orders_page.add_items_button'.tr(),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -348,7 +349,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               children: [
                 Expanded(
                   child: Text(
-                    'Tổng: ${order.total.toStringAsFixed(0)}đ',
+                    'orders_page.total_label'.tr(namedArgs: {'amount': order.total.toStringAsFixed(0)}),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -363,7 +364,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                     foregroundColor: Colors.white,
                   ),
                   icon: const Icon(Icons.payment),
-                  label: const Text('Thanh toán'),
+                  label: Text('orders_page.checkout_button'.tr()),
                 ),
               ],
             ),
@@ -433,7 +434,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              isCompleted ? 'Đã xong' : 'Đánh dấu xong',
+                              isCompleted ? 'orders_page.mark_complete'.tr() : 'orders_page.mark_complete_action'.tr(),
                               style: TextStyle(
                                 fontSize: 13,
                                 color: isCompleted ? Colors.white : Colors.grey[700],
@@ -557,14 +558,14 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
             Icon(Icons.history, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              'Chưa có lịch sử đơn hàng',
+              'orders_page.no_history'.tr(),
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _loadOrders,
               icon: const Icon(Icons.refresh),
-              label: const Text('Tải lại'),
+              label: Text('orders_page.reload_button'.tr()),
             ),
           ],
         ),
@@ -643,27 +644,27 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     switch (status) {
       case OrderStatus.pending:
         bgColor = Colors.orange[100]!;
-        label = 'Chờ xử lý';
+        label = 'orders_page.status_pending'.tr();
         break;
       case OrderStatus.confirmed:
         bgColor = Colors.blue[100]!;
-        label = 'Đã xác nhận';
+        label = 'orders_page.status_confirmed'.tr();
         break;
       case OrderStatus.preparing:
         bgColor = Colors.purple[100]!;
-        label = 'Đang chuẩn bị';
+        label = 'orders_page.status_preparing'.tr();
         break;
       case OrderStatus.ready:
         bgColor = Colors.teal[100]!;
-        label = 'Sẵn sàng';
+        label = 'orders_page.status_ready'.tr();
         break;
       case OrderStatus.delivered:
         bgColor = Colors.green[100]!;
-        label = 'Hoàn thành';
+        label = 'orders_page.status_delivered'.tr();
         break;
       case OrderStatus.cancelled:
         bgColor = Colors.red[100]!;
-        label = 'Đã hủy';
+        label = 'orders_page.status_cancelled'.tr();
         break;
       default:
         bgColor = Colors.grey[100]!;
@@ -692,11 +693,11 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     final diff = now.difference(dateTime);
 
     if (diff.inMinutes < 60) {
-      return '${diff.inMinutes} phút trước';
+      return 'orders_page.time_minutes_ago'.tr(namedArgs: {'minutes': diff.inMinutes.toString()});
     } else if (diff.inHours < 24) {
-      return '${diff.inHours} giờ trước';
+      return 'orders_page.time_hours_ago'.tr(namedArgs: {'hours': diff.inHours.toString()});
     } else {
-      return '${diff.inDays} ngày trước';
+      return 'orders_page.time_days_ago'.tr(namedArgs: {'days': diff.inDays.toString()});
     }
   }
 
@@ -746,7 +747,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi cập nhật số lượng: $e'),
+            content: Text('orders_page.update_quantity_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -763,17 +764,17 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Xác nhận'),
-            content: Text('Xóa "${item.menuItemName}" khỏi đơn hàng?'),
+            title: Text('orders_page.confirm_delete_title'.tr()),
+            content: Text('orders_page.confirm_delete_message'.tr(namedArgs: {'item': item.menuItemName})),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Hủy'),
+                child: Text('orders_page.cancel_button'.tr()),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Xóa'),
+                child: Text('orders_page.delete_button'.tr()),
               ),
             ],
           ),
@@ -791,17 +792,17 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
           final deleteOrder = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Đơn hàng trống'),
-              content: const Text('Không còn món nào trong đơn hàng. Hủy đơn hàng?'),
+              title: Text('orders_page.empty_order_title'.tr()),
+              content: Text('orders_page.empty_order_message'.tr()),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Giữ lại'),
+                  child: Text('orders_page.keep_button'.tr()),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, true),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Hủy đơn'),
+                  child: Text('orders_page.cancel_order_button'.tr()),
                 ),
               ],
             ),
@@ -864,7 +865,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi cập nhật số lượng: $e'),
+            content: Text('orders_page.update_quantity_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -903,14 +904,14 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hủy đơn hàng'),
+        title: Text('orders_page.cancel_order_title'.tr()),
         content: Text(
-          'Bạn có chắc chắn muốn hủy đơn hàng ${order.orderNumber}?\n\nHành động này không thể hoàn tác.',
+          'orders_page.cancel_order_message'.tr(namedArgs: {'orderNumber': order.orderNumber}),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Không'),
+            child: Text('orders_page.no_button'.tr()),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -918,7 +919,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Hủy đơn'),
+            child: Text('orders_page.cancel_order_button'.tr()),
           ),
         ],
       ),
@@ -940,7 +941,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đơn hàng ${order.orderNumber} đã bị hủy'),
+              content: Text('orders_page.cancel_order_success'.tr(namedArgs: {'orderNumber': order.orderNumber})),
               backgroundColor: Colors.orange,
             ),
           );
@@ -949,7 +950,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Lỗi khi hủy đơn hàng: $e'),
+              content: Text('orders_page.cancel_order_error'.tr(namedArgs: {'error': e.toString()})),
               backgroundColor: Colors.red,
             ),
           );
