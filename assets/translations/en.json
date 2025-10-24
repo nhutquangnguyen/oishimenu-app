@@ -819,5 +819,21 @@
     "input_display_before": "Input: Before Fee",
     "input_display_after": "Input: After Fee",
     "inactive_badge": "Inactive"
+  },
+
+  "navigation": {
+    "home": "Home",
+    "orders": "Orders",
+    "pos": "POS",
+    "finance": "Finance",
+    "more": "More",
+    "menu": "Menu",
+    "menu_subtitle": "Manage menu items",
+    "inventory": "Inventory",
+    "inventory_subtitle": "Stock management",
+    "employees": "Employees",
+    "employees_subtitle": "Staff management",
+    "feedback": "Feedback",
+    "feedback_subtitle": "Customer reviews"
   }
 }

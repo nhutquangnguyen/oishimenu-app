@@ -813,5 +813,21 @@
     "input_display_before": "Nhập: Trước phí",
     "input_display_after": "Nhập: Sau phí",
     "inactive_badge": "Không hoạt động"
+  },
+
+  "navigation": {
+    "home": "Trang chủ",
+    "orders": "Đơn hàng",
+    "pos": "POS",
+    "finance": "Tài chính",
+    "more": "Thêm",
+    "menu": "Thực đơn",
+    "menu_subtitle": "Quản lý món ăn",
+    "inventory": "Kho hàng",
+    "inventory_subtitle": "Quản lý tồn kho",
+    "employees": "Nhân viên",
+    "employees_subtitle": "Quản lý nhân sự",
+    "feedback": "Phản hồi",
+    "feedback_subtitle": "Đánh giá khách hàng"
   }
 }
