@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order.dart';
 import '../../../../models/order_source.dart';
 import '../../../../models/customer.dart' as customer_model;
@@ -74,7 +75,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi tải nguồn đơn hàng: ${e.toString()}'),
+            content: Text('checkout_page.load_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -155,8 +156,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Validate that order source is selected
     if (_selectedOrderSource == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn nguồn đơn hàng'),
+        SnackBar(
+          content: Text('checkout_page.select_source_error'.tr()),
           backgroundColor: Colors.orange,
         ),
       );
@@ -166,8 +167,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Validate that payment method is selected
     if (_selectedPaymentMethod == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn phương thức thanh toán'),
+        SnackBar(
+          content: Text('checkout_page.select_payment_error'.tr()),
           backgroundColor: Colors.orange,
         ),
       );
@@ -214,7 +215,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           // Create new customer
           final newCustomer = customer_model.Customer(
             id: '',
-            name: name.isNotEmpty ? name : 'Khách',
+            name: name.isNotEmpty ? name : 'checkout_page.default_customer_name'.tr(),
             phone: phone,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
@@ -267,7 +268,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đơn hàng ${widget.order.orderNumber} đã thanh toán thành công'),
+            content: Text('checkout_page.payment_success'.tr(namedArgs: {'orderNumber': widget.order.orderNumber})),
             backgroundColor: Colors.green,
           ),
         );
@@ -279,7 +280,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
+            content: Text('checkout_page.payment_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -291,7 +292,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Thanh toán'),
+        title: Text('checkout_page.title'.tr()),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -360,9 +361,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text(
-                    'Hoàn tất thanh toán',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  child: Text(
+                    'checkout_page.complete_payment'.tr(),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -377,9 +378,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Thông tin khách hàng',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        Text(
+          'checkout_page.customer_info'.tr(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
 
@@ -387,11 +388,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         TextField(
           controller: _customerPhoneController,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'Số điện thoại',
-            hintText: 'Nhập số điện thoại',
-            prefixIcon: Icon(Icons.phone),
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: 'checkout_page.phone_field'.tr(),
+            hintText: 'checkout_page.phone_placeholder'.tr(),
+            prefixIcon: const Icon(Icons.phone),
+            border: const OutlineInputBorder(),
           ),
           onChanged: _searchCustomerByPhone,
         ),
@@ -413,7 +414,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Khách hàng đã tồn tại',
+                    'checkout_page.existing_customer'.tr(),
                     style: TextStyle(color: Colors.green[700], fontSize: 14),
                   ),
                 ),
@@ -424,12 +425,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         // Name input
         TextField(
           controller: _customerNameController,
-          decoration: const InputDecoration(
-            labelText: 'Tên khách hàng (tùy chọn)',
-            hintText: 'Nhập tên',
-            prefixIcon: Icon(Icons.person),
-            border: OutlineInputBorder(),
-            helperText: 'Tự động lưu khi thanh toán',
+          decoration: InputDecoration(
+            labelText: 'checkout_page.customer_name_field'.tr(),
+            hintText: 'checkout_page.customer_name_placeholder'.tr(),
+            prefixIcon: const Icon(Icons.person),
+            border: const OutlineInputBorder(),
+            helperText: 'checkout_page.auto_save_hint'.tr(),
           ),
         ),
       ],
@@ -442,9 +443,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       children: [
         Row(
           children: [
-            const Text(
-              'Nguồn đơn hàng',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Text(
+              'checkout_page.order_source_section'.tr(),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 4),
             Text(
@@ -477,10 +478,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               children: [
                 Icon(Icons.warning_amber, color: Colors.orange[800]),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Không có nguồn đơn hàng nào. Vui lòng vào Cài đặt để thêm nguồn đơn hàng.',
-                    style: TextStyle(fontSize: 14),
+                    'checkout_page.no_order_sources'.tr(),
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ),
               ],
@@ -606,7 +607,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               Icon(Icons.info_outline, size: 20, color: Colors.orange[800]),
               const SizedBox(width: 8),
               Text(
-                'Hoa hồng ${_selectedOrderSource!.name}',
+                'checkout_page.commission_section'.tr(namedArgs: {'source': _selectedOrderSource!.name}),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -619,7 +620,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
           // Commission rate
           Text(
-            'Tỷ lệ hoa hồng: ${_selectedOrderSource!.commissionRate.toStringAsFixed(0)}%',
+            'checkout_page.commission_rate'.tr(namedArgs: {'rate': _selectedOrderSource!.commissionRate.toStringAsFixed(0)}),
             style: TextStyle(fontSize: 14, color: Colors.grey[700]),
           ),
           const SizedBox(height: 12),
@@ -630,8 +631,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
-              labelText: isBeforeFee ? 'Số tiền trước phí' : 'Số tiền sau phí',
-              hintText: 'Nhập số tiền',
+              labelText: isBeforeFee ? 'checkout_page.amount_before_fee'.tr() : 'checkout_page.amount_after_fee'.tr(),
+              hintText: 'checkout_page.amount_placeholder'.tr(),
               suffixText: 'đ',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               filled: true,
@@ -653,7 +654,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isBeforeFee ? 'Số tiền sau phí:' : 'Số tiền trước phí:',
+                        isBeforeFee ? 'checkout_page.calculated_amount_after'.tr() : 'checkout_page.calculated_amount_before'.tr(),
                         style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                       ),
                       Text(
@@ -670,7 +671,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Phí hoa hồng:',
+                        'checkout_page.commission_fee'.tr(),
                         style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                       ),
                       Text(
@@ -696,9 +697,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Giảm giá',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        Text(
+          'checkout_page.discount_section'.tr(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Row(
@@ -781,7 +782,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
-                  hintText: _isPercentageDiscount ? 'Nhập %' : 'Nhập số tiền',
+                  hintText: _isPercentageDiscount ? 'checkout_page.discount_placeholder_percent'.tr() : 'checkout_page.discount_placeholder_amount'.tr(),
                   suffixText: _isPercentageDiscount ? '%' : 'đ',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -800,9 +801,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       children: [
         Row(
           children: [
-            const Text(
-              'Phương thức thanh toán',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Text(
+              'checkout_page.payment_method_section'.tr(),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 4),
             Text(
@@ -825,25 +826,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             children: [
               _buildPaymentMethodTile(
                 PaymentMethod.cash,
-                'Tiền mặt',
+                'checkout_page.payment_cash'.tr(),
                 Icons.money,
               ),
               Divider(height: 1, color: Colors.grey[300]),
               _buildPaymentMethodTile(
                 PaymentMethod.card,
-                'Thẻ',
+                'checkout_page.payment_card'.tr(),
                 Icons.credit_card,
               ),
               Divider(height: 1, color: Colors.grey[300]),
               _buildPaymentMethodTile(
                 PaymentMethod.digitalWallet,
-                'Ví điện tử',
+                'checkout_page.payment_ewallet'.tr(),
                 Icons.account_balance_wallet,
               ),
               Divider(height: 1, color: Colors.grey[300]),
               _buildPaymentMethodTile(
                 PaymentMethod.bankTransfer,
-                'Chuyển khoản',
+                'checkout_page.payment_bank_transfer'.tr(),
                 Icons.account_balance,
               ),
             ],
@@ -901,16 +902,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Tóm tắt đơn hàng',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Text(
+            'checkout_page.order_summary'.tr(),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Tạm tính:',
+                'checkout_page.subtotal_label'.tr(),
                 style: TextStyle(fontSize: 15, color: Colors.grey[700]),
               ),
               Text(
@@ -924,7 +925,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Giảm giá:',
+                'checkout_page.discount_label'.tr(),
                 style: TextStyle(fontSize: 15, color: Colors.grey[700]),
               ),
               Text(
@@ -937,9 +938,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Tổng cộng:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                'checkout_page.total_label'.tr(),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
                 '${_total.toStringAsFixed(0)}đ',
