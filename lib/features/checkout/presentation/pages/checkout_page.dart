@@ -1,0 +1,705 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../models/order.dart';
+import '../../../../models/order_source.dart';
+import '../../../../services/order_service.dart';
+
+class CheckoutPage extends ConsumerStatefulWidget {
+  final Order order;
+
+  const CheckoutPage({super.key, required this.order});
+
+  @override
+  ConsumerState<CheckoutPage> createState() => _CheckoutPageState();
+}
+
+class _CheckoutPageState extends ConsumerState<CheckoutPage> {
+  final OrderService _orderService = OrderService();
+
+  // Order sources
+  late List<OrderSource> _orderSources;
+  OrderSource? _selectedOrderSource;
+
+  // Payment
+  PaymentMethod _selectedPaymentMethod = PaymentMethod.cash;
+
+  // Discount
+  bool _isPercentageDiscount = true;
+  final TextEditingController _discountController = TextEditingController();
+  double _discountAmount = 0;
+
+  // Commission
+  final TextEditingController _commissionAmountController = TextEditingController();
+  double _commissionAmount = 0;
+  double _calculatedOtherAmount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _orderSources = OrderSource.getDefaultSources();
+
+    // Auto-select order source based on existing order type
+    if (widget.order.tableNumber != null) {
+      if (widget.order.tableNumber == 'Mang về') {
+        _selectedOrderSource = _orderSources.firstWhere(
+          (s) => s.type == OrderSourceType.takeaway,
+          orElse: () => _orderSources.first,
+        );
+      } else if (widget.order.tableNumber == 'Grab') {
+        _selectedOrderSource = _orderSources.firstWhere(
+          (s) => s.name.toLowerCase().contains('grab'),
+          orElse: () => _orderSources.first,
+        );
+      } else {
+        _selectedOrderSource = _orderSources.firstWhere(
+          (s) => s.type == OrderSourceType.onsite,
+          orElse: () => _orderSources.first,
+        );
+      }
+    } else {
+      _selectedOrderSource = _orderSources.first;
+    }
+
+    _discountController.addListener(_calculateTotals);
+    _commissionAmountController.addListener(_calculateCommission);
+  }
+
+  @override
+  void dispose() {
+    _discountController.dispose();
+    _commissionAmountController.dispose();
+    super.dispose();
+  }
+
+  void _calculateTotals() {
+    setState(() {
+      final discountValue = double.tryParse(_discountController.text) ?? 0;
+      if (_isPercentageDiscount) {
+        _discountAmount = widget.order.subtotal * (discountValue / 100);
+      } else {
+        _discountAmount = discountValue;
+      }
+    });
+  }
+
+  void _calculateCommission() {
+    if (_selectedOrderSource == null || !_selectedOrderSource!.requiresCommissionInput) {
+      return;
+    }
+
+    setState(() {
+      final inputAmount = double.tryParse(_commissionAmountController.text) ?? 0;
+      _commissionAmount = inputAmount;
+
+      if (_selectedOrderSource!.commissionInputType == CommissionInputType.beforeFee) {
+        // User entered amount before fee, calculate amount after fee
+        _calculatedOtherAmount = _selectedOrderSource!.calculateAmountAfterFee(inputAmount);
+      } else {
+        // User entered amount after fee, calculate amount before fee
+        _calculatedOtherAmount = _selectedOrderSource!.calculateAmountBeforeFee(inputAmount);
+      }
+    });
+  }
+
+  double get _subtotal => widget.order.subtotal;
+
+  double get _total {
+    return _subtotal - _discountAmount;
+  }
+
+  double get _commissionFee {
+    if (_selectedOrderSource == null || !_selectedOrderSource!.requiresCommissionInput) {
+      return 0;
+    }
+
+    final amount = double.tryParse(_commissionAmountController.text) ?? 0;
+    if (amount == 0) return 0;
+
+    final isBeforeFee = _selectedOrderSource!.commissionInputType == CommissionInputType.beforeFee;
+    return _selectedOrderSource!.calculateCommissionFee(amount, isBeforeFee: isBeforeFee);
+  }
+
+  Future<void> _completeCheckout() async {
+    try {
+      // Update order with payment information
+      final now = DateTime.now();
+      final updatedOrder = widget.order.copyWith(
+        status: OrderStatus.delivered,
+        paymentStatus: PaymentStatus.paid,
+        paymentMethod: _selectedPaymentMethod,
+        discount: _discountAmount,
+        total: _total,
+        updatedAt: now,
+      );
+
+      await _orderService.updateOrder(updatedOrder);
+
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đơn hàng ${widget.order.orderNumber} đã thanh toán thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Pop with success result
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Thanh toán'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Order Source Selection
+                  _buildOrderSourceSelection(),
+                  const SizedBox(height: 24),
+
+                  // Commission Section (for delivery platforms)
+                  if (_selectedOrderSource?.requiresCommissionInput == true) ...[
+                    _buildCommissionSection(),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Discount Section
+                  _buildDiscountSection(),
+                  const SizedBox(height: 24),
+
+                  // Payment Method Section
+                  _buildPaymentMethodSection(),
+                  const SizedBox(height: 24),
+
+                  // Order Summary
+                  _buildOrderSummary(),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom Apply Button
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _completeCheckout,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Hoàn tất thanh toán',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderSourceSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Nguồn đơn hàng',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.2,
+          ),
+          itemCount: _orderSources.length,
+          itemBuilder: (context, index) {
+            final source = _orderSources[index];
+            final isSelected = _selectedOrderSource?.id == source.id;
+
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedOrderSource = source;
+                  _commissionAmountController.clear();
+                  _commissionAmount = 0;
+                  _calculatedOtherAmount = 0;
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isSelected ? Colors.blue : Colors.grey[300]!,
+                    width: isSelected ? 2 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  color: isSelected ? Colors.blue[50] : Colors.white,
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildOrderSourceIcon(source.iconPath),
+                    const SizedBox(height: 8),
+                    Text(
+                      source.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? Colors.blue[800] : Colors.grey[700],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderSourceIcon(String iconPath) {
+    IconData iconData;
+    Color iconColor;
+
+    switch (iconPath.toLowerCase()) {
+      case 'onsite':
+        iconData = Icons.restaurant;
+        iconColor = Colors.teal;
+        break;
+      case 'takeaway':
+        iconData = Icons.shopping_bag;
+        iconColor = Colors.teal;
+        break;
+      case 'shopee':
+        iconData = Icons.shopping_cart;
+        iconColor = Colors.orange;
+        break;
+      case 'grabfood':
+        iconData = Icons.delivery_dining;
+        iconColor = Colors.green;
+        break;
+      default:
+        iconData = Icons.store;
+        iconColor = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: iconColor.withValues(alpha: 0.1),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(iconData, size: 32, color: iconColor),
+    );
+  }
+
+  Widget _buildCommissionSection() {
+    if (_selectedOrderSource == null || !_selectedOrderSource!.requiresCommissionInput) {
+      return const SizedBox.shrink();
+    }
+
+    final isBeforeFee = _selectedOrderSource!.commissionInputType == CommissionInputType.beforeFee;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 20, color: Colors.orange[800]),
+              const SizedBox(width: 8),
+              Text(
+                'Hoa hồng ${_selectedOrderSource!.name}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange[900],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Commission rate
+          Text(
+            'Tỷ lệ hoa hồng: ${_selectedOrderSource!.commissionRate.toStringAsFixed(0)}%',
+            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 12),
+
+          // Input field
+          TextField(
+            controller: _commissionAmountController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: isBeforeFee ? 'Số tiền trước phí' : 'Số tiền sau phí',
+              hintText: 'Nhập số tiền',
+              suffixText: 'đ',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+
+          if (_commissionAmount > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isBeforeFee ? 'Số tiền sau phí:' : 'Số tiền trước phí:',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                      ),
+                      Text(
+                        '${_calculatedOtherAmount.toStringAsFixed(0)}đ',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Phí hoa hồng:',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                      ),
+                      Text(
+                        '${_commissionFee.toStringAsFixed(0)}đ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiscountSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Giảm giá',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _isPercentageDiscount = true;
+                            _discountController.clear();
+                            _calculateTotals();
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _isPercentageDiscount ? Colors.blue : Colors.transparent,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              bottomLeft: Radius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            '%',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _isPercentageDiscount ? Colors.white : Colors.grey[700],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _isPercentageDiscount = false;
+                            _discountController.clear();
+                            _calculateTotals();
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: !_isPercentageDiscount ? Colors.blue : Colors.transparent,
+                            borderRadius: const BorderRadius.only(
+                              topRight: Radius.circular(8),
+                              bottomRight: Radius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            'đ',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: !_isPercentageDiscount ? Colors.white : Colors.grey[700],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: _discountController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(
+                  hintText: _isPercentageDiscount ? 'Nhập %' : 'Nhập số tiền',
+                  suffixText: _isPercentageDiscount ? '%' : 'đ',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentMethodSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Phương thức thanh toán',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              _buildPaymentMethodTile(
+                PaymentMethod.cash,
+                'Tiền mặt',
+                Icons.money,
+              ),
+              Divider(height: 1, color: Colors.grey[300]),
+              _buildPaymentMethodTile(
+                PaymentMethod.card,
+                'Thẻ',
+                Icons.credit_card,
+              ),
+              Divider(height: 1, color: Colors.grey[300]),
+              _buildPaymentMethodTile(
+                PaymentMethod.digitalWallet,
+                'Ví điện tử',
+                Icons.account_balance_wallet,
+              ),
+              Divider(height: 1, color: Colors.grey[300]),
+              _buildPaymentMethodTile(
+                PaymentMethod.bankTransfer,
+                'Chuyển khoản',
+                Icons.account_balance,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentMethodTile(PaymentMethod method, String label, IconData icon) {
+    final isSelected = _selectedPaymentMethod == method;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPaymentMethod = method;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        color: isSelected ? Colors.blue[50] : Colors.transparent,
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? Colors.blue : Colors.grey[600],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? Colors.blue[800] : Colors.grey[800],
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle, color: Colors.blue, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderSummary() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tóm tắt đơn hàng',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Tạm tính:',
+                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+              ),
+              Text(
+                '${_subtotal.toStringAsFixed(0)}đ',
+                style: const TextStyle(fontSize: 15),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Giảm giá:',
+                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+              ),
+              Text(
+                '-${_discountAmount.toStringAsFixed(0)}đ',
+                style: const TextStyle(fontSize: 15, color: Colors.orange),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Tổng cộng:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '${_total.toStringAsFixed(0)}đ',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

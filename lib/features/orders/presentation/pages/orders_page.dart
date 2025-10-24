@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../models/order.dart';
 import '../../../../services/order_service.dart';
 import '../../../pos/presentation/pages/pos_page.dart';
+import '../../../checkout/presentation/pages/checkout_page.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -872,58 +873,17 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   }
 
   Future<void> _markOrderDone(Order order) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận thanh toán'),
-        content: Text('Xác nhận đơn hàng ${order.orderNumber} đã được thanh toán?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Xác nhận'),
-          ),
-        ],
+    // Navigate to checkout page
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckoutPage(order: order),
       ),
     );
 
-    if (confirmed == true) {
-      try {
-        // Update order status to delivered
-        final updatedOrder = order.copyWith(
-          status: OrderStatus.delivered,
-          updatedAt: DateTime.now(),
-        );
-        await _orderService.updateOrder(updatedOrder);
-
-        // Reload orders
-        await _loadOrders();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Đơn hàng ${order.orderNumber} đã thanh toán'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Lỗi khi cập nhật đơn hàng: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
+    // Reload orders if checkout was successful
+    if (result == true && mounted) {
+      await _loadOrders();
     }
   }
 

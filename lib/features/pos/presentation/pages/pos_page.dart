@@ -10,6 +10,7 @@ import '../../../../services/menu_option_service.dart';
 import '../../../../services/customer_service.dart';
 import '../../../../services/order_service.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../checkout/presentation/pages/checkout_page.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
 
@@ -1054,57 +1055,24 @@ class _PosPageState extends ConsumerState<PosPage> {
     }
   }
 
-  void _processPayment() {
+  Future<void> _processPayment() async {
     // Navigate away from cart bottom sheet first
     Navigator.pop(context);
 
-    // Use Future.delayed to ensure the bottom sheet is fully closed before showing dialog
-    Future.delayed(const Duration(milliseconds: 100), () {
+    if (_cartItems.isEmpty) {
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Phương thức thanh toán'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.money),
-                  title: const Text('Tiền mặt'),
-                  onTap: () => _completePayment('Tiền mặt'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.credit_card),
-                  title: const Text('Thẻ'),
-                  onTap: () => _completePayment('Thẻ'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.account_balance),
-                  title: const Text('Chuyển khoản'),
-                  onTap: () => _completePayment('Chuyển khoản'),
-                ),
-              ],
-            ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Giỏ hàng trống'),
+            backgroundColor: Colors.red,
           ),
         );
       }
-    });
-  }
-
-  Future<void> _completePayment(String method) async {
-    if (_cartItems.isEmpty) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Giỏ hàng trống'),
-          backgroundColor: Colors.red,
-        ),
-      );
       return;
     }
 
+    // Create a temporary order for checkout
     try {
-      // Generate order number
       final now = DateTime.now();
       final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
 
@@ -1142,16 +1110,6 @@ class _PosPageState extends ConsumerState<PosPage> {
         orderType = order_model.OrderType.dineIn;
       }
 
-      // Determine payment method
-      order_model.PaymentMethod paymentMethod;
-      if (method == 'Tiền mặt') {
-        paymentMethod = order_model.PaymentMethod.cash;
-      } else if (method == 'Thẻ') {
-        paymentMethod = order_model.PaymentMethod.card;
-      } else {
-        paymentMethod = order_model.PaymentMethod.bankTransfer;
-      }
-
       // Convert Customer
       final orderCustomer = _selectedCustomer != null
           ? order_model.Customer(
@@ -1166,7 +1124,7 @@ class _PosPageState extends ConsumerState<PosPage> {
               name: 'Walk-in Customer',
             );
 
-      // Create order with paid status
+      // Create temporary order for checkout
       final order = order_model.Order(
         id: '',
         orderNumber: orderNumber,
@@ -1175,9 +1133,9 @@ class _PosPageState extends ConsumerState<PosPage> {
         subtotal: _totalAmount,
         total: _totalAmount,
         orderType: orderType,
-        status: order_model.OrderStatus.delivered, // Mark as delivered for completed payment
-        paymentMethod: paymentMethod,
-        paymentStatus: order_model.PaymentStatus.paid,
+        status: order_model.OrderStatus.pending,
+        paymentMethod: order_model.PaymentMethod.cash,
+        paymentStatus: order_model.PaymentStatus.pending,
         tableNumber: _selectedTable,
         platform: 'POS',
         notes: _orderNotes.isEmpty ? null : _orderNotes,
@@ -1185,42 +1143,32 @@ class _PosPageState extends ConsumerState<PosPage> {
         updatedAt: now,
       );
 
-      // Save to database
-      await _orderService.createOrder(order);
-
-      // Clear cart
-      setState(() {
-        _cartItems.clear();
-        _selectedCustomer = null;
-        _orderNotes = '';
-        _existingOrderId = null;
-        _existingOrderNumber = null;
-        _existingOrderCreatedAt = null;
-      });
-
-      // Close dialog
+      // Navigate to checkout page
       if (mounted) {
-        try {
-          if (Navigator.canPop(context)) {
-            Navigator.pop(context);
-          }
-        } catch (e) {
-          debugPrint('Navigation error: $e');
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đơn hàng #$orderNumber - Thanh toán thành công bằng $method'),
-            backgroundColor: Colors.green,
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CheckoutPage(order: order),
           ),
         );
+
+        // If checkout was successful, clear cart
+        if (result == true && mounted) {
+          setState(() {
+            _cartItems.clear();
+            _selectedCustomer = null;
+            _orderNotes = '';
+            _existingOrderId = null;
+            _existingOrderNumber = null;
+            _existingOrderCreatedAt = null;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi thanh toán: $e'),
+            content: Text('Lỗi: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
