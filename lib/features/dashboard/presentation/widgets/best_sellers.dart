@@ -92,6 +92,7 @@ class _BestSellersState extends State<BestSellers> {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error loading best sellers: $e');
       setState(() {
         _isLoading = false;
       });
@@ -155,7 +156,7 @@ class _BestSellersState extends State<BestSellers> {
           padding: const EdgeInsets.all(32.0),
           child: Center(
             child: Text(
-              AppLocalizations.tr('dashboard.no_data'),
+              'Không có dữ liệu',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
