@@ -49,6 +49,9 @@ class _BestSellersState extends State<BestSellers> {
       final db = await _databaseHelper.database;
 
       // Query to aggregate order items by menu item
+      print('Best sellers query date range: ${dateRanges['start']} to ${dateRanges['end']}');
+      print('Time frame: ${widget.timeFrame}');
+
       final results = await db.rawQuery('''
         SELECT
           oi.menu_item_name as name,
@@ -56,9 +59,9 @@ class _BestSellersState extends State<BestSellers> {
           SUM(oi.quantity) as total_quantity,
           SUM(oi.total_price) as total_revenue
         FROM order_items oi
-        INNER JOIN orders o ON oi.order_id = o.id
+        INNER JOIN orders o ON CAST(oi.order_id AS TEXT) = CAST(o.id AS TEXT)
         LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-        WHERE o.payment_status = 'PAID'
+        WHERE (o.payment_status = 'PAID' OR o.status = 'DELIVERED')
           AND o.created_at >= ?
           AND o.created_at <= ?
         GROUP BY oi.menu_item_id, oi.menu_item_name, mi.category_name
@@ -68,6 +71,8 @@ class _BestSellersState extends State<BestSellers> {
         dateRanges['start']!.millisecondsSinceEpoch,
         dateRanges['end']!.millisecondsSinceEpoch,
       ]);
+
+      print('Best sellers query returned ${results.length} results');
 
       final items = results.map((row) {
         final revenue = (row['total_revenue'] as num?)?.toDouble() ?? 0.0;
