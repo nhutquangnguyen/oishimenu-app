@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../../../models/customer.dart';
@@ -56,8 +57,8 @@ class _PosPageState extends ConsumerState<PosPage> {
   List<MenuItem> _menuItems = [];
   List<CartItem> _cartItems = [];
   String _searchQuery = '';
-  String? _selectedCategory; // null means "Tất cả"
-  String _selectedTable = 'Mang về';
+  String? _selectedCategory; // null means "All"
+  String _selectedTable = 'pos_page.default_table'.tr();
   Customer? _selectedCustomer;
   bool _isLoading = true;
   String _orderNotes = ''; // Order notes/comments
@@ -145,7 +146,7 @@ class _PosPageState extends ConsumerState<PosPage> {
 
     setState(() {
       _cartItems = cartItems;
-      _selectedTable = order.tableNumber ?? 'Mang về';
+      _selectedTable = order.tableNumber ?? 'pos_page.default_table'.tr();
       _selectedCustomer = Customer(
         id: order.customer.id,
         name: order.customer.name,
@@ -276,9 +277,9 @@ class _PosPageState extends ConsumerState<PosPage> {
                 children: [
                   Icon(Icons.local_fire_department, color: Colors.orange[700], size: 20),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Món hot',
-                    style: TextStyle(
+                  Text(
+                    'pos_page.hot_items'.tr(),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -462,7 +463,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Tìm kiếm món ăn...',
+              hintText: 'pos_page.search_placeholder'.tr(),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
@@ -496,7 +497,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           child: DropdownButtonFormField<String?>(
             value: _selectedCategory,
             decoration: InputDecoration(
-              labelText: 'Danh mục',
+              labelText: 'pos_page.category_label'.tr(),
               prefixIcon: const Icon(Icons.category),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -506,9 +507,9 @@ class _PosPageState extends ConsumerState<PosPage> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             items: [
-              const DropdownMenuItem<String?>(
+              DropdownMenuItem<String?>(
                 value: null,
-                child: Text('Tất cả danh mục'),
+                child: Text('pos_page.all_categories_option'.tr()),
               ),
               ..._availableCategories.map((category) {
                 return DropdownMenuItem<String?>(
@@ -615,7 +616,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                             ),
                             SizedBox(width: 12),
                             Text(
-                              'Giỏ hàng',
+                              'pos_page.cart_header'.tr(),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -661,8 +662,8 @@ class _PosPageState extends ConsumerState<PosPage> {
           children: [
             Row(
               children: [
-                const Text(
-                  'Đơn hàng',
+                Text(
+                  'pos_page.order_section'.tr(),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
@@ -687,7 +688,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                       Icon(Icons.table_restaurant, size: 16, color: Colors.grey[700]),
                       const SizedBox(width: 8),
                       Text(
-                        'Nguồn đơn: $_selectedTable',
+                        'pos_page.order_source_label'.tr(namedArgs: {'source': _selectedTable}),
                         style: TextStyle(fontSize: 14, color: Colors.grey[800]),
                       ),
                     ],
@@ -703,12 +704,12 @@ class _PosPageState extends ConsumerState<PosPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Khách hàng: ${_selectedCustomer!.name}',
+                                'pos_page.customer_label'.tr(namedArgs: {'name': _selectedCustomer!.name}),
                                 style: TextStyle(fontSize: 14, color: Colors.grey[800]),
                               ),
                               if (_selectedCustomer!.phone != null && _selectedCustomer!.phone!.isNotEmpty)
                                 Text(
-                                  'SĐT: ${_selectedCustomer!.phone}',
+                                  'pos_page.phone_label'.tr(namedArgs: {'phone': _selectedCustomer!.phone!}),
                                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                 ),
                             ],
@@ -815,8 +816,8 @@ class _PosPageState extends ConsumerState<PosPage> {
                           TextField(
                             maxLines: 2,
                             decoration: InputDecoration(
-                              labelText: 'Ghi chú món',
-                              hintText: 'Ghi chú cho món này (không bắt buộc)',
+                              labelText: 'pos_page.item_note_label'.tr(),
+                              hintText: 'pos_page.item_note_placeholder'.tr(),
                               prefixIcon: const Icon(Icons.edit_note, size: 20),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -847,8 +848,8 @@ class _PosPageState extends ConsumerState<PosPage> {
             const Divider(),
             Row(
               children: [
-                const Text(
-                  'Tổng cộng:',
+                Text(
+                  'pos_page.total_label'.tr(),
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
@@ -864,8 +865,8 @@ class _PosPageState extends ConsumerState<PosPage> {
             TextField(
               maxLines: 2,
               decoration: InputDecoration(
-                labelText: 'Ghi chú đơn hàng',
-                hintText: 'Thêm ghi chú cho đơn hàng (không bắt buộc)',
+                labelText: 'pos_page.order_note_label'.tr(),
+                hintText: 'pos_page.order_note_placeholder'.tr(),
                 prefixIcon: const Icon(Icons.note_alt_outlined),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -893,8 +894,8 @@ class _PosPageState extends ConsumerState<PosPage> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text(
-                      'Lưu đơn',
+                    child: Text(
+                      'pos_page.save_order_button'.tr(),
                       style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -909,8 +910,8 @@ class _PosPageState extends ConsumerState<PosPage> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text(
-                      'Thanh toán',
+                    child: Text(
+                      'pos_page.checkout_button'.tr(),
                       style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -929,8 +930,8 @@ class _PosPageState extends ConsumerState<PosPage> {
 
     if (_cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Giỏ hàng trống'),
+        SnackBar(
+          content: Text('pos_page.empty_cart_error'.tr()),
           backgroundColor: Colors.red,
         ),
       );
@@ -967,7 +968,7 @@ class _PosPageState extends ConsumerState<PosPage> {
 
       // Determine order type based on table
       order_model.OrderType orderType;
-      if (_selectedTable == 'Mang về') {
+      if (_selectedTable == 'pos_page.default_table'.tr()) {
         orderType = order_model.OrderType.takeaway;
       } else if (_selectedTable == 'Grab') {
         orderType = order_model.OrderType.delivery;
@@ -986,7 +987,7 @@ class _PosPageState extends ConsumerState<PosPage> {
             )
           : order_model.Customer(
               id: '',
-              name: 'Walk-in Customer',
+              name: 'pos_page.walk_in_customer'.tr(),
             );
 
       // Check if we're updating an existing order or creating a new one
@@ -1046,7 +1047,7 @@ class _PosPageState extends ConsumerState<PosPage> {
         if (_existingOrderId != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đơn hàng #$displayOrderNumber đã được cập nhật'),
+              content: Text('pos_page.order_updated'.tr(namedArgs: {'orderNumber': displayOrderNumber})),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 1),
             ),
@@ -1072,12 +1073,12 @@ class _PosPageState extends ConsumerState<PosPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Đơn hàng #$displayOrderNumber đã được lưu',
+                          'pos_page.order_saved'.tr(namedArgs: {'orderNumber': displayOrderNumber}),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
-                          'Đơn hàng đã được thêm vào danh sách Đơn đang xử lý',
+                        Text(
+                          'pos_page.order_added_to_queue'.tr(),
                           style: TextStyle(fontSize: 12),
                         ),
                       ],
@@ -1108,7 +1109,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           setState(() {
             _cartItems = [];
             _selectedCustomer = null;
-            _selectedTable = 'Mang về';
+            _selectedTable = 'pos_page.default_table'.tr();
             _orderNotes = '';
             _existingOrderId = null;
             _existingOrderNumber = null;
@@ -1120,7 +1121,7 @@ class _PosPageState extends ConsumerState<PosPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi lưu đơn hàng: $e'),
+            content: Text('pos_page.save_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -1136,7 +1137,7 @@ class _PosPageState extends ConsumerState<PosPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Giỏ hàng trống'),
+            content: Text('pos_page.empty_cart_error'.tr()),
             backgroundColor: Colors.red,
           ),
         );
@@ -1175,7 +1176,7 @@ class _PosPageState extends ConsumerState<PosPage> {
 
       // Determine order type
       order_model.OrderType orderType;
-      if (_selectedTable == 'Mang về') {
+      if (_selectedTable == 'pos_page.default_table'.tr()) {
         orderType = order_model.OrderType.takeaway;
       } else if (_selectedTable == 'Grab') {
         orderType = order_model.OrderType.delivery;
@@ -1194,7 +1195,7 @@ class _PosPageState extends ConsumerState<PosPage> {
             )
           : order_model.Customer(
               id: '',
-              name: 'Walk-in Customer',
+              name: 'pos_page.walk_in_customer'.tr(),
             );
 
       // Create temporary order for checkout
@@ -1241,7 +1242,7 @@ class _PosPageState extends ConsumerState<PosPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
+            content: Text('pos_page.generic_error'.tr(namedArgs: {'error': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -1279,13 +1280,13 @@ class _PosPageState extends ConsumerState<PosPage> {
                 final selectedCount = selectedMultipleOptionsMap[group.id]?.length ?? 0;
                 if (selectedCount < group.minSelection) {
                   canAddToCart = false;
-                  errorMessage = 'Please select at least ${group.minSelection} options from "${group.name}"';
+                  errorMessage = 'pos_page.min_selection_error'.tr(namedArgs: {'min': group.minSelection.toString(), 'group': group.name});
                   break;
                 }
               } else {
                 if (selectedOptionsMap[group.id] == null) {
                   canAddToCart = false;
-                  errorMessage = 'Please select an option from "${group.name}"';
+                  errorMessage = 'pos_page.required_selection_error'.tr(namedArgs: {'group': group.name});
                   break;
                 }
               }
@@ -1382,8 +1383,8 @@ class _PosPageState extends ConsumerState<PosPage> {
                                             color: Colors.red.withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(12),
                                           ),
-                                          child: const Text(
-                                            'REQUIRED',
+                                          child: Text(
+                                            'pos_page.option_required'.tr(),
                                             style: TextStyle(
                                               color: Colors.red,
                                               fontSize: 10,
@@ -1403,8 +1404,8 @@ class _PosPageState extends ConsumerState<PosPage> {
                                   const SizedBox(height: 4),
                                   Text(
                                     isMultiple
-                                        ? 'Select ${group.minSelection} to ${group.maxSelection} options'
-                                        : 'Select 1 option',
+                                        ? 'pos_page.select_range_options'.tr(namedArgs: {'min': group.minSelection.toString(), 'max': group.maxSelection.toString()})
+                                        : 'pos_page.select_one_option'.tr(),
                                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                                   ),
                                 ],
@@ -1521,7 +1522,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text('Add to Cart'),
+                      child: Text('pos_page.add_to_cart'.tr()),
                     ),
                   ),
                 ),
