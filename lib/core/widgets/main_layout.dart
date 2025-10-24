@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
 import '../../services/order_service.dart';
@@ -38,64 +39,64 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
   int _selectedIndex = 0;
 
   // Main navigation items (5 for mobile-friendly bottom navigation)
-  final List<NavigationItem> _primaryNavigationItems = [
+  List<NavigationItem> get _primaryNavigationItems => [
     NavigationItem(
       icon: Icons.home_outlined,
       selectedIcon: Icons.home,
-      label: 'Home',
+      label: 'navigation.home'.tr(),
       route: '/dashboard',
     ),
     NavigationItem(
       icon: Icons.receipt_long_outlined,
       selectedIcon: Icons.receipt_long,
-      label: 'Orders',
+      label: 'navigation.orders'.tr(),
       route: '/orders',
     ),
     NavigationItem(
       icon: Icons.add_shopping_cart_outlined,
       selectedIcon: Icons.add_shopping_cart,
-      label: 'POS',
+      label: 'navigation.pos'.tr(),
       route: '/pos',
     ),
     NavigationItem(
       icon: Icons.analytics_outlined,
       selectedIcon: Icons.analytics,
-      label: 'Finance',
+      label: 'navigation.finance'.tr(),
       route: '/analytics',
     ),
     NavigationItem(
       icon: Icons.more_horiz,
       selectedIcon: Icons.more_horiz,
-      label: 'More',
+      label: 'navigation.more'.tr(),
       route: '/more',
     ),
   ];
 
   // Secondary navigation items for "More" section
-  final List<MoreNavigationItem> _secondaryNavigationItems = [
+  List<MoreNavigationItem> get _secondaryNavigationItems => [
     MoreNavigationItem(
       icon: Icons.restaurant_menu_outlined,
-      label: 'Menu',
+      label: 'navigation.menu'.tr(),
       route: '/menu',
-      subtitle: 'Manage menu items',
+      subtitle: 'navigation.menu_subtitle'.tr(),
     ),
     MoreNavigationItem(
       icon: Icons.inventory_2_outlined,
-      label: 'Inventory',
+      label: 'navigation.inventory'.tr(),
       route: '/inventory',
-      subtitle: 'Stock management',
+      subtitle: 'navigation.inventory_subtitle'.tr(),
     ),
     MoreNavigationItem(
       icon: Icons.people_outline,
-      label: 'Employees',
+      label: 'navigation.employees'.tr(),
       route: '/employees',
-      subtitle: 'Staff management',
+      subtitle: 'navigation.employees_subtitle'.tr(),
     ),
     MoreNavigationItem(
       icon: Icons.feedback_outlined,
-      label: 'Feedback',
+      label: 'navigation.feedback'.tr(),
       route: '/feedback',
-      subtitle: 'Customer reviews',
+      subtitle: 'navigation.feedback_subtitle'.tr(),
     ),
   ];
 
