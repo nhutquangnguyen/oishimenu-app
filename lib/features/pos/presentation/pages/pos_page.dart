@@ -54,9 +54,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   final OrderService _orderService = OrderService();
   final TextEditingController _searchController = TextEditingController();
   List<MenuItem> _menuItems = [];
-  Map<String, String> _categories = {};
   List<CartItem> _cartItems = [];
-  String _selectedCategory = 'Tất cả';
   String _searchQuery = '';
   String _selectedTable = 'Mang về';
   Customer? _selectedCustomer;
@@ -88,11 +86,9 @@ class _PosPageState extends ConsumerState<PosPage> {
         return;
       }
 
-      final categories = await _menuService.getCategories();
       final menuItems = await _menuService.getAllMenuItems(userId: currentUser.id);
 
       setState(() {
-        _categories = {'Tất cả': 'Tất cả', ...categories};
         _menuItems = menuItems;
         _isLoading = false;
       });
@@ -170,11 +166,6 @@ class _PosPageState extends ConsumerState<PosPage> {
   List<MenuItem> get _filteredMenuItems {
     var items = _menuItems;
 
-    // Filter by category
-    if (_selectedCategory != 'Tất cả') {
-      items = items.where((item) => item.categoryName == _selectedCategory).toList();
-    }
-
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
       items = items.where((item) {
@@ -186,6 +177,27 @@ class _PosPageState extends ConsumerState<PosPage> {
     }
 
     return items;
+  }
+
+  // Group items by category for sectioned display
+  Map<String, List<MenuItem>> get _itemsByCategory {
+    final Map<String, List<MenuItem>> grouped = {};
+
+    for (var item in _filteredMenuItems) {
+      if (!grouped.containsKey(item.categoryName)) {
+        grouped[item.categoryName] = [];
+      }
+      grouped[item.categoryName]!.add(item);
+    }
+
+    return grouped;
+  }
+
+  // Get top 5 ordered items (simplified - using cart frequency as proxy)
+  List<MenuItem> get _hotItems {
+    // For now, return first 5 items as hot items
+    // In a real app, this would query order history
+    return _filteredMenuItems.take(5).toList();
   }
 
   Future<void> _addToCart(MenuItem item) async {
@@ -234,6 +246,192 @@ class _PosPageState extends ConsumerState<PosPage> {
     return _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
   }
 
+  Widget _buildCategorizedItemsList() {
+    final itemsByCategory = _itemsByCategory;
+    final hotItems = _searchQuery.isEmpty ? _hotItems : <MenuItem>[];
+
+    return CustomScrollView(
+      slivers: [
+        // Hot Items Section (only show when not searching)
+        if (hotItems.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.local_fire_department, color: Colors.orange[700], size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Món hot',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.85,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildMenuItem(hotItems[index]),
+                childCount: hotItems.length,
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+
+        // Category Sections
+        ...itemsByCategory.entries.map((entry) {
+          final categoryName = entry.key;
+          final items = entry.value;
+
+          return [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Text(
+                  categoryName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.85,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _buildMenuItem(items[index]),
+                  childCount: items.length,
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ];
+        }).expand((widget) => widget),
+
+        // Bottom padding
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+      ],
+    );
+  }
+
+  Widget _buildMenuItem(MenuItem item) {
+    final cartItem = _cartItems.firstWhere(
+      (cartItem) => cartItem.menuItem.id == item.id,
+      orElse: () => CartItem(menuItem: item, quantity: 0),
+    );
+
+    return GestureDetector(
+      onTap: () => _addToCart(item),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                child: item.photos.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                        child: Image.network(
+                          item.photos.first,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.fastfood,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      )
+                    : Icon(
+                        Icons.fastfood,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.price.toStringAsFixed(0)}đ',
+                    style: TextStyle(
+                      color: Colors.orange[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (cartItem.quantity > 0) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${cartItem.quantity}',
+                        style: TextStyle(
+                          color: Colors.blue[800],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMenuInterface() {
     return Column(
       children: [
@@ -271,46 +469,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           ),
         ),
 
-        // Category filter
-        Container(
-          height: 50,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            itemBuilder: (context, index) {
-              final category = _categories.values.elementAt(index);
-              final isSelected = _selectedCategory == category;
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedCategory = category;
-                  });
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.blue : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    category,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.grey[700],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Menu items
+        // Menu items grouped by category
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -348,115 +507,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                         ],
                       ),
                     )
-                  : GridView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.8,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
-                      itemCount: _filteredMenuItems.length,
-                      itemBuilder: (context, index) {
-                        final item = _filteredMenuItems[index];
-                        final cartItem = _cartItems.firstWhere(
-                          (cartItem) => cartItem.menuItem.id == item.id,
-                          orElse: () => CartItem(menuItem: item, quantity: 0),
-                        );
-
-                        return GestureDetector(
-                          onTap: () => _addToCart(item),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[100],
-                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                                    ),
-                                    child: item.photos.isNotEmpty
-                                        ? ClipRRect(
-                                            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                                            child: Image.network(
-                                              item.photos.first,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) => Icon(
-                                                Icons.fastfood,
-                                                size: 48,
-                                                color: Colors.grey[400],
-                                              ),
-                                            ),
-                                          )
-                                        : Icon(
-                                            Icons.fastfood,
-                                            size: 48,
-                                            color: Colors.grey[400],
-                                          ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${item.price.toStringAsFixed(0)}đ',
-                                        style: TextStyle(
-                                          color: Colors.orange[700],
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      if (cartItem.quantity > 0) ...[
-                                        const SizedBox(height: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue[100],
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            '${cartItem.quantity}',
-                                            style: TextStyle(
-                                              color: Colors.blue[800],
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                  : _buildCategorizedItemsList(),
         ),
 
         // Bottom Cart Button
