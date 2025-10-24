@@ -57,7 +57,7 @@ class _BestSellersState extends State<BestSellers> {
           oi.menu_item_name as name,
           COALESCE(mc.name, 'Other') as category,
           SUM(oi.quantity) as total_quantity,
-          SUM(oi.total_price) as total_revenue
+          SUM(oi.subtotal) as total_revenue
         FROM order_items oi
         INNER JOIN orders o ON CAST(oi.order_id AS TEXT) = CAST(o.id AS TEXT)
         LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
