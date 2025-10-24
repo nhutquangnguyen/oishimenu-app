@@ -272,9 +272,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.2,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 2.0,
           ),
           itemCount: _orderSources.length,
           itemBuilder: (context, index) {
@@ -290,30 +290,33 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   _calculatedOtherAmount = 0;
                 });
               },
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: isSelected ? Colors.blue : Colors.grey[300]!,
                     width: isSelected ? 2 : 1,
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   color: isSelected ? Colors.blue[50] : Colors.white,
                 ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _buildOrderSourceIcon(source.iconPath),
-                    const SizedBox(height: 8),
-                    Text(
-                      source.name,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? Colors.blue[800] : Colors.grey[700],
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        source.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.blue[800] : Colors.grey[700],
+                        ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -352,12 +355,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: iconColor.withValues(alpha: 0.1),
         shape: BoxShape.circle,
       ),
-      child: Icon(iconData, size: 32, color: iconColor),
+      child: Icon(iconData, size: 20, color: iconColor),
     );
   }
 
