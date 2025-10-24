@@ -274,7 +274,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             crossAxisCount: 2,
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
-            childAspectRatio: 2.0,
+            childAspectRatio: 3.5,
           ),
           itemCount: _orderSources.length,
           itemBuilder: (context, index) {
@@ -300,17 +300,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   borderRadius: BorderRadius.circular(8),
                   color: isSelected ? Colors.blue[50] : Colors.white,
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _buildOrderSourceIcon(source.iconPath),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         source.name,
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                           color: isSelected ? Colors.blue[800] : Colors.grey[700],
                         ),
@@ -355,12 +355,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: iconColor.withValues(alpha: 0.1),
         shape: BoxShape.circle,
       ),
-      child: Icon(iconData, size: 20, color: iconColor),
+      child: Icon(iconData, size: 16, color: iconColor),
     );
   }
 
