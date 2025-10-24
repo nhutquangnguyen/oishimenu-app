@@ -4,7 +4,26 @@ import 'package:go_router/go_router.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
+import '../../services/order_service.dart';
+import '../../models/order.dart';
 import '../localization/app_localizations.dart';
+
+// Provider for active orders count
+final activeOrdersCountProvider = StreamProvider<int>((ref) async* {
+  final orderService = OrderService();
+
+  while (true) {
+    try {
+      final activeOrders = await orderService.getOrders(status: OrderStatus.pending);
+      yield activeOrders.length;
+    } catch (e) {
+      yield 0;
+    }
+
+    // Refresh every 5 seconds
+    await Future.delayed(const Duration(seconds: 5));
+  }
+});
 
 class MainLayout extends ConsumerStatefulWidget {
   final Widget child;
@@ -242,7 +261,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
@@ -355,6 +374,34 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           final index = entry.key;
           final item = entry.value;
 
+          // Orders tab with active orders count badge (index 1)
+          if (index == 1) {
+            final activeOrdersCount = ref.watch(activeOrdersCountProvider);
+            final count = activeOrdersCount.when(
+              data: (count) => count,
+              loading: () => 0,
+              error: (_, __) => 0,
+            );
+
+            return NavigationDestination(
+              icon: Badge(
+                isLabelVisible: count > 0,
+                label: Text('$count'),
+                backgroundColor: Colors.red,
+                textColor: Colors.white,
+                child: Icon(item.icon),
+              ),
+              selectedIcon: Badge(
+                isLabelVisible: count > 0,
+                label: Text('$count'),
+                backgroundColor: Colors.red,
+                textColor: Colors.white,
+                child: Icon(item.selectedIcon),
+              ),
+              label: item.label,
+            );
+          }
+
           // Special highlighting for POS tab (index 2)
           if (index == 2) {
             return NavigationDestination(
@@ -364,7 +411,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
