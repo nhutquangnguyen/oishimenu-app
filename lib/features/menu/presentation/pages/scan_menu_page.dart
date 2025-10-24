@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/menu_item.dart';
 import '../../services/menu_service.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -685,7 +686,7 @@ Rice Dishes:
   void _editExtractedItem(int index) {
     // TODO: Open edit dialog for extracted item
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit functionality - Coming soon!')),
+      SnackBar(content: Text('scan_menu.edit_coming_soon'.tr())),
     );
   }
 
