@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../providers/settings_provider.dart';
+import 'order_source_management_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -81,6 +82,31 @@ class SettingsPage extends ConsumerWidget {
                   title: AppLocalizations.tr('settings_page.system_mode'),
                   icon: Icons.auto_mode,
                   isSelected: settings.themeMode == ThemeMode.system,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Management Section
+            _buildSectionCard(
+              context: context,
+              title: 'Management',
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.source),
+                  title: const Text('Order Sources'),
+                  subtitle: const Text('Manage order sources and commissions'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const OrderSourceManagementPage(),
+                      ),
+                    );
+                  },
+                  contentPadding: EdgeInsets.zero,
                 ),
               ],
             ),

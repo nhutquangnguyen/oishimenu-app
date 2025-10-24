@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/order.dart';
 import '../../../../models/order_source.dart';
 import '../../../../services/order_service.dart';
+import '../../../../services/order_source_service.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final Order order;
@@ -16,10 +17,12 @@ class CheckoutPage extends ConsumerStatefulWidget {
 
 class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final OrderService _orderService = OrderService();
+  final OrderSourceService _orderSourceService = OrderSourceService();
 
   // Order sources
-  late List<OrderSource> _orderSources;
+  List<OrderSource> _orderSources = [];
   OrderSource? _selectedOrderSource;
+  bool _isLoadingOrderSources = true;
 
   // Payment
   PaymentMethod _selectedPaymentMethod = PaymentMethod.cash;
@@ -37,32 +40,61 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   void initState() {
     super.initState();
-    _orderSources = OrderSource.getDefaultSources();
-
-    // Auto-select order source based on existing order type
-    if (widget.order.tableNumber != null) {
-      if (widget.order.tableNumber == 'Mang về') {
-        _selectedOrderSource = _orderSources.firstWhere(
-          (s) => s.type == OrderSourceType.takeaway,
-          orElse: () => _orderSources.first,
-        );
-      } else if (widget.order.tableNumber == 'Grab') {
-        _selectedOrderSource = _orderSources.firstWhere(
-          (s) => s.name.toLowerCase().contains('grab'),
-          orElse: () => _orderSources.first,
-        );
-      } else {
-        _selectedOrderSource = _orderSources.firstWhere(
-          (s) => s.type == OrderSourceType.onsite,
-          orElse: () => _orderSources.first,
-        );
-      }
-    } else {
-      _selectedOrderSource = _orderSources.first;
-    }
-
+    _loadOrderSources();
     _discountController.addListener(_calculateTotals);
     _commissionAmountController.addListener(_calculateCommission);
+  }
+
+  Future<void> _loadOrderSources() async {
+    try {
+      // Initialize default order sources if needed
+      await _orderSourceService.initializeDefaultOrderSources();
+
+      // Load active order sources from database
+      final sources = await _orderSourceService.getOrderSources(isActive: true);
+
+      setState(() {
+        _orderSources = sources;
+        _isLoadingOrderSources = false;
+
+        // Auto-select order source based on existing order type
+        if (_orderSources.isNotEmpty) {
+          if (widget.order.tableNumber != null) {
+            if (widget.order.tableNumber == 'Mang về') {
+              _selectedOrderSource = _orderSources.firstWhere(
+                (s) => s.type == OrderSourceType.takeaway,
+                orElse: () => _orderSources.first,
+              );
+            } else if (widget.order.tableNumber == 'Grab') {
+              _selectedOrderSource = _orderSources.firstWhere(
+                (s) => s.name.toLowerCase().contains('grab'),
+                orElse: () => _orderSources.first,
+              );
+            } else {
+              _selectedOrderSource = _orderSources.firstWhere(
+                (s) => s.type == OrderSourceType.onsite,
+                orElse: () => _orderSources.first,
+              );
+            }
+          } else {
+            _selectedOrderSource = _orderSources.first;
+          }
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingOrderSources = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi tải nguồn đơn hàng: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -267,63 +299,92 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            childAspectRatio: 3.5,
-          ),
-          itemCount: _orderSources.length,
-          itemBuilder: (context, index) {
-            final source = _orderSources[index];
-            final isSelected = _selectedOrderSource?.id == source.id;
-
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedOrderSource = source;
-                  _commissionAmountController.clear();
-                  _commissionAmount = 0;
-                  _calculatedOtherAmount = 0;
-                });
-              },
+        if (_isLoadingOrderSources)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_orderSources.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
               borderRadius: BorderRadius.circular(8),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isSelected ? Colors.blue : Colors.grey[300]!,
-                    width: isSelected ? 2 : 1,
+              border: Border.all(color: Colors.orange[200]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber, color: Colors.orange[800]),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Không có nguồn đơn hàng nào. Vui lòng vào Cài đặt để thêm nguồn đơn hàng.',
+                    style: TextStyle(fontSize: 14),
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                  color: isSelected ? Colors.blue[50] : Colors.white,
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildOrderSourceIcon(source.iconPath),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        source.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.blue[800] : Colors.grey[700],
-                        ),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+              ],
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 3.5,
+            ),
+            itemCount: _orderSources.length,
+            itemBuilder: (context, index) {
+              final source = _orderSources[index];
+              final isSelected = _selectedOrderSource?.id == source.id;
+
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedOrderSource = source;
+                    _commissionAmountController.clear();
+                    _commissionAmount = 0;
+                    _calculatedOtherAmount = 0;
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isSelected ? Colors.blue : Colors.grey[300]!,
+                      width: isSelected ? 2 : 1,
                     ),
-                  ],
+                    borderRadius: BorderRadius.circular(8),
+                    color: isSelected ? Colors.blue[50] : Colors.white,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildOrderSourceIcon(source.iconPath),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          source.name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? Colors.blue[800] : Colors.grey[700],
+                          ),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
       ],
     );
   }

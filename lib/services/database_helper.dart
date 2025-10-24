@@ -44,7 +44,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDatabase,
       onUpgrade: _upgradeDatabase,
     );
@@ -357,6 +357,22 @@ class DatabaseHelper {
       )
     ''');
 
+    // Order Sources table
+    await db.execute('''
+      CREATE TABLE order_sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        icon_path TEXT NOT NULL,
+        type TEXT NOT NULL,
+        commission_rate REAL DEFAULT 0,
+        requires_commission_input INTEGER DEFAULT 0,
+        commission_input_type TEXT DEFAULT 'after_fee',
+        is_active INTEGER DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
     // Create default admin user
     await _createDefaultAdmin(db);
 
@@ -529,6 +545,24 @@ class DatabaseHelper {
           );
         }
       }
+    }
+
+    if (oldVersion < 7 && newVersion >= 7) {
+      // Add order_sources table for version 7
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS order_sources (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          icon_path TEXT NOT NULL,
+          type TEXT NOT NULL,
+          commission_rate REAL DEFAULT 0,
+          requires_commission_input INTEGER DEFAULT 0,
+          commission_input_type TEXT DEFAULT 'after_fee',
+          is_active INTEGER DEFAULT 1,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
     }
   }
 
