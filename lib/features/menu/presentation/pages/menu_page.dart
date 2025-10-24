@@ -123,8 +123,8 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
               unselectedLabelColor: Colors.grey,
               indicatorColor: Theme.of(context).colorScheme.primary,
               tabs: [
-                Tab(text: AppLocalizations.menuItems),
-                Tab(text: AppLocalizations.menuOptionGroups),
+                Tab(text: 'menu_page.menu_items_tab'.tr()),
+                Tab(text: 'menu_page.option_groups_tab'.tr()),
               ],
             ),
           ),

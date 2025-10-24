@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/inventory_models.dart';
 import '../../providers/inventory_provider.dart';
 import '../../../../core/localization/app_localizations.dart';
@@ -67,8 +68,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
                 dividerColor: Colors.grey[200],
                 tabs: [
-                  Tab(text: AppLocalizations.ingredients),
-                  Tab(text: AppLocalizations.stocktake),
+                  Tab(text: 'inventory_page.ingredients_tab'.tr()),
+                  Tab(text: 'inventory_page.stocktake_tab'.tr()),
                 ],
               ),
             ),
