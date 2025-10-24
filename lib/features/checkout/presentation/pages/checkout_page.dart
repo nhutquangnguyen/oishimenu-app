@@ -25,7 +25,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _isLoadingOrderSources = true;
 
   // Payment
-  PaymentMethod _selectedPaymentMethod = PaymentMethod.cash;
+  PaymentMethod? _selectedPaymentMethod;
 
   // Discount
   bool _isPercentageDiscount = true;
@@ -56,30 +56,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       setState(() {
         _orderSources = sources;
         _isLoadingOrderSources = false;
-
-        // Auto-select order source based on existing order type
-        if (_orderSources.isNotEmpty) {
-          if (widget.order.tableNumber != null) {
-            if (widget.order.tableNumber == 'Mang về') {
-              _selectedOrderSource = _orderSources.firstWhere(
-                (s) => s.type == OrderSourceType.takeaway,
-                orElse: () => _orderSources.first,
-              );
-            } else if (widget.order.tableNumber == 'Grab') {
-              _selectedOrderSource = _orderSources.firstWhere(
-                (s) => s.name.toLowerCase().contains('grab'),
-                orElse: () => _orderSources.first,
-              );
-            } else {
-              _selectedOrderSource = _orderSources.firstWhere(
-                (s) => s.type == OrderSourceType.onsite,
-                orElse: () => _orderSources.first,
-              );
-            }
-          } else {
-            _selectedOrderSource = _orderSources.first;
-          }
-        }
+        // Do not auto-select - user must choose explicitly
       });
     } catch (e) {
       setState(() {
@@ -153,6 +130,28 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Future<void> _completeCheckout() async {
+    // Validate that order source is selected
+    if (_selectedOrderSource == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn nguồn đơn hàng'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Validate that payment method is selected
+    if (_selectedPaymentMethod == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn phương thức thanh toán'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     try {
       // Update order with payment information
       final now = DateTime.now();
@@ -171,7 +170,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         total: _total,
         orderType: widget.order.orderType,
         status: OrderStatus.delivered,
-        paymentMethod: _selectedPaymentMethod,
+        paymentMethod: _selectedPaymentMethod!,
         paymentStatus: PaymentStatus.paid,
         deliveryInfo: widget.order.deliveryInfo,
         tableNumber: widget.order.tableNumber,
