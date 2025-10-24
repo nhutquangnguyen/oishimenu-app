@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/order.dart';
 import '../../../../models/order_source.dart';
+import '../../../../models/customer.dart' as customer_model;
 import '../../../../services/order_service.dart';
 import '../../../../services/order_source_service.dart';
+import '../../../../services/customer_service.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final Order order;
@@ -18,6 +20,12 @@ class CheckoutPage extends ConsumerStatefulWidget {
 class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final OrderService _orderService = OrderService();
   final OrderSourceService _orderSourceService = OrderSourceService();
+  final CustomerService _customerService = CustomerService();
+
+  // Customer information
+  final TextEditingController _customerPhoneController = TextEditingController();
+  final TextEditingController _customerNameController = TextEditingController();
+  customer_model.Customer? _foundCustomer;
 
   // Order sources
   List<OrderSource> _orderSources = [];
@@ -76,9 +84,23 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   @override
   void dispose() {
+    _customerPhoneController.dispose();
+    _customerNameController.dispose();
     _discountController.dispose();
     _commissionAmountController.dispose();
     super.dispose();
+  }
+
+  Future<void> _searchCustomerByPhone(String phone) async {
+    if (phone.length >= 9) {
+      final customer = await _customerService.getCustomerByPhone(phone);
+      setState(() {
+        _foundCustomer = customer;
+        if (customer != null) {
+          _customerNameController.text = customer.name;
+        }
+      });
+    }
   }
 
   void _calculateTotals() {
@@ -153,6 +175,64 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     try {
+      // Save customer information if provided
+      Customer? orderCustomer = widget.order.customer;
+      final phone = _customerPhoneController.text.trim();
+      final name = _customerNameController.text.trim();
+
+      if (phone.isNotEmpty) {
+        if (_foundCustomer != null) {
+          // Check if name was changed
+          final nameChanged = name.isNotEmpty && name != _foundCustomer!.name;
+
+          if (nameChanged) {
+            // Update existing customer with new name
+            final updatedCustomer = _foundCustomer!.copyWith(
+              name: name,
+              updatedAt: DateTime.now(),
+            );
+
+            await _customerService.updateCustomer(updatedCustomer);
+            orderCustomer = Customer(
+              id: updatedCustomer.id,
+              name: updatedCustomer.name,
+              phone: updatedCustomer.phone,
+              email: updatedCustomer.email,
+              address: updatedCustomer.address,
+            );
+          } else {
+            // Use existing customer without changes
+            orderCustomer = Customer(
+              id: _foundCustomer!.id,
+              name: _foundCustomer!.name,
+              phone: _foundCustomer!.phone,
+              email: _foundCustomer!.email,
+              address: _foundCustomer!.address,
+            );
+          }
+        } else {
+          // Create new customer
+          final newCustomer = customer_model.Customer(
+            id: '',
+            name: name.isNotEmpty ? name : 'Khách',
+            phone: phone,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+
+          final customerId = await _customerService.createCustomer(newCustomer);
+          if (customerId != null) {
+            orderCustomer = Customer(
+              id: customerId,
+              name: newCustomer.name,
+              phone: newCustomer.phone,
+              email: null,
+              address: null,
+            );
+          }
+        }
+      }
+
       // Update order with payment information
       final now = DateTime.now();
 
@@ -160,7 +240,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final updatedOrder = Order(
         id: widget.order.id,
         orderNumber: widget.order.orderNumber,
-        customer: widget.order.customer,
+        customer: orderCustomer,
         items: widget.order.items,
         subtotal: widget.order.subtotal,
         deliveryFee: widget.order.deliveryFee,
@@ -225,6 +305,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Customer Information Section
+                  _buildCustomerInformationSection(),
+                  const SizedBox(height: 24),
+
                   // Order Source Selection
                   _buildOrderSourceSelection(),
                   const SizedBox(height: 24),
@@ -286,6 +370,69 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCustomerInformationSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Thông tin khách hàng',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+
+        // Phone input
+        TextField(
+          controller: _customerPhoneController,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Số điện thoại',
+            hintText: 'Nhập số điện thoại',
+            prefixIcon: Icon(Icons.phone),
+            border: OutlineInputBorder(),
+          ),
+          onChanged: _searchCustomerByPhone,
+        ),
+        const SizedBox(height: 12),
+
+        // Show indicator if customer found
+        if (_foundCustomer != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green[300]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Khách hàng đã tồn tại',
+                    style: TextStyle(color: Colors.green[700], fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Name input
+        TextField(
+          controller: _customerNameController,
+          decoration: const InputDecoration(
+            labelText: 'Tên khách hàng (tùy chọn)',
+            hintText: 'Nhập tên',
+            prefixIcon: Icon(Icons.person),
+            border: OutlineInputBorder(),
+            helperText: 'Tự động lưu khi thanh toán',
+          ),
+        ),
+      ],
     );
   }
 
