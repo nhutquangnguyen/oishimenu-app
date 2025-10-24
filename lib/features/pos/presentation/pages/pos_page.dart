@@ -17,11 +17,13 @@ class CartItem {
   final MenuItem menuItem;
   int quantity;
   List<SelectedOption> selectedOptions;
+  String? notes; // Notes for individual item
 
   CartItem({
     required this.menuItem,
     this.quantity = 1,
     this.selectedOptions = const [],
+    this.notes,
   });
 
   double get totalPrice {
@@ -58,6 +60,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   String _selectedTable = 'Mang về';
   Customer? _selectedCustomer;
   bool _isLoading = true;
+  String _orderNotes = ''; // Order notes/comments
 
   // Track if we're editing an existing order
   String? _existingOrderId;
@@ -131,6 +134,7 @@ class _PosPageState extends ConsumerState<PosPage> {
         menuItem: menuItem,
         quantity: orderItem.quantity,
         selectedOptions: selectedOptions,
+        notes: orderItem.notes,
       ));
     }
 
@@ -149,6 +153,8 @@ class _PosPageState extends ConsumerState<PosPage> {
       // Store the existing order ID and number for updates
       _existingOrderId = order.id;
       _existingOrderNumber = order.orderNumber;
+      // Load existing notes
+      _orderNotes = order.notes ?? '';
     });
   }
 
@@ -645,16 +651,62 @@ class _PosPageState extends ConsumerState<PosPage> {
                 itemBuilder: (context, index) {
                   final cartItem = _cartItems[index];
                   return Card(
-                    child: ListTile(
-                      title: Text(cartItem.menuItem.name),
-                      subtitle: Column(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Item header with name and controls
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  cartItem.menuItem.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _removeFromCart(index);
+                                      });
+                                      Navigator.pop(context);
+                                      if (_cartItems.isNotEmpty) {
+                                        _showCartBottomSheet();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.remove_circle_outline),
+                                  ),
+                                  Text('${cartItem.quantity}'),
+                                  IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        cartItem.quantity++;
+                                      });
+                                      Navigator.pop(context);
+                                      _showCartBottomSheet();
+                                    },
+                                    icon: const Icon(Icons.add_circle_outline),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
                           // Base price
                           Text(
                             'Base: ${cartItem.menuItem.price.toStringAsFixed(0)}đ',
                             style: TextStyle(color: Colors.grey[600], fontSize: 12),
                           ),
+
                           // Selected options
                           if (cartItem.selectedOptions.isNotEmpty) ...[
                             const SizedBox(height: 4),
@@ -670,6 +722,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                               ),
                             )),
                           ],
+
                           // Total price per item
                           const SizedBox(height: 4),
                           Text(
@@ -679,33 +732,34 @@ class _PosPageState extends ConsumerState<PosPage> {
                               fontSize: 13,
                             ),
                           ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            onPressed: () {
+
+                          const SizedBox(height: 8),
+
+                          // Item notes field
+                          TextField(
+                            maxLines: 2,
+                            decoration: InputDecoration(
+                              labelText: 'Ghi chú món',
+                              hintText: 'Ghi chú cho món này (không bắt buộc)',
+                              prefixIcon: const Icon(Icons.edit_note, size: 20),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              isDense: true,
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                            ),
+                            style: const TextStyle(fontSize: 13),
+                            onChanged: (value) {
                               setState(() {
-                                _removeFromCart(index);
+                                cartItem.notes = value;
                               });
-                              Navigator.pop(context);
-                              if (_cartItems.isNotEmpty) {
-                                _showCartBottomSheet();
-                              }
                             },
-                            icon: const Icon(Icons.remove_circle_outline),
-                          ),
-                          Text('${cartItem.quantity}'),
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                cartItem.quantity++;
-                              });
-                              Navigator.pop(context);
-                              _showCartBottomSheet();
-                            },
-                            icon: const Icon(Icons.add_circle_outline),
+                            controller: TextEditingController(text: cartItem.notes ?? '')
+                              ..selection = TextSelection.fromPosition(
+                                TextPosition(offset: (cartItem.notes ?? '').length),
+                              ),
                           ),
                         ],
                       ),
@@ -729,6 +783,29 @@ class _PosPageState extends ConsumerState<PosPage> {
               ],
             ),
             const SizedBox(height: 16),
+
+            // Order notes field
+            TextField(
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Ghi chú đơn hàng',
+                hintText: 'Thêm ghi chú cho đơn hàng (không bắt buộc)',
+                prefixIcon: const Icon(Icons.note_alt_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _orderNotes = value;
+                });
+              },
+              controller: TextEditingController(text: _orderNotes),
+            ),
+            const SizedBox(height: 16),
+
             Row(
               children: [
                 // Save Order button
@@ -808,6 +885,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           quantity: cartItem.quantity,
           selectedOptions: orderSelectedOptions,
           subtotal: cartItem.totalPrice,
+          notes: (cartItem.notes == null || cartItem.notes!.isEmpty) ? null : cartItem.notes,
         );
       }).toList();
 
@@ -855,6 +933,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           paymentStatus: order_model.PaymentStatus.pending,
           tableNumber: _selectedTable,
           platform: 'POS',
+          notes: _orderNotes.isEmpty ? null : _orderNotes,
           createdAt: now, // Keep original creation time would be better, but we don't have it
           updatedAt: now,
         );
@@ -878,6 +957,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           paymentStatus: order_model.PaymentStatus.pending,
           tableNumber: _selectedTable,
           platform: 'POS',
+          notes: _orderNotes.isEmpty ? null : _orderNotes,
           createdAt: now,
           updatedAt: now,
         );
@@ -953,6 +1033,7 @@ class _PosPageState extends ConsumerState<PosPage> {
             _cartItems = [];
             _selectedCustomer = null;
             _selectedTable = 'Mang về';
+            _orderNotes = '';
           });
         }
       }
@@ -1042,6 +1123,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           quantity: cartItem.quantity,
           selectedOptions: orderSelectedOptions,
           subtotal: cartItem.totalPrice,
+          notes: (cartItem.notes == null || cartItem.notes!.isEmpty) ? null : cartItem.notes,
         );
       }).toList();
 
@@ -1093,6 +1175,7 @@ class _PosPageState extends ConsumerState<PosPage> {
         paymentStatus: order_model.PaymentStatus.paid,
         tableNumber: _selectedTable,
         platform: 'POS',
+        notes: _orderNotes.isEmpty ? null : _orderNotes,
         createdAt: now,
         updatedAt: now,
       );
@@ -1104,6 +1187,7 @@ class _PosPageState extends ConsumerState<PosPage> {
       setState(() {
         _cartItems.clear();
         _selectedCustomer = null;
+        _orderNotes = '';
       });
 
       // Close dialog

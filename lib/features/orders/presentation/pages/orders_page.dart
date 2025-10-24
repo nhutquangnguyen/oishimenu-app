@@ -243,6 +243,37 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
             ),
             const SizedBox(height: 12),
 
+            // Order notes (if exists)
+            if (order.notes != null && order.notes!.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber[200]!, width: 1),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.note_alt_outlined, size: 16, color: Colors.amber[800]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        order.notes!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[800],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
             // Order items
             ...order.items.asMap().entries.map((entry) {
               final index = entry.key;
@@ -461,6 +492,37 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                     ),
                   ),
                 )).toList(),
+              ),
+            ),
+          ],
+          if (item.notes != null && item.notes!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 48),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.amber[200]!, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_note, size: 14, color: Colors.amber[800]),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        item.notes!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[800],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
