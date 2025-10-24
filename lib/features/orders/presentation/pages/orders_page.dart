@@ -361,8 +361,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                   ),
-                  icon: const Icon(Icons.check),
-                  label: const Text('Hoàn thành'),
+                  icon: const Icon(Icons.payment),
+                  label: const Text('Thanh toán'),
                 ),
               ],
             ),
@@ -875,8 +875,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xác nhận'),
-        content: Text('Đánh dấu đơn hàng ${order.orderNumber} là hoàn thành?'),
+        title: const Text('Xác nhận thanh toán'),
+        content: Text('Xác nhận đơn hàng ${order.orderNumber} đã được thanh toán?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -884,6 +884,10 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Xác nhận'),
           ),
         ],
@@ -905,7 +909,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đơn hàng ${order.orderNumber} đã hoàn thành'),
+              content: Text('Đơn hàng ${order.orderNumber} đã thanh toán'),
               backgroundColor: Colors.green,
             ),
           );
