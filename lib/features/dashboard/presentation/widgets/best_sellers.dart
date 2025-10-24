@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localizations.dart';
+import '../../../../services/database_helper.dart';
 
 class BestSellers extends StatefulWidget {
   final String timeFrame;
@@ -18,12 +19,153 @@ class BestSellers extends StatefulWidget {
 }
 
 class _BestSellersState extends State<BestSellers> {
+  final DatabaseHelper _databaseHelper = DatabaseHelper();
   bool _showAll = false;
+  List<BestSellerItem> _bestSellerItems = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBestSellers();
+  }
+
+  @override
+  void didUpdateWidget(BestSellers oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.timeFrame != widget.timeFrame ||
+        oldWidget.sortByRevenue != widget.sortByRevenue) {
+      _loadBestSellers();
+    }
+  }
+
+  Future<void> _loadBestSellers() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final dateRanges = _getDateRangesForTimeFrame(widget.timeFrame);
+      final db = await _databaseHelper.database;
+
+      // Query to aggregate order items by menu item
+      final results = await db.rawQuery('''
+        SELECT
+          oi.menu_item_name as name,
+          mi.category_name as category,
+          SUM(oi.quantity) as total_quantity,
+          SUM(oi.total_price) as total_revenue
+        FROM order_items oi
+        INNER JOIN orders o ON oi.order_id = o.id
+        LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+        WHERE o.payment_status = 'PAID'
+          AND o.created_at >= ?
+          AND o.created_at <= ?
+        GROUP BY oi.menu_item_id, oi.menu_item_name, mi.category_name
+        ORDER BY ${widget.sortByRevenue ? 'total_revenue' : 'total_quantity'} DESC
+        LIMIT 15
+      ''', [
+        dateRanges['start']!.millisecondsSinceEpoch,
+        dateRanges['end']!.millisecondsSinceEpoch,
+      ]);
+
+      final items = results.map((row) {
+        final revenue = (row['total_revenue'] as num?)?.toDouble() ?? 0.0;
+        final quantity = (row['total_quantity'] as num?)?.toInt() ?? 0;
+
+        final revenueStr = revenue.toInt().toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
+
+        return BestSellerItem(
+          name: row['name'] as String? ?? 'Unknown',
+          category: row['category'] as String? ?? 'Other',
+          revenue: '₫$revenueStr',
+          quantity: quantity,
+          revenueValue: revenue,
+        );
+      }).toList();
+
+      setState(() {
+        _bestSellerItems = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Map<String, DateTime> _getDateRangesForTimeFrame(String timeFrame) {
+    final now = DateTime.now();
+    DateTime start, end;
+
+    switch (timeFrame) {
+      case 'Today':
+        start = DateTime(now.year, now.month, now.day);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+      case 'This Week':
+        final weekStart = now.subtract(Duration(days: now.weekday - 1));
+        start = DateTime(weekStart.year, weekStart.month, weekStart.day);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+      case 'This Month':
+        start = DateTime(now.year, now.month, 1);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+      case 'Last 30 Days':
+        start = now.subtract(const Duration(days: 30));
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+      default:
+        start = DateTime(now.year, now.month, now.day);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    }
+
+    return {'start': start, 'end': end};
+  }
 
   @override
   Widget build(BuildContext context) {
-    final items = _getBestSellerItems();
-    final displayItems = _showAll ? items : items.take(5).toList();
+    if (_isLoading) {
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    if (_bestSellerItems.isEmpty) {
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Center(
+            child: Text(
+              AppLocalizations.tr('dashboard.no_data'),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final displayItems = _showAll ? _bestSellerItems : _bestSellerItems.take(5).toList();
 
     return Card(
       elevation: 2,
@@ -43,7 +185,7 @@ class _BestSellersState extends State<BestSellers> {
             }),
 
             // Show All/Show Less button
-            if (items.length > 5) ...[
+            if (_bestSellerItems.length > 5) ...[
               const SizedBox(height: 12),
               Center(
                 child: TextButton(
@@ -55,7 +197,7 @@ class _BestSellersState extends State<BestSellers> {
                   child: Text(
                     _showAll
                         ? AppLocalizations.tr('dashboard.show_less')
-                        : '${AppLocalizations.tr('dashboard.show_all')} (${items.length} ${AppLocalizations.tr('dashboard.items')})',
+                        : '${AppLocalizations.tr('dashboard.show_all')} (${_bestSellerItems.length} ${AppLocalizations.tr('dashboard.items')})',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -78,7 +220,7 @@ class _BestSellersState extends State<BestSellers> {
         color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -167,125 +309,6 @@ class _BestSellersState extends State<BestSellers> {
       default:
         return Colors.grey[600]!;
     }
-  }
-
-  List<BestSellerItem> _getBestSellerItems() {
-    final baseItems = [
-      BestSellerItem(
-        name: 'Phở Bò Tái',
-        category: 'Noodles',
-        revenue: '₫4,200,000',
-        quantity: 168,
-        revenueValue: 4200000,
-      ),
-      BestSellerItem(
-        name: 'Bánh Mì Thịt Nướng',
-        category: 'Sandwiches',
-        revenue: '₫3,750,000',
-        quantity: 125,
-        revenueValue: 3750000,
-      ),
-      BestSellerItem(
-        name: 'Bún Bò Huế',
-        category: 'Noodles',
-        revenue: '₫3,600,000',
-        quantity: 144,
-        revenueValue: 3600000,
-      ),
-      BestSellerItem(
-        name: 'Cơm Tấm Sườn',
-        category: 'Rice Dishes',
-        revenue: '₫3,200,000',
-        quantity: 128,
-        revenueValue: 3200000,
-      ),
-      BestSellerItem(
-        name: 'Gỏi Cuốn',
-        category: 'Appetizers',
-        revenue: '₫2,800,000',
-        quantity: 140,
-        revenueValue: 2800000,
-      ),
-      BestSellerItem(
-        name: 'Chả Cá Lã Vọng',
-        category: 'Fish',
-        revenue: '₫2,700,000',
-        quantity: 90,
-        revenueValue: 2700000,
-      ),
-      BestSellerItem(
-        name: 'Bún Chả',
-        category: 'Noodles',
-        revenue: '₫2,500,000',
-        quantity: 100,
-        revenueValue: 2500000,
-      ),
-      BestSellerItem(
-        name: 'Bánh Xèo',
-        category: 'Pancakes',
-        revenue: '₫2,400,000',
-        quantity: 96,
-        revenueValue: 2400000,
-      ),
-      BestSellerItem(
-        name: 'Cà Phê Sữa Đá',
-        category: 'Beverages',
-        revenue: '₫2,100,000',
-        quantity: 210,
-        revenueValue: 2100000,
-      ),
-      BestSellerItem(
-        name: 'Nem Nướng',
-        category: 'Grilled',
-        revenue: '₫1,950,000',
-        quantity: 78,
-        revenueValue: 1950000,
-      ),
-      BestSellerItem(
-        name: 'Bánh Cuốn',
-        category: 'Rice Rolls',
-        revenue: '₫1,800,000',
-        quantity: 120,
-        revenueValue: 1800000,
-      ),
-      BestSellerItem(
-        name: 'Mì Quảng',
-        category: 'Noodles',
-        revenue: '₫1,650,000',
-        quantity: 55,
-        revenueValue: 1650000,
-      ),
-      BestSellerItem(
-        name: 'Chè Ba Màu',
-        category: 'Desserts',
-        revenue: '₫1,400,000',
-        quantity: 175,
-        revenueValue: 1400000,
-      ),
-      BestSellerItem(
-        name: 'Cao Lầu',
-        category: 'Noodles',
-        revenue: '₫1,200,000',
-        quantity: 48,
-        revenueValue: 1200000,
-      ),
-      BestSellerItem(
-        name: 'Bánh Bao',
-        category: 'Steamed Buns',
-        revenue: '₫1,050,000',
-        quantity: 105,
-        revenueValue: 1050000,
-      ),
-    ];
-
-    // Sort based on current selection
-    if (widget.sortByRevenue) {
-      baseItems.sort((a, b) => b.revenueValue.compareTo(a.revenueValue));
-    } else {
-      baseItems.sort((a, b) => b.quantity.compareTo(a.quantity));
-    }
-
-    return baseItems;
   }
 }
 
