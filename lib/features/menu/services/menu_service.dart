@@ -119,6 +119,36 @@ class MenuService {
     }
   }
 
+  Future<bool> deleteCategory(String categoryId, {required String userId}) async {
+    try {
+      final db = await _databaseHelper.database;
+
+      // Check if category has any menu items for this user
+      final itemsInCategory = await db.query(
+        'menu_items',
+        where: 'category_id = ? AND user_id = ?',
+        whereArgs: [int.tryParse(categoryId) ?? 0, int.tryParse(userId) ?? 0],
+      );
+
+      if (itemsInCategory.isNotEmpty) {
+        // Category has items, cannot delete
+        throw Exception('Cannot delete category that contains menu items');
+      }
+
+      // Delete the category
+      final rowsAffected = await db.delete(
+        'menu_categories',
+        where: 'id = ?',
+        whereArgs: [int.tryParse(categoryId) ?? 0],
+      );
+
+      return rowsAffected > 0;
+    } catch (e) {
+      print('Error deleting category: $e');
+      rethrow; // Re-throw so UI can handle the error message
+    }
+  }
+
   Future<String?> createCategory(MenuCategory category) async {
     try {
       final db = await _databaseHelper.database;

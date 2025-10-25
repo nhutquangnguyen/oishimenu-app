@@ -97,7 +97,7 @@ class MenuItemCard extends StatelessWidget {
                   value: menuItem.availableStatus,
                   onChanged: (_) => onToggleAvailability?.call(),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  activeColor: Colors.green,
+                  activeTrackColor: Colors.green,
                 ),
               ),
             ],

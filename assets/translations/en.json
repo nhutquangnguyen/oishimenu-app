@@ -533,6 +533,10 @@
     "delete_item": "Delete item",
     "continue": "Continue",
     "delete_item_title": "Delete Item",
+    "delete_item_message": "Are you sure you want to delete this menu item?",
+    "cancel_button": "Cancel",
+    "delete_button": "Delete",
+    "save_button": "Save",
     "delete_item_confirm": "Are you sure you want to delete this menu item?",
     "error_deleting": "Error deleting item: {error}",
     "unsaved_changes": "Unsaved Changes",
@@ -574,7 +578,7 @@
     "order_note_label": "Order notes",
     "order_note_placeholder": "Add notes for this order (optional)",
     "save_order_button": "Save Order",
-    "checkout_button": "Checkout",
+    "checkout_button": "Continue",
     "empty_cart_error": "Cart is empty",
     "order_updated": "Order #{orderNumber} updated",
     "order_saved": "Order #{orderNumber} saved",
@@ -592,7 +596,7 @@
 
   "checkout_page": {
     "title": "Checkout",
-    "complete_payment": "Complete Payment",
+    "complete_payment": "Complete",
     "customer_info": "Customer Information",
     "phone_field": "Phone number",
     "phone_placeholder": "Enter phone number",
@@ -628,6 +632,9 @@
     "select_source_error": "Please select order source",
     "select_payment_error": "Please select payment method",
     "default_customer_name": "Guest",
+    "save_order": "Save Order",
+    "order_saved": "Order {orderNumber} saved successfully",
+    "save_order_error": "Error saving order: {error}",
     "payment_success": "Order {orderNumber} paid successfully",
     "payment_error": "Error: {error}"
   },
@@ -673,6 +680,9 @@
     "load_error": "Could not load option group: {error}",
     "load_items_error": "Could not load menu items: {error}",
     "create_title": "Create Option Group",
+    "edit_title": "Edit Option Group",
+    "name_hint": "Enter group name",
+    "manage_links_button": "Manage Menu Items",
     "default_option_name": "Option {index}",
     "example_option": "e.g., Grass jelly",
     "unsaved_changes_title": "Unsaved Changes",
@@ -827,7 +837,18 @@
     "add_menu_item_title": "Add Menu Item",
     "add_menu_item_subtitle": "Create a new menu item",
     "add_category_title": "Add Category",
-    "add_category_subtitle": "Create a new category"
+    "add_category_subtitle": "Create a new category",
+    "delete_category_title": "Delete Category",
+    "delete_category_message": "Are you sure you want to delete \"{name}\"?",
+    "delete_category_error_has_items": "Cannot delete \"{name}\" because it contains menu items. Please move or delete all items first.",
+    "delete_category_error": "Error deleting category \"{name}\"",
+    "category_deleted_success": "Category \"{name}\" deleted successfully",
+    "delete_option_group_title": "Delete Option Group",
+    "delete_option_group_message": "Are you sure you want to delete \"{name}\"?",
+    "delete_group_success": "Option group \"{name}\" deleted successfully",
+    "cannot_undo_message": "This action cannot be undone.",
+    "cancel_button": "Cancel",
+    "delete_button": "Delete"
   },
 
   "inventory_page": {

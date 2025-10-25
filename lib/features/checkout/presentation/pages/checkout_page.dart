@@ -50,6 +50,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   void initState() {
     super.initState();
     _loadOrderSources();
+    _loadExistingOrderInformation();
     _discountController.addListener(_calculateTotals);
     _commissionAmountController.addListener(_calculateCommission);
   }
@@ -65,7 +66,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       setState(() {
         _orderSources = sources;
         _isLoadingOrderSources = false;
-        // Do not auto-select - user must choose explicitly
+
+        // Try to match existing order platform with loaded sources
+        if (widget.order.platform.isNotEmpty && widget.order.platform != 'direct') {
+          _selectedOrderSource = sources.where((source) =>
+            source.name.toLowerCase() == widget.order.platform.toLowerCase()
+          ).firstOrNull;
+        }
       });
     } catch (e) {
       setState(() {
@@ -80,6 +87,47 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
         );
       }
+    }
+  }
+
+  void _loadExistingOrderInformation() {
+    // Load customer information if exists
+    if (widget.order.customer.id.isNotEmpty) {
+      _customerPhoneController.text = widget.order.customer.phone ?? '';
+      _customerNameController.text = widget.order.customer.name;
+      _foundCustomer = customer_model.Customer(
+        id: widget.order.customer.id,
+        name: widget.order.customer.name,
+        phone: widget.order.customer.phone,
+        email: widget.order.customer.email,
+        address: widget.order.customer.address,
+        createdAt: widget.order.customer.createdAt ?? DateTime.now(),
+        updatedAt: widget.order.customer.updatedAt ?? DateTime.now(),
+      );
+    }
+
+    // Load discount information if exists
+    if (widget.order.discount > 0) {
+      _discountAmount = widget.order.discount;
+      // Calculate back to display value - assume percentage if discount is small relative to subtotal
+      if (widget.order.discount < widget.order.subtotal * 0.5) {
+        final percentage = (widget.order.discount / widget.order.subtotal) * 100;
+        if (percentage <= 100 && percentage % 1 == 0) {
+          _isPercentageDiscount = true;
+          _discountController.text = percentage.toInt().toString();
+        } else {
+          _isPercentageDiscount = false;
+          _discountController.text = widget.order.discount.toInt().toString();
+        }
+      } else {
+        _isPercentageDiscount = false;
+        _discountController.text = widget.order.discount.toInt().toString();
+      }
+    }
+
+    // Load payment method if exists (only if order has pending payment status)
+    if (widget.order.paymentStatus == PaymentStatus.pending) {
+      _selectedPaymentMethod = widget.order.paymentMethod;
     }
   }
 
@@ -157,6 +205,141 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     final isBeforeFee = _selectedOrderSource!.commissionInputType == CommissionInputType.beforeFee;
     return _selectedOrderSource!.calculateCommissionFee(amount, isBeforeFee: isBeforeFee);
+  }
+
+  Future<void> _saveOrder() async {
+    try {
+      // Save customer information if provided
+      Customer? orderCustomer = widget.order.customer;
+      final phone = _customerPhoneController.text.trim();
+      final name = _customerNameController.text.trim();
+
+      if (phone.isNotEmpty) {
+        if (_foundCustomer != null) {
+          // Check if name was changed
+          final nameChanged = name.isNotEmpty && name != _foundCustomer!.name;
+
+          if (nameChanged) {
+            // Update existing customer with new name
+            final updatedCustomer = _foundCustomer!.copyWith(
+              name: name,
+              updatedAt: DateTime.now(),
+            );
+
+            await _customerService.updateCustomer(updatedCustomer);
+            orderCustomer = Customer(
+              id: updatedCustomer.id,
+              name: updatedCustomer.name,
+              phone: updatedCustomer.phone,
+              email: updatedCustomer.email,
+              address: updatedCustomer.address,
+              createdAt: updatedCustomer.createdAt,
+              updatedAt: updatedCustomer.updatedAt,
+            );
+          } else {
+            // Use existing customer without changes
+            orderCustomer = Customer(
+              id: _foundCustomer!.id,
+              name: _foundCustomer!.name,
+              phone: _foundCustomer!.phone,
+              email: _foundCustomer!.email,
+              address: _foundCustomer!.address,
+              createdAt: _foundCustomer!.createdAt,
+              updatedAt: _foundCustomer!.updatedAt,
+            );
+          }
+        } else {
+          // Try searching one more time before creating
+          final existingCustomer = await _customerService.getCustomerByPhone(phone);
+          if (existingCustomer != null) {
+            // Found existing customer, use it
+            orderCustomer = Customer(
+              id: existingCustomer.id,
+              name: existingCustomer.name,
+              phone: existingCustomer.phone,
+              email: existingCustomer.email,
+              address: existingCustomer.address,
+              createdAt: existingCustomer.createdAt,
+              updatedAt: existingCustomer.updatedAt,
+            );
+          } else {
+            // Create new customer
+            final newCustomer = customer_model.Customer(
+              id: '',
+              name: name.isNotEmpty ? name : 'checkout_page.default_customer_name'.tr(),
+              phone: phone,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+
+            final customerId = await _customerService.createCustomer(newCustomer);
+            if (customerId != null) {
+              orderCustomer = Customer(
+                id: customerId,
+                name: newCustomer.name,
+                phone: newCustomer.phone,
+                email: null,
+                address: null,
+                createdAt: newCustomer.createdAt,
+                updatedAt: newCustomer.updatedAt,
+              );
+            }
+          }
+        }
+      }
+
+      // Update order with saved information (active status)
+      final now = DateTime.now();
+
+      // Create the order object with active status
+      final updatedOrder = Order(
+        id: widget.order.id,
+        orderNumber: widget.order.orderNumber,
+        customer: orderCustomer,
+        items: widget.order.items,
+        subtotal: widget.order.subtotal,
+        deliveryFee: widget.order.deliveryFee,
+        discount: _discountAmount,
+        tax: widget.order.tax,
+        serviceCharge: widget.order.serviceCharge,
+        total: _total,
+        orderType: widget.order.orderType,
+        status: OrderStatus.pending, // Active order status
+        paymentMethod: _selectedPaymentMethod ?? PaymentMethod.cash, // Default to cash if not selected
+        paymentStatus: PaymentStatus.pending, // Payment pending
+        deliveryInfo: widget.order.deliveryInfo,
+        tableNumber: widget.order.tableNumber,
+        platform: _selectedOrderSource?.name ?? widget.order.platform, // Save the selected order source name or keep existing
+        assignedStaff: widget.order.assignedStaff,
+        notes: widget.order.notes,
+        createdAt: widget.order.createdAt,
+        updatedAt: now,
+      );
+
+      await _orderService.updateOrder(updatedOrder);
+
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('checkout_page.order_saved'.tr(namedArgs: {'orderNumber': widget.order.orderNumber})),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Pop with success result
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('checkout_page.save_order_error'.tr(namedArgs: {'error': e.toString()})),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _completeCheckout() async {
@@ -283,7 +466,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         paymentStatus: PaymentStatus.paid,
         deliveryInfo: widget.order.deliveryInfo,
         tableNumber: widget.order.tableNumber,
-        platform: widget.order.platform,
+        platform: _selectedOrderSource!.name, // Save the selected order source name
         assignedStaff: widget.order.assignedStaff,
         notes: widget.order.notes,
         createdAt: widget.order.createdAt,
@@ -363,7 +546,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
           ),
 
-          // Bottom Apply Button
+          // Bottom Buttons
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -377,23 +560,46 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ],
             ),
             child: SafeArea(
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _completeCheckout,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  // Save Order button
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _saveOrder,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange[700],
+                        side: BorderSide(color: Colors.orange[700]!),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'checkout_page.save_order'.tr(),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'checkout_page.complete_payment'.tr(),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  const SizedBox(width: 16),
+                  // Complete Payment button
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _completeCheckout,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'checkout_page.complete_payment'.tr(),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),

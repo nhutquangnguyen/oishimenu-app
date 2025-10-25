@@ -735,32 +735,60 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey[300]!),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Delete button (only for existing groups)
-          if (widget.optionGroupId != null)
-            IconButton(
-              onPressed: isLoading ? null : _showDeleteConfirmation,
-              icon: const Icon(Icons.delete, color: Colors.red, size: 24),
-            ),
-          const Spacer(),
-          // Save button
-          GestureDetector(
-            onTap: canSave ? _handleSave : null,
-            child: Text(
-              'Save',
-              style: TextStyle(
-                fontSize: 16,
-                color: canSave ? Colors.blue : Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            // Delete button (only for existing groups)
+            if (widget.optionGroupId != null) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: isLoading ? null : _showDeleteConfirmation,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+            ],
+            // Save button
+            Expanded(
+              flex: widget.optionGroupId != null ? 1 : 1,
+              child: ElevatedButton(
+                onPressed: canSave ? _handleSave : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

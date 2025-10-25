@@ -269,6 +269,20 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
                     ),
                   ),
                 ),
+                // Delete category button
+                InkWell(
+                  onTap: () => _showDeleteCategoryConfirmation(category),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Colors.red[400],
+                      size: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 Icon(
                   isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                   color: Colors.grey[600],
@@ -328,7 +342,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
                       categoryName: category.name,
                       onTap: () => _editMenuItem(item),
                       onToggleAvailability: () => _toggleAvailability(item),
-                      onDelete: () => _deleteMenuItem(item),
                     ),
                   );
                 },
@@ -944,6 +957,78 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('menu_page.error'.tr(namedArgs: {'error': e.toString()})),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDeleteCategoryConfirmation(MenuCategory category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('menu_page.delete_category_title'.tr()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('menu_page.delete_category_message'.tr(namedArgs: {'name': category.name})),
+            const SizedBox(height: 8),
+            Text(
+              'menu_page.cannot_undo_message'.tr(),
+              style: TextStyle(
+                color: Colors.red[600],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('menu_page.cancel_button'.tr()),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteCategory(category);
+            },
+            child: Text('menu_page.delete_button'.tr(), style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteCategory(MenuCategory category) async {
+    try {
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) return;
+
+      final success = await _menuService.deleteCategory(category.id, userId: currentUser.id);
+      if (success && mounted) {
+        await _loadMenuData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('menu_page.category_deleted_success'.tr(namedArgs: {'name': category.name})),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        // Check if error is about category containing items
+        String errorMessage;
+        if (e.toString().contains('Cannot delete category that contains menu items')) {
+          errorMessage = 'menu_page.delete_category_error_has_items'.tr(namedArgs: {'name': category.name});
+        } else {
+          errorMessage = 'menu_page.delete_category_error'.tr(namedArgs: {'name': category.name});
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
           ),
         );

@@ -9,6 +9,7 @@ import '../../../../models/order.dart' as order_model;
 import '../../../menu/services/menu_service.dart';
 import '../../../../services/menu_option_service.dart';
 import '../../../../services/order_service.dart';
+import '../../../../services/customer_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../checkout/presentation/pages/checkout_page.dart';
 
@@ -53,6 +54,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   final MenuService _menuService = MenuService();
   final MenuOptionService _menuOptionService = MenuOptionService();
   final OrderService _orderService = OrderService();
+  final CustomerService _customerService = CustomerService();
   final TextEditingController _searchController = TextEditingController();
   List<MenuItem> _menuItems = [];
   List<CartItem> _cartItems = [];
@@ -63,20 +65,30 @@ class _PosPageState extends ConsumerState<PosPage> {
   bool _isLoading = true;
   String _orderNotes = ''; // Order notes/comments
 
+  // Text controllers for persistent form fields
+  late TextEditingController _orderNotesController;
+  late TextEditingController _customerPhoneController;
+  late TextEditingController _customerNameController;
+
   // Track if we're editing an existing order
   String? _existingOrderId;
   String? _existingOrderNumber;
   DateTime? _existingOrderCreatedAt;
 
+  // Track if we're in save order mode (allows incomplete selections)
+  bool _isInSaveOrderMode = false;
+
   @override
   void initState() {
     super.initState();
+    _orderNotesController = TextEditingController(text: _orderNotes);
     _loadMenuData();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _orderNotesController.dispose();
     super.dispose();
   }
 
@@ -106,6 +118,16 @@ class _PosPageState extends ConsumerState<PosPage> {
       print('Error loading menu data: $e');
     }
   }
+
+  // Store additional order details to preserve when saving
+  order_model.OrderType? _originalOrderType;
+  String? _originalPlatform;
+  order_model.PaymentMethod? _originalPaymentMethod;
+  order_model.PaymentStatus? _originalPaymentStatus;
+  double? _originalDiscount;
+  double? _originalTax;
+  double? _originalServiceCharge;
+  double? _originalDeliveryFee;
 
   void _loadExistingOrder(order_model.Order order) {
     // Convert order items to cart items
@@ -162,6 +184,17 @@ class _PosPageState extends ConsumerState<PosPage> {
       _existingOrderCreatedAt = order.createdAt;
       // Load existing notes
       _orderNotes = order.notes ?? '';
+      _orderNotesController.text = _orderNotes;
+
+      // Preserve original order details for saving
+      _originalOrderType = order.orderType;
+      _originalPlatform = order.platform;
+      _originalPaymentMethod = order.paymentMethod;
+      _originalPaymentStatus = order.paymentStatus;
+      _originalDiscount = order.discount;
+      _originalTax = order.tax;
+      _originalServiceCharge = order.serviceCharge;
+      _originalDeliveryFee = order.deliveryFee;
     });
   }
 
@@ -221,8 +254,8 @@ class _PosPageState extends ConsumerState<PosPage> {
     final optionGroups = await _menuOptionService.getOptionGroupsForMenuItem(item.id);
 
     if (optionGroups.isNotEmpty) {
-      // Show option selection modal
-      _showOptionSelectionModal(item, optionGroups);
+      // Show option selection modal, skip validation if in save order mode
+      _showOptionSelectionModal(item, optionGroups, skipValidation: _isInSaveOrderMode);
     } else {
       // Add directly to cart without options
       _addToCartWithOptions(item, []);
@@ -656,7 +689,7 @@ class _PosPageState extends ConsumerState<PosPage> {
       ),
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -675,62 +708,88 @@ class _PosPageState extends ConsumerState<PosPage> {
             ),
             // Order information section
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: _existingOrderId != null ? Colors.orange[50] : Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
+                border: _existingOrderId != null ? Border.all(color: Colors.orange[200]!, width: 1) : null,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.table_restaurant, size: 16, color: Colors.grey[700]),
-                      const SizedBox(width: 8),
-                      Text(
-                        'pos_page.order_source_label'.tr(namedArgs: {'source': _selectedTable}),
-                        style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                  // Show indicator when editing existing order
+                  if (_existingOrderId != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[100],
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                    ],
-                  ),
-                  if (_selectedCustomer != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: 16, color: Colors.grey[700]),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'pos_page.customer_label'.tr(namedArgs: {'name': _selectedCustomer!.name}),
-                                style: TextStyle(fontSize: 14, color: Colors.grey[800]),
-                              ),
-                              if (_selectedCustomer!.phone != null && _selectedCustomer!.phone!.isNotEmpty)
-                                Text(
-                                  'pos_page.phone_label'.tr(namedArgs: {'phone': _selectedCustomer!.phone!}),
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                ),
-                            ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit, size: 12, color: Colors.orange[700]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Editing Order ${_existingOrderNumber ?? ''}',
+                            style: TextStyle(fontSize: 10, color: Colors.orange[700], fontWeight: FontWeight.w600),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  // Order source label removed as per user request
+                  // Row(
+                  //   children: [
+                  //     Icon(Icons.table_restaurant, size: 16, color: Colors.grey[700]),
+                  //     const SizedBox(width: 8),
+                  //     Text(
+                  //       'pos_page.order_source_label'.tr(namedArgs: {'source': _selectedTable}),
+                  //       style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                  //     ),
+                  //   ],
+                  // ),
+                  // Show saved customer information (compact display)
+                  if (_selectedCustomer != null && _selectedCustomer!.name != 'pos_page.walk_in_customer'.tr()) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue[200]!, width: 1),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.person, size: 14, color: Colors.blue[700]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              (_selectedCustomer!.phone?.isNotEmpty ?? false)
+                                ? '${_selectedCustomer!.name} • ${_selectedCustomer!.phone}'
+                                : _selectedCustomer!.name,
+                              style: TextStyle(fontSize: 12, color: Colors.blue[800], fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 4),
             Expanded(
               child: ListView.builder(
                 itemCount: _cartItems.length,
                 itemBuilder: (context, index) {
                   final cartItem = _cartItems[index];
                   return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
+                    margin: const EdgeInsets.only(bottom: 8),
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -776,7 +835,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
 
                           // Base price
                           Text(
@@ -786,9 +845,9 @@ class _PosPageState extends ConsumerState<PosPage> {
 
                           // Selected options
                           if (cartItem.selectedOptions.isNotEmpty) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             ...cartItem.selectedOptions.map((option) => Padding(
-                              padding: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.only(top: 1),
                               child: Text(
                                 '+ ${option.optionName}${option.optionPrice > 0 ? ' (+${option.optionPrice.toStringAsFixed(0)}đ)' : ''}',
                                 style: TextStyle(
@@ -801,7 +860,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                           ],
 
                           // Total price per item
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             'Total per item: ${(cartItem.totalPrice / cartItem.quantity).toStringAsFixed(0)}đ',
                             style: const TextStyle(
@@ -810,7 +869,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                             ),
                           ),
 
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
 
                           // Item notes field
                           TextField(
@@ -859,11 +918,12 @@ class _PosPageState extends ConsumerState<PosPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             // Order notes field
             TextField(
               maxLines: 2,
+              controller: _orderNotesController,
               decoration: InputDecoration(
                 labelText: 'pos_page.order_note_label'.tr(),
                 hintText: 'pos_page.order_note_placeholder'.tr(),
@@ -879,24 +939,24 @@ class _PosPageState extends ConsumerState<PosPage> {
                   _orderNotes = value;
                 });
               },
-              controller: TextEditingController(text: _orderNotes),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             Row(
               children: [
                 // Save Order button
                 Expanded(
-                  child: ElevatedButton(
+                  child: OutlinedButton(
                     onPressed: _saveOrder,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange[700],
+                      side: BorderSide(color: Colors.orange[700]!),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: Text(
                       'pos_page.save_order_button'.tr(),
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -925,9 +985,15 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   Future<void> _saveOrder() async {
+    // Enable save order mode (skip validations)
+    setState(() {
+      _isInSaveOrderMode = true;
+    });
+
     // Close the cart bottom sheet
     Navigator.pop(context);
 
+    // Save order validation: only check if cart has items, allow other fields to be empty
     if (_cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -935,6 +1001,9 @@ class _PosPageState extends ConsumerState<PosPage> {
           backgroundColor: Colors.red,
         ),
       );
+      setState(() {
+        _isInSaveOrderMode = false;
+      });
       return;
     }
 
@@ -998,22 +1067,34 @@ class _PosPageState extends ConsumerState<PosPage> {
       String displayOrderNumber;
 
       if (_existingOrderId != null && _existingOrderNumber != null) {
-        // Update existing order
+        // Update existing order - preserve ALL original information
         displayOrderNumber = _existingOrderNumber!;
+
+        // Calculate total considering original discount and fees
+        final orderSubtotal = _totalAmount;
+        final orderDiscount = _originalDiscount ?? 0.0;
+        final orderTax = _originalTax ?? 0.0;
+        final orderServiceCharge = _originalServiceCharge ?? 0.0;
+        final orderDeliveryFee = _originalDeliveryFee ?? 0.0;
+        final orderTotal = orderSubtotal - orderDiscount + orderTax + orderServiceCharge + orderDeliveryFee;
 
         final order = order_model.Order(
           id: _existingOrderId!,
           orderNumber: _existingOrderNumber!,
           customer: orderCustomer,
           items: orderItems,
-          subtotal: _totalAmount,
-          total: _totalAmount,
-          orderType: orderType,
-          status: order_model.OrderStatus.pending,
-          paymentMethod: order_model.PaymentMethod.cash,
-          paymentStatus: order_model.PaymentStatus.pending,
+          subtotal: orderSubtotal,
+          discount: orderDiscount,
+          tax: orderTax,
+          serviceCharge: orderServiceCharge,
+          deliveryFee: orderDeliveryFee,
+          total: orderTotal,
+          orderType: _originalOrderType ?? orderType, // Preserve original order type
+          status: order_model.OrderStatus.pending, // Keep as pending for active orders
+          paymentMethod: _originalPaymentMethod ?? order_model.PaymentMethod.cash, // Preserve original payment method
+          paymentStatus: _originalPaymentStatus ?? order_model.PaymentStatus.pending, // Preserve original payment status
           tableNumber: _selectedTable,
-          platform: 'POS',
+          platform: _originalPlatform ?? 'POS', // Preserve original platform
           notes: _orderNotes.isEmpty ? null : _orderNotes,
           createdAt: _existingOrderCreatedAt ?? now, // Preserve original creation time
           updatedAt: now,
@@ -1056,6 +1137,11 @@ class _PosPageState extends ConsumerState<PosPage> {
               duration: const Duration(seconds: 1),
             ),
           );
+
+          // Reset save order mode and navigate back
+          setState(() {
+            _isInSaveOrderMode = false;
+          });
 
           // Wait a moment for the snackbar to show, then navigate back
           Future.delayed(const Duration(milliseconds: 500), () {
@@ -1115,13 +1201,21 @@ class _PosPageState extends ConsumerState<PosPage> {
             _selectedCustomer = null;
             _selectedTable = 'pos_page.default_table'.tr();
             _orderNotes = '';
+            _orderNotesController.text = '';
             _existingOrderId = null;
             _existingOrderNumber = null;
             _existingOrderCreatedAt = null;
+            // Reset save order mode
+            _isInSaveOrderMode = false;
           });
         }
       }
     } catch (e) {
+      // Reset save order mode on error
+      setState(() {
+        _isInSaveOrderMode = false;
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1134,6 +1228,11 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   Future<void> _processPayment() async {
+    // Ensure save order mode is disabled (enforce full validation)
+    setState(() {
+      _isInSaveOrderMode = false;
+    });
+
     // Navigate away from cart bottom sheet first
     Navigator.pop(context);
 
@@ -1240,9 +1339,21 @@ class _PosPageState extends ConsumerState<PosPage> {
             _cartItems.clear();
             _selectedCustomer = null;
             _orderNotes = '';
+            _orderNotesController.text = '';
             _existingOrderId = null;
             _existingOrderNumber = null;
             _existingOrderCreatedAt = null;
+            // Clear preserved order details
+            _originalOrderType = null;
+            _originalPlatform = null;
+            _originalPaymentMethod = null;
+            _originalPaymentStatus = null;
+            _originalDiscount = null;
+            _originalTax = null;
+            _originalServiceCharge = null;
+            _originalDeliveryFee = null;
+            // Reset save order mode
+            _isInSaveOrderMode = false;
           });
         }
       }
@@ -1258,7 +1369,7 @@ class _PosPageState extends ConsumerState<PosPage> {
     }
   }
 
-  void _showOptionSelectionModal(MenuItem menuItem, List<OptionGroup> optionGroups) {
+  void _showOptionSelectionModal(MenuItem menuItem, List<OptionGroup> optionGroups, {bool skipValidation = false}) {
     // Track selected options for each group
     Map<String, SelectedOption?> selectedOptionsMap = {};
     Map<String, List<String>> selectedMultipleOptionsMap = {};
@@ -1281,21 +1392,23 @@ class _PosPageState extends ConsumerState<PosPage> {
           bool canAddToCart = true;
           String? errorMessage;
 
-          // Validate selections
-          for (final group in optionGroups) {
-            if (group.isRequired) {
-              if (group.maxSelection > 1) {
-                final selectedCount = selectedMultipleOptionsMap[group.id]?.length ?? 0;
-                if (selectedCount < group.minSelection) {
-                  canAddToCart = false;
-                  errorMessage = 'pos_page.min_selection_error'.tr(namedArgs: {'min': group.minSelection.toString(), 'group': group.name});
-                  break;
-                }
-              } else {
-                if (selectedOptionsMap[group.id] == null) {
-                  canAddToCart = false;
-                  errorMessage = 'pos_page.required_selection_error'.tr(namedArgs: {'group': group.name});
-                  break;
+          // Validate selections (only if validation is not skipped)
+          if (!skipValidation) {
+            for (final group in optionGroups) {
+              if (group.isRequired) {
+                if (group.maxSelection > 1) {
+                  final selectedCount = selectedMultipleOptionsMap[group.id]?.length ?? 0;
+                  if (selectedCount < group.minSelection) {
+                    canAddToCart = false;
+                    errorMessage = 'pos_page.min_selection_error'.tr(namedArgs: {'min': group.minSelection.toString(), 'group': group.name});
+                    break;
+                  }
+                } else {
+                  if (selectedOptionsMap[group.id] == null) {
+                    canAddToCart = false;
+                    errorMessage = 'pos_page.required_selection_error'.tr(namedArgs: {'group': group.name});
+                    break;
+                  }
                 }
               }
             }

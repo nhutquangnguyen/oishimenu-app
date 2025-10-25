@@ -527,6 +527,10 @@
     "delete_item": "Xóa món",
     "continue": "Tiếp tục",
     "delete_item_title": "Xóa món ăn",
+    "delete_item_message": "Bạn có chắc chắn muốn xóa món ăn này?",
+    "cancel_button": "Hủy",
+    "delete_button": "Xóa",
+    "save_button": "Lưu",
     "delete_item_confirm": "Bạn có chắc chắn muốn xóa món ăn này?",
     "error_deleting": "Lỗi xóa món: {error}",
     "unsaved_changes": "Thay đổi chưa lưu",
@@ -568,7 +572,7 @@
     "order_note_label": "Ghi chú đơn hàng",
     "order_note_placeholder": "Thêm ghi chú cho đơn hàng (không bắt buộc)",
     "save_order_button": "Lưu đơn",
-    "checkout_button": "Thanh toán",
+    "checkout_button": "Tiếp tục",
     "empty_cart_error": "Giỏ hàng trống",
     "order_updated": "Đơn hàng #{orderNumber} đã được cập nhật",
     "order_saved": "Đơn hàng #{orderNumber} đã được lưu",
@@ -586,7 +590,7 @@
 
   "checkout_page": {
     "title": "Thanh toán",
-    "complete_payment": "Hoàn tất thanh toán",
+    "complete_payment": "Hoàn tất",
     "customer_info": "Thông tin khách hàng",
     "phone_field": "Số điện thoại",
     "phone_placeholder": "Nhập số điện thoại",
@@ -622,6 +626,9 @@
     "select_source_error": "Vui lòng chọn nguồn đơn hàng",
     "select_payment_error": "Vui lòng chọn phương thức thanh toán",
     "default_customer_name": "Khách",
+    "save_order": "Lưu đơn",
+    "order_saved": "Đơn hàng {orderNumber} đã lưu thành công",
+    "save_order_error": "Lỗi khi lưu đơn hàng: {error}",
     "payment_success": "Đơn hàng {orderNumber} đã thanh toán thành công",
     "payment_error": "Lỗi: {error}"
   },
@@ -667,6 +674,9 @@
     "load_error": "Không thể tải nhóm tùy chọn: {error}",
     "load_items_error": "Không thể tải danh sách món ăn: {error}",
     "create_title": "Tạo nhóm tùy chọn",
+    "edit_title": "Chỉnh sửa nhóm tùy chọn",
+    "name_hint": "Nhập tên nhóm",
+    "manage_links_button": "Quản lý món ăn",
     "default_option_name": "Tùy chọn {index}",
     "example_option": "e.g., Sương sáo",
     "unsaved_changes_title": "Thay đổi chưa được lưu",
@@ -821,7 +831,18 @@
     "add_menu_item_title": "Thêm món ăn",
     "add_menu_item_subtitle": "Tạo món ăn mới",
     "add_category_title": "Thêm danh mục",
-    "add_category_subtitle": "Tạo danh mục mới"
+    "add_category_subtitle": "Tạo danh mục mới",
+    "delete_category_title": "Xóa danh mục",
+    "delete_category_message": "Bạn có chắc chắn muốn xóa \"{name}\"?",
+    "delete_category_error_has_items": "Không thể xóa \"{name}\" vì nó chứa các món ăn. Vui lòng di chuyển hoặc xóa tất cả món ăn trước.",
+    "delete_category_error": "Lỗi khi xóa danh mục \"{name}\"",
+    "category_deleted_success": "Đã xóa danh mục \"{name}\" thành công",
+    "delete_option_group_title": "Xóa nhóm tùy chọn",
+    "delete_option_group_message": "Bạn có chắc chắn muốn xóa \"{name}\"?",
+    "delete_group_success": "Đã xóa nhóm tùy chọn \"{name}\" thành công",
+    "cannot_undo_message": "Hành động này không thể hoàn tác.",
+    "cancel_button": "Hủy",
+    "delete_button": "Xóa"
   },
 
   "inventory_page": {

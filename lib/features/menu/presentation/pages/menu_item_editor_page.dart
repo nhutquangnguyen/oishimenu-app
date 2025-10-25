@@ -186,8 +186,6 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
                     _buildPriceSection(),
                     const SizedBox(height: 24),
                     _buildOptionGroupsSection(),
-                    const SizedBox(height: 32),
-                    _buildDeleteButton(),
                     const SizedBox(height: 100), // Space for bottom button
                   ],
                 ),
@@ -558,24 +556,6 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
   }
 
 
-  Widget _buildDeleteButton() {
-    if (widget.menuItem == null) return const SizedBox();
-
-    return Container(
-      width: double.infinity,
-      child: TextButton.icon(
-        onPressed: _deleteItem,
-        icon: const Icon(Icons.delete_outline, color: Colors.red),
-        label: const Text(
-          'Delete item',
-          style: TextStyle(color: Colors.red, fontSize: 16),
-        ),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-        ),
-      ),
-    );
-  }
 
   Widget _buildBottomButton() {
     return Container(
@@ -591,24 +571,50 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         ],
       ),
       child: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _canSave() ? _handleSave : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green[600],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+        child: Row(
+          children: [
+            // Delete button (only show when editing existing item)
+            if (widget.menuItemId != null) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _deleteItem,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'menu_item_editor.delete_button'.tr(),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
               ),
-              elevation: 0,
+              const SizedBox(width: 16),
+            ],
+            // Save button
+            Expanded(
+              flex: widget.menuItemId != null ? 1 : 1,
+              child: ElevatedButton(
+                onPressed: _canSave() ? _handleSave : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'menu_item_editor.save_button'.tr(),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
             ),
-            child: const Text(
-              'Continue',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
+          ],
         ),
       ),
     );
@@ -883,7 +889,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
   }
 
   Future<void> _performDelete() async {
-    if (widget.menuItem == null) return;
+    if (widget.menuItemId == null) return;
 
     final currentUser = ref.read(currentUserProvider);
     if (currentUser == null) {
@@ -898,7 +904,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
 
     setState(() => _isLoading = true);
     try {
-      await _menuService.deleteMenuItem(widget.menuItem!.id, userId: currentUser.id);
+      await _menuService.deleteMenuItem(widget.menuItemId!, userId: currentUser.id);
       if (mounted) {
         context.go('/menu');
       }

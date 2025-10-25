@@ -485,5 +485,22 @@
     "optional_group": "Optional: {description}",
     "create_new_option_group": "Create a new option group",
     "done": "Done"
+  },
+
+  "menu_page": {
+    "menu_items_tab": "Menu Items",
+    "option_groups_tab": "Option Groups",
+    "add_menu_item_title": "Add Menu Item",
+    "add_menu_item_subtitle": "Create a new menu item",
+    "add_category_title": "Add Category",
+    "add_category_subtitle": "Create a new category",
+    "delete_category_title": "Delete Category",
+    "delete_category_message": "Are you sure you want to delete \"{name}\"?",
+    "delete_category_error_has_items": "Cannot delete \"{name}\" because it contains menu items. Please move or delete all items first.",
+    "delete_category_error": "Error deleting category \"{name}\"",
+    "category_deleted_success": "Category \"{name}\" deleted successfully",
+    "cannot_undo_message": "This action cannot be undone.",
+    "cancel_button": "Cancel",
+    "delete_button": "Delete"
   }
 }
