@@ -134,11 +134,9 @@ class OptionGroupValidation {
         }
       }
 
-      // maxSelection must be <= option count and >= minSelection
-      if (group.maxSelection > group.options.length) {
-        errors['selection'] = 'MAX_EXCEEDS_OPTION_COUNT';
-      }
-
+      // maxSelection must be >= minSelection
+      // Allow maxSelection to exceed option count when multiple selections are enabled
+      // This allows users to save the option group and add more options later
       if (group.maxSelection < group.minSelection) {
         errors['selection'] = selectionConflict;
       }
