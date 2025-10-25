@@ -316,7 +316,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         updatedAt: now,
       );
 
-      await _orderService.updateOrder(updatedOrder);
+      // Check if this is a new order (empty ID) or existing order update
+      if (widget.order.id.isEmpty) {
+        // Create new order
+        final orderId = await _orderService.createOrder(updatedOrder);
+        // Update the order number in success message with the new ID
+        // (keep using the original orderNumber for display)
+      } else {
+        // Update existing order
+        await _orderService.updateOrder(updatedOrder);
+      }
 
       if (mounted) {
         // Show success message
@@ -473,7 +482,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         updatedAt: now,
       );
 
-      await _orderService.updateOrder(updatedOrder);
+      // Check if this is a new order (empty ID) or existing order update
+      if (widget.order.id.isEmpty) {
+        // Create new order
+        final orderId = await _orderService.createOrder(updatedOrder);
+      } else {
+        // Update existing order
+        await _orderService.updateOrder(updatedOrder);
+      }
 
       if (mounted) {
         // Show success message

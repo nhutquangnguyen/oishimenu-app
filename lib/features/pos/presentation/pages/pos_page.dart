@@ -1305,7 +1305,7 @@ class _PosPageState extends ConsumerState<PosPage> {
               updatedAt: DateTime.now(),
             );
 
-      // Create order in database first
+      // Create temporary order for checkout
       final order = order_model.Order(
         id: '',
         orderNumber: orderNumber,
@@ -1324,18 +1324,12 @@ class _PosPageState extends ConsumerState<PosPage> {
         updatedAt: now,
       );
 
-      // Save order to database and get the generated ID
-      final orderId = await _orderService.createOrder(order);
-
-      // Create order with the actual database ID for checkout
-      final orderWithId = order.copyWith(id: orderId);
-
       // Navigate to checkout page
       if (mounted) {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CheckoutPage(order: orderWithId),
+            builder: (context) => CheckoutPage(order: order),
           ),
         );
 
