@@ -59,7 +59,7 @@ class OrderService {
       // Create a simplified customer from order data if no customer record exists
       customer ??= Customer(
         id: '',
-        name: 'Walk-in Customer',
+        name: '',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -106,7 +106,7 @@ class OrderService {
 
       customer ??= Customer(
         id: '',
-        name: 'Walk-in Customer',
+        name: '',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

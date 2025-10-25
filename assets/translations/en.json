@@ -673,7 +673,8 @@
     "cancel_order_message": "Are you sure you want to cancel order {orderNumber}?\n\nThis action cannot be undone.",
     "no_button": "No",
     "cancel_order_success": "Order {orderNumber} cancelled",
-    "cancel_order_error": "Error cancelling order: {error}"
+    "cancel_order_error": "Error cancelling order: {error}",
+    "unknown_customer": "Unknown"
   },
 
   "option_groups_editor": {

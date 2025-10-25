@@ -9,7 +9,6 @@ import '../../../../models/order.dart' as order_model;
 import '../../../menu/services/menu_service.dart';
 import '../../../../services/menu_option_service.dart';
 import '../../../../services/order_service.dart';
-import '../../../../services/customer_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../checkout/presentation/pages/checkout_page.dart';
 
@@ -54,21 +53,18 @@ class _PosPageState extends ConsumerState<PosPage> {
   final MenuService _menuService = MenuService();
   final MenuOptionService _menuOptionService = MenuOptionService();
   final OrderService _orderService = OrderService();
-  final CustomerService _customerService = CustomerService();
   final TextEditingController _searchController = TextEditingController();
   List<MenuItem> _menuItems = [];
   List<CartItem> _cartItems = [];
   String _searchQuery = '';
   String? _selectedCategory; // null means "All"
-  String _selectedTable = 'pos_page.default_table'.tr();
+  String? _selectedTable;
   Customer? _selectedCustomer;
   bool _isLoading = true;
   String _orderNotes = ''; // Order notes/comments
 
   // Text controllers for persistent form fields
   late TextEditingController _orderNotesController;
-  late TextEditingController _customerPhoneController;
-  late TextEditingController _customerNameController;
 
   // Track if we're editing an existing order
   String? _existingOrderId;
@@ -115,7 +111,7 @@ class _PosPageState extends ConsumerState<PosPage> {
       setState(() {
         _isLoading = false;
       });
-      print('Error loading menu data: $e');
+      // Error loading menu data - handle silently for production
     }
   }
 
@@ -168,7 +164,7 @@ class _PosPageState extends ConsumerState<PosPage> {
 
     setState(() {
       _cartItems = cartItems;
-      _selectedTable = order.tableNumber ?? 'pos_page.default_table'.tr();
+      _selectedTable = order.tableNumber;
       _selectedCustomer = Customer(
         id: order.customer.id,
         name: order.customer.name,
@@ -697,7 +693,7 @@ class _PosPageState extends ConsumerState<PosPage> {
               children: [
                 Text(
                   'pos_page.order_section'.tr(),
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 IconButton(
@@ -751,7 +747,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                   //   ],
                   // ),
                   // Show saved customer information (compact display)
-                  if (_selectedCustomer != null && _selectedCustomer!.name != 'pos_page.walk_in_customer'.tr()) ...[
+                  if (_selectedCustomer != null && _selectedCustomer!.name.trim().isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -909,7 +905,7 @@ class _PosPageState extends ConsumerState<PosPage> {
               children: [
                 Text(
                   'pos_page.total_label'.tr(),
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Text(
@@ -956,7 +952,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                     ),
                     child: Text(
                       'pos_page.save_order_button'.tr(),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -972,7 +968,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                     ),
                     child: Text(
                       'pos_page.checkout_button'.tr(),
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -1037,7 +1033,10 @@ class _PosPageState extends ConsumerState<PosPage> {
 
       // Determine order type based on table
       order_model.OrderType orderType;
-      if (_selectedTable == 'pos_page.default_table'.tr()) {
+      if (_selectedTable == null) {
+        // No table selected - use takeaway as fallback but don't pre-select it in UI
+        orderType = order_model.OrderType.takeaway;
+      } else if (_selectedTable == 'pos_page.default_table'.tr()) {
         orderType = order_model.OrderType.takeaway;
       } else if (_selectedTable == 'Grab') {
         orderType = order_model.OrderType.delivery;
@@ -1058,7 +1057,7 @@ class _PosPageState extends ConsumerState<PosPage> {
             )
           : order_model.Customer(
               id: '',
-              name: 'pos_page.walk_in_customer'.tr(),
+              name: '', // Empty name instead of walk-in customer
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
             );
@@ -1169,7 +1168,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                         const SizedBox(height: 4),
                         Text(
                           'pos_page.order_added_to_queue'.tr(),
-                          style: TextStyle(fontSize: 12),
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ],
                     ),
@@ -1199,7 +1198,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           setState(() {
             _cartItems = [];
             _selectedCustomer = null;
-            _selectedTable = 'pos_page.default_table'.tr();
+            _selectedTable = null;
             _orderNotes = '';
             _orderNotesController.text = '';
             _existingOrderId = null;
@@ -1279,7 +1278,10 @@ class _PosPageState extends ConsumerState<PosPage> {
 
       // Determine order type
       order_model.OrderType orderType;
-      if (_selectedTable == 'pos_page.default_table'.tr()) {
+      if (_selectedTable == null) {
+        // No table selected - use takeaway as fallback but don't pre-select it in UI
+        orderType = order_model.OrderType.takeaway;
+      } else if (_selectedTable == 'pos_page.default_table'.tr()) {
         orderType = order_model.OrderType.takeaway;
       } else if (_selectedTable == 'Grab') {
         orderType = order_model.OrderType.delivery;
@@ -1300,7 +1302,7 @@ class _PosPageState extends ConsumerState<PosPage> {
             )
           : order_model.Customer(
               id: '',
-              name: 'pos_page.walk_in_customer'.tr(),
+              name: '', // Empty name instead of walk-in customer
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
             );
@@ -1506,7 +1508,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                                           ),
                                           child: Text(
                                             'pos_page.option_required'.tr(),
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               color: Colors.red,
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
@@ -1581,7 +1583,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                                         activeColor: Colors.green[600],
                                       ),
                               );
-                            }).toList(),
+                            }),
                           ],
                         ),
                       );

@@ -667,7 +667,8 @@
     "cancel_order_message": "Bạn có chắc chắn muốn hủy đơn hàng {orderNumber}?\n\nHành động này không thể hoàn tác.",
     "no_button": "Không",
     "cancel_order_success": "Đơn hàng {orderNumber} đã bị hủy",
-    "cancel_order_error": "Lỗi khi hủy đơn hàng: {error}"
+    "cancel_order_error": "Lỗi khi hủy đơn hàng: {error}",
+    "unknown_customer": "Không rõ"
   },
 
   "option_groups_editor": {

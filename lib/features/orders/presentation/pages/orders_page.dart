@@ -26,6 +26,10 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   // Timer for periodic refresh
   Timer? _refreshTimer;
 
+  // Scroll controllers to preserve scroll position
+  final ScrollController _activeOrdersScrollController = ScrollController();
+  final ScrollController _historyOrdersScrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -38,7 +42,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   void _startRefreshTimer() {
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
-        _loadOrders();
+        _loadOrders(showLoading: false); // Background refresh without loading indicator
       }
     });
   }
@@ -48,6 +52,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     _refreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
+    _activeOrdersScrollController.dispose();
+    _historyOrdersScrollController.dispose();
     super.dispose();
   }
 
@@ -56,21 +62,28 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     super.didChangeAppLifecycleState(state);
     // Refresh orders when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
-      _loadOrders();
+      _loadOrders(showLoading: false); // Background refresh
     }
   }
 
-  Future<void> _loadOrders() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadOrders({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() => _isLoading = true);
+    }
+
     try {
       final orders = await _orderService.getOrders();
       setState(() {
         _orders = orders;
-        _isLoading = false;
+        if (showLoading) {
+          _isLoading = false;
+        }
       });
     } catch (e) {
       print('Error loading orders: $e');
-      setState(() => _isLoading = false);
+      if (showLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -165,6 +178,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     return RefreshIndicator(
       onRefresh: _loadOrders,
       child: ListView.builder(
+        key: const PageStorageKey('active_orders_list'),
+        controller: _activeOrdersScrollController,
         padding: const EdgeInsets.all(16),
         itemCount: _activeOrders.length,
         itemBuilder: (context, index) {
@@ -203,7 +218,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                     children: [
                       // Clickable order number
                       InkWell(
-                        onTap: () => _navigateToPosWithOrder(order),
+                        onTap: () => _navigateToCheckoutWithOrder(order),
                         borderRadius: BorderRadius.circular(4),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -259,12 +274,26 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               children: [
                 Icon(Icons.person, size: 16, color: Colors.grey[700]),
                 const SizedBox(width: 8),
-                Text(order.customer.name),
+                Expanded(
+                  child: Text(
+                    _formatCustomerInfo(order),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
                 if (order.tableNumber != null) ...[
                   const SizedBox(width: 16),
                   Icon(Icons.table_restaurant, size: 16, color: Colors.grey[700]),
                   const SizedBox(width: 8),
                   Text(order.tableNumber!),
+                ],
+                if (order.platform.isNotEmpty) ...[
+                  const SizedBox(width: 16),
+                  Icon(Icons.delivery_dining, size: 16, color: Colors.grey[700]),
+                  const SizedBox(width: 8),
+                  Text(order.platform),
                 ],
               ],
             ),
@@ -600,6 +629,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     return RefreshIndicator(
       onRefresh: _loadOrders,
       child: ListView.builder(
+        key: const PageStorageKey('history_orders_list'),
+        controller: _historyOrdersScrollController,
         padding: const EdgeInsets.all(16),
         itemCount: _historyOrders.length,
         itemBuilder: (context, index) {
@@ -635,7 +666,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('${order.customer.name} • ${order.items.length} món'),
+            Text('${order.customer.name} • ${order.items.length} món${order.platform.isNotEmpty ? " • ${order.platform}" : ""}'),
             Text(
               _formatDateTime(order.createdAt),
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -730,6 +761,22 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
+  String _formatCustomerInfo(Order order) {
+    final customer = order.customer;
+    final hasName = customer.name.trim().isNotEmpty;
+    final hasPhone = customer.phone?.trim().isNotEmpty ?? false;
+
+    if (hasName && hasPhone) {
+      return '${customer.name} - ${customer.phone}';
+    } else if (hasName) {
+      return customer.name;
+    } else if (hasPhone) {
+      return customer.phone!;
+    } else {
+      return 'orders_page.unknown_customer'.tr();
+    }
+  }
+
   Future<void> _increaseQuantity(Order order, int itemIndex) async {
     try {
       // Uncheck mark done status when increasing quantity
@@ -767,7 +814,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       await _orderService.updateOrder(updatedOrder);
 
       // Reload orders to reflect changes
-      await _loadOrders();
+      await _loadOrders(showLoading: false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -840,7 +887,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
             );
             await _orderService.updateOrder(updatedOrder);
           }
-          await _loadOrders();
+          await _loadOrders(showLoading: false);
           return;
         }
 
@@ -885,7 +932,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       }
 
       // Reload orders
-      await _loadOrders();
+      await _loadOrders(showLoading: false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -909,7 +956,22 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
 
     // Reload orders if checkout was successful
     if (result == true && mounted) {
-      await _loadOrders();
+      await _loadOrders(showLoading: false);
+    }
+  }
+
+  Future<void> _navigateToCheckoutWithOrder(Order order) async {
+    // Navigate to checkout page when order ID is clicked
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckoutPage(order: order),
+      ),
+    );
+
+    // Reload orders if checkout was successful
+    if (result == true && mounted) {
+      await _loadOrders(showLoading: false);
     }
   }
 
@@ -921,7 +983,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       ),
     ).then((_) {
       // Reload orders when returning from POS
-      _loadOrders();
+      _loadOrders(showLoading: false);
     });
   }
 
@@ -961,7 +1023,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         await _orderService.updateOrder(updatedOrder);
 
         // Reload orders
-        await _loadOrders();
+        await _loadOrders(showLoading: false);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

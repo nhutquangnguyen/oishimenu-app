@@ -67,11 +67,19 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         _orderSources = sources;
         _isLoadingOrderSources = false;
 
-        // Try to match existing order platform with loaded sources
-        if (widget.order.platform.isNotEmpty && widget.order.platform != 'direct') {
+        // Only auto-select order source if this is an existing order being edited (has an ID)
+        // For new orders from POS, user should manually select the order source
+        // Explicitly check for existing order and matching platform
+        if (widget.order.id.isNotEmpty &&
+            widget.order.platform.isNotEmpty &&
+            widget.order.platform != 'direct' &&
+            widget.order.platform != 'POS') {
           _selectedOrderSource = sources.where((source) =>
             source.name.toLowerCase() == widget.order.platform.toLowerCase()
           ).firstOrNull;
+        } else {
+          // Explicitly ensure no order source is selected for new orders
+          _selectedOrderSource = null;
         }
       });
     } catch (e) {
@@ -91,8 +99,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   void _loadExistingOrderInformation() {
-    // Load customer information if exists
-    if (widget.order.customer.id.isNotEmpty) {
+    // Load customer information if exists - but skip walk-in customer defaults
+    if (widget.order.customer.id.isNotEmpty &&
+        widget.order.customer.name.trim().isNotEmpty &&
+        widget.order.customer.name != 'Khách vãng lai' &&
+        widget.order.customer.name != 'Walk-in Customer') {
       _customerPhoneController.text = widget.order.customer.phone ?? '';
       _customerNameController.text = widget.order.customer.name;
       _foundCustomer = customer_model.Customer(
@@ -328,7 +339,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       // Check if this is a new order (empty ID) or existing order update
       if (widget.order.id.isEmpty) {
         // Create new order
-        final orderId = await _orderService.createOrder(updatedOrder);
+        await _orderService.createOrder(updatedOrder);
         // Update the order number in success message with the new ID
         // (keep using the original orderNumber for display)
       } else {
@@ -494,7 +505,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       // Check if this is a new order (empty ID) or existing order update
       if (widget.order.id.isEmpty) {
         // Create new order
-        final orderId = await _orderService.createOrder(updatedOrder);
+        await _orderService.createOrder(updatedOrder);
       } else {
         // Update existing order
         await _orderService.updateOrder(updatedOrder);
@@ -1143,7 +1154,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle, color: Colors.blue, size: 20),
+              const Icon(Icons.check_circle, color: Colors.blue, size: 20),
           ],
         ),
       ),
