@@ -6,10 +6,8 @@ import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../../../models/customer.dart';
 import '../../../../models/order.dart' as order_model;
-import '../../../menu/services/menu_service.dart';
-import '../../../../services/menu_option_service.dart';
-import '../../../../services/order_service.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../../core/providers/supabase_providers.dart';
 import '../../../checkout/presentation/pages/checkout_page.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
@@ -50,9 +48,6 @@ class PosPage extends ConsumerStatefulWidget {
 }
 
 class _PosPageState extends ConsumerState<PosPage> {
-  final MenuService _menuService = MenuService();
-  final MenuOptionService _menuOptionService = MenuOptionService();
-  final OrderService _orderService = OrderService();
   final TextEditingController _searchController = TextEditingController();
   List<MenuItem> _menuItems = [];
   List<CartItem> _cartItems = [];
@@ -96,7 +91,8 @@ class _PosPageState extends ConsumerState<PosPage> {
         return;
       }
 
-      final menuItems = await _menuService.getAllMenuItems(userId: currentUser.id);
+      final menuService = ref.read(supabaseMenuServiceProvider);
+      final menuItems = await menuService.getMenuItems();
 
       setState(() {
         _menuItems = menuItems;
@@ -255,7 +251,8 @@ class _PosPageState extends ConsumerState<PosPage> {
 
   Future<void> _addToCart(MenuItem item) async {
     // Check if this menu item has linked option groups
-    final optionGroups = await _menuOptionService.getOptionGroupsForMenuItem(item.id);
+    final menuOptionService = ref.read(supabaseMenuOptionServiceProvider);
+    final optionGroups = await menuOptionService.getOptionGroupsForMenuItem(item.id);
 
     if (optionGroups.isNotEmpty) {
       // Show option selection modal, skip validation if in save order mode
@@ -989,6 +986,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   Future<void> _saveOrder() async {
+    final orderService = ref.read(supabaseOrderServiceProvider);
     // Enable save order mode (skip validations)
     setState(() {
       _isInSaveOrderMode = true;
@@ -1107,7 +1105,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           updatedAt: now,
         );
 
-        await _orderService.updateOrder(order);
+        await orderService.updateOrder(order);
       } else {
         // Create new order
         final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
@@ -1131,7 +1129,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           updatedAt: now,
         );
 
-        await _orderService.createOrder(order);
+        await orderService.createOrder(order);
       }
 
       if (mounted) {

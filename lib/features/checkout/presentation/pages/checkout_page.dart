@@ -5,9 +5,8 @@ import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order.dart';
 import '../../../../models/order_source.dart';
 import '../../../../models/customer.dart' as customer_model;
-import '../../../../services/order_service.dart';
+import '../../../../core/providers/supabase_providers.dart';
 import '../../../../services/order_source_service.dart';
-import '../../../../services/customer_service.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final Order order;
@@ -19,9 +18,7 @@ class CheckoutPage extends ConsumerStatefulWidget {
 }
 
 class _CheckoutPageState extends ConsumerState<CheckoutPage> {
-  final OrderService _orderService = OrderService();
   final OrderSourceService _orderSourceService = OrderSourceService();
-  final CustomerService _customerService = CustomerService();
 
   // Customer information
   final TextEditingController _customerPhoneController = TextEditingController();
@@ -162,7 +159,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     if (phone.length >= 3) {
-      final customer = await _customerService.getCustomerByPhone(phone);
+      final customerService = ref.read(supabaseCustomerServiceProvider);
+      final customer = await customerService.getCustomerByPhone(phone);
       setState(() {
         _foundCustomer = customer;
         if (customer != null) {
@@ -246,7 +244,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               updatedAt: DateTime.now(),
             );
 
-            await _customerService.updateCustomer(updatedCustomer);
+            final customerService = ref.read(supabaseCustomerServiceProvider);
+            await customerService.updateCustomer(updatedCustomer);
             orderCustomer = Customer(
               id: updatedCustomer.id,
               name: updatedCustomer.name,
@@ -270,7 +269,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           }
         } else {
           // Try searching one more time before creating
-          final existingCustomer = await _customerService.getCustomerByPhone(phone);
+          final customerService = ref.read(supabaseCustomerServiceProvider);
+          final existingCustomer = await customerService.getCustomerByPhone(phone);
           if (existingCustomer != null) {
             // Found existing customer, use it
             orderCustomer = Customer(
@@ -292,7 +292,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               updatedAt: DateTime.now(),
             );
 
-            final customerId = await _customerService.createCustomer(newCustomer);
+            final customerService = ref.read(supabaseCustomerServiceProvider);
+            final customerId = await customerService.createCustomer(newCustomer);
             if (customerId != null) {
               orderCustomer = Customer(
                 id: customerId,
@@ -337,14 +338,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
 
       // Check if this is a new order (empty ID) or existing order update
+      final orderService = ref.read(supabaseOrderServiceProvider);
       if (widget.order.id.isEmpty) {
         // Create new order
-        await _orderService.createOrder(updatedOrder);
+        await orderService.createOrder(updatedOrder);
         // Update the order number in success message with the new ID
         // (keep using the original orderNumber for display)
       } else {
         // Update existing order
-        await _orderService.updateOrder(updatedOrder);
+        await orderService.updateOrder(updatedOrder);
       }
 
       if (mounted) {
@@ -412,7 +414,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               updatedAt: DateTime.now(),
             );
 
-            await _customerService.updateCustomer(updatedCustomer);
+            final customerService = ref.read(supabaseCustomerServiceProvider);
+            await customerService.updateCustomer(updatedCustomer);
             orderCustomer = Customer(
               id: updatedCustomer.id,
               name: updatedCustomer.name,
@@ -436,7 +439,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           }
         } else {
           // Try searching one more time before creating
-          final existingCustomer = await _customerService.getCustomerByPhone(phone);
+          final customerService = ref.read(supabaseCustomerServiceProvider);
+          final existingCustomer = await customerService.getCustomerByPhone(phone);
           if (existingCustomer != null) {
             // Found existing customer, use it
             orderCustomer = Customer(
@@ -458,7 +462,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               updatedAt: DateTime.now(),
             );
 
-            final customerId = await _customerService.createCustomer(newCustomer);
+            final customerService = ref.read(supabaseCustomerServiceProvider);
+            final customerId = await customerService.createCustomer(newCustomer);
             if (customerId != null) {
               orderCustomer = Customer(
                 id: customerId,
@@ -503,12 +508,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
 
       // Check if this is a new order (empty ID) or existing order update
+      final orderService = ref.read(supabaseOrderServiceProvider);
       if (widget.order.id.isEmpty) {
         // Create new order
-        await _orderService.createOrder(updatedOrder);
+        await orderService.createOrder(updatedOrder);
       } else {
         // Update existing order
-        await _orderService.updateOrder(updatedOrder);
+        await orderService.updateOrder(updatedOrder);
       }
 
       if (mounted) {

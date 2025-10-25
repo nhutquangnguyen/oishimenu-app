@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1059403063653",
+    "project_id": "oishimenuapp",
+    "storage_bucket": "oishimenuapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1059403063653:android:85b30b25129d93d03d018c",
+        "android_client_info": {
+          "package_name": "com.oishimenu.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBuBrcn5Wlpk9M8vQRjLCpaMQcohbXEYzM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

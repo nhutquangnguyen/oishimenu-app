@@ -4,11 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
-import '../../services/menu_service.dart';
-import '../../../../services/menu_option_service.dart';
 import '../widgets/menu_item_card.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../../core/providers/supabase_providers.dart';
 
 class MenuPage extends ConsumerStatefulWidget {
   const MenuPage({super.key});
@@ -19,8 +18,6 @@ class MenuPage extends ConsumerStatefulWidget {
 
 class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMixin {
   late TabController _tabController;
-  final MenuService _menuService = MenuService();
-  final MenuOptionService _menuOptionService = MenuOptionService();
 
   List<MenuItem> _menuItems = [];
   Map<String, String> _categories = {};
@@ -87,13 +84,15 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         return;
       }
 
-      final menuItems = await _menuService.getAllMenuItems(userId: currentUser.id);
-      final categories = await _menuService.getCategories();
-      final optionGroups = await _menuOptionService.getAllOptionGroups(includeUnavailableOptions: true);
+      final menuService = ref.read(supabaseMenuServiceProvider);
+      final optionGroupService = ref.read(supabaseMenuOptionServiceProvider);
+      final menuItems = await menuService.getMenuItems();
+      final categories = await menuService.getCategories();
+      final optionGroups = await optionGroupService.getAllOptionGroups(includeUnavailableOptions: true);
 
       setState(() {
         _menuItems = menuItems;
-        _categories = categories;
+        _categories = {for (var cat in categories) cat.id: cat.name};
         _optionGroups = optionGroups;
         _isLoading = false;
       });
@@ -205,7 +204,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
   Widget _buildDraggableView() {
     return FutureBuilder<List<MenuCategory>>(
-      future: _menuService.getCategoriesOrdered(),
+      future: ref.read(supabaseMenuServiceProvider).getCategoriesOrdered(),
       builder: (context, categorySnapshot) {
         if (!categorySnapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -533,7 +532,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     final currentUser = ref.read(currentUserProvider);
     if (currentUser == null) return;
 
-    await _menuService.updateMenuItemStatus(menuItem.id, !menuItem.availableStatus, userId: currentUser.id);
+    await ref.read(supabaseMenuServiceProvider).updateMenuItemStatus(menuItem.id, !menuItem.availableStatus, userId: currentUser.id);
     await _loadMenuData();
   }
 
@@ -544,7 +543,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         updatedAt: DateTime.now(),
       );
 
-      final success = await _menuOptionService.updateMenuOption(updatedOption);
+      final success = await ref.read(supabaseMenuOptionServiceProvider).updateMenuOption(updatedOption);
       if (success) {
         await _loadMenuData();
       } else {
@@ -588,7 +587,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
               Navigator.pop(context);
               final currentUser = ref.read(currentUserProvider);
               if (currentUser != null) {
-                await _menuService.deleteMenuItem(menuItem.id, userId: currentUser.id);
+                await ref.read(supabaseMenuServiceProvider).deleteMenuItem(menuItem.id, userId: currentUser.id);
                 await _loadMenuData();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -635,7 +634,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) return;
 
-      await _menuService.updateMenuItemStatus(item.id, !item.availableStatus, userId: currentUser.id);
+      await ref.read(supabaseMenuServiceProvider).updateMenuItemStatus(item.id, !item.availableStatus, userId: currentUser.id);
       // Refresh the data to show the updated availability
       await _loadMenuData();
     } catch (e) {
@@ -674,7 +673,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       try {
         final currentUser = ref.read(currentUserProvider);
         if (currentUser != null) {
-          await _menuService.deleteMenuItem(item.id, userId: currentUser.id);
+          await ref.read(supabaseMenuServiceProvider).deleteMenuItem(item.id, userId: currentUser.id);
           await _loadMenuData();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -830,7 +829,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
   Future<void> _deleteOptionGroup(OptionGroup group) async {
     try {
-      final success = await _menuOptionService.deleteOptionGroup(group.id);
+      final success = await ref.read(supabaseMenuOptionServiceProvider).deleteOptionGroup(group.id);
 
       if (mounted) {
         if (success) {
@@ -906,7 +905,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) return;
 
-      final success = await _menuService.deleteCategory(category.id, userId: currentUser.id);
+      final success = await ref.read(supabaseMenuServiceProvider).deleteCategory(category.id, userId: currentUser.id);
       if (success && mounted) {
         await _loadMenuData();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1066,7 +1065,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
             updatedAt: DateTime.now(),
           );
 
-          final result = await _menuService.createCategory(category);
+          final result = await ref.read(supabaseMenuServiceProvider).createCategory(category);
           if (result != null && mounted) {
             await _loadMenuData();
             if (mounted) {
@@ -1166,7 +1165,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       reorderedCategories.insert(newIndex, movedCategory);
 
       // Update the service with the new order
-      final success = await _menuService.reorderCategories(reorderedCategories);
+      final success = await ref.read(supabaseMenuServiceProvider).reorderCategories(reorderedCategories);
 
       if (success) {
         // Refresh the data to reflect the changes
@@ -1221,7 +1220,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
       // Update the service with the new order
       final categoryId = int.tryParse(category.id) ?? 0;
-      final success = await _menuService.reorderMenuItems(reorderedItems, categoryId);
+      final success = await ref.read(supabaseMenuServiceProvider).reorderMenuItems(reorderedItems, categoryId);
 
       if (success) {
         // Refresh the data to reflect the changes
@@ -1328,7 +1327,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
       // Update the service with the new order
       final categoryId = int.tryParse(category.id) ?? 0;
-      final success = await _menuService.reorderMenuItems(reorderedItems, categoryId);
+      final success = await ref.read(supabaseMenuServiceProvider).reorderMenuItems(reorderedItems, categoryId);
 
       if (success) {
         await _loadMenuData();

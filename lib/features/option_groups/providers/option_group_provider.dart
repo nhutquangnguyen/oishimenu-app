@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../services/menu_option_service.dart';
+import '../../../services/supabase_service.dart';
 import '../../../models/menu_options.dart';
+import '../../../core/providers/supabase_providers.dart';
 
-// Service provider for option groups
-final optionGroupServiceProvider = Provider<MenuOptionService>((ref) {
-  return MenuOptionService();
+// Service provider for option groups - now using Supabase
+final optionGroupServiceProvider = Provider<SupabaseMenuOptionService>((ref) {
+  return ref.read(supabaseMenuOptionServiceProvider);
 });
 
 // Option groups list provider - fetches all active option groups

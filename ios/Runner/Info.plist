@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- REVERSED_CLIENT_ID from Google Cloud Console OAuth -->
+				<string>com.googleusercontent.apps.198270461285-l9bnra8gj4lnubtlce5auurcgem8md7h</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -1,21 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order.dart';
-import '../../../../services/order_service.dart';
+import '../../../../core/providers/supabase_providers.dart';
 import '../../../pos/presentation/pages/pos_page.dart';
 import '../../../checkout/presentation/pages/checkout_page.dart';
 
-class OrdersPage extends StatefulWidget {
+class OrdersPage extends ConsumerStatefulWidget {
   const OrdersPage({super.key});
 
   @override
-  State<OrdersPage> createState() => _OrdersPageState();
+  ConsumerState<OrdersPage> createState() => _OrdersPageState();
 }
 
-class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
-  final OrderService _orderService = OrderService();
 
   List<Order> _orders = [];
   bool _isLoading = true;
@@ -72,7 +72,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     }
 
     try {
-      final orders = await _orderService.getOrders();
+      final orderService = ref.read(supabaseOrderServiceProvider);
+      final orders = await orderService.getOrders();
       setState(() {
         _orders = orders;
         if (showLoading) {
@@ -811,7 +812,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         updatedAt: DateTime.now(),
       );
 
-      await _orderService.updateOrder(updatedOrder);
+      final orderService = ref.read(supabaseOrderServiceProvider);
+      await orderService.updateOrder(updatedOrder);
 
       // Reload orders to reflect changes
       await _loadOrders(showLoading: false);
@@ -885,7 +887,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               status: OrderStatus.cancelled,
               updatedAt: DateTime.now(),
             );
-            await _orderService.updateOrder(updatedOrder);
+            final orderService = ref.read(supabaseOrderServiceProvider);
+      await orderService.updateOrder(updatedOrder);
           }
           await _loadOrders(showLoading: false);
           return;
@@ -901,7 +904,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
           updatedAt: DateTime.now(),
         );
 
-        await _orderService.updateOrder(updatedOrder);
+        final orderService = ref.read(supabaseOrderServiceProvider);
+      await orderService.updateOrder(updatedOrder);
       } else {
         // Decrease quantity
         final updatedItems = List<OrderItem>.from(order.items);
@@ -928,7 +932,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
           updatedAt: DateTime.now(),
         );
 
-        await _orderService.updateOrder(updatedOrder);
+        final orderService = ref.read(supabaseOrderServiceProvider);
+      await orderService.updateOrder(updatedOrder);
       }
 
       // Reload orders
@@ -1020,7 +1025,8 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
           updatedAt: DateTime.now(),
         );
 
-        await _orderService.updateOrder(updatedOrder);
+        final orderService = ref.read(supabaseOrderServiceProvider);
+      await orderService.updateOrder(updatedOrder);
 
         // Reload orders
         await _loadOrders(showLoading: false);

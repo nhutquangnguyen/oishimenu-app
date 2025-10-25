@@ -4,11 +4,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 import 'core/config/app_theme.dart';
+import 'core/config/supabase_config.dart';
 import 'core/router/app_router.dart';
 import 'core/constants/app_constants.dart';
-import 'features/auth/services/auth_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
+import 'core/providers/supabase_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,9 +20,10 @@ void main() async {
   // Initialize Hive for local storage
   await Hive.initFlutter();
 
-  // Initialize auth service
-  final authService = AuthService();
-  await authService.initialize();
+  // Initialize Supabase
+  await SupabaseConfig.initialize();
+
+  // Supabase auth is automatically initialized through SupabaseConfig.initialize()
 
   // Sample data initialization removed - each user manages their own menu data
 
@@ -36,7 +38,7 @@ void main() async {
       startLocale: const Locale('vi'), // Set Vietnamese as default
       child: ProviderScope(
         overrides: [
-          authServiceProvider.overrideWithValue(authService),
+          authServiceProvider.overrideWith((ref) => SupabaseAuthServiceAdapter()),
         ],
         child: const OishiMenuApp(),
       ),

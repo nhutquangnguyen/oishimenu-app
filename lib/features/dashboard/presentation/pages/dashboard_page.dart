@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:go_router/go_router.dart';
 
 import '../widgets/best_sellers.dart';
 import '../widgets/sales_chart.dart';
@@ -113,6 +114,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          context.push('/test-supabase');
+        },
+        backgroundColor: Colors.blue[600],
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.cloud),
+        label: const Text('Test Supabase'),
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await _loadStatistics();

@@ -18,6 +18,8 @@ import '../../features/menu/presentation/pages/menu_item_editor_page.dart';
 import '../../features/menu/presentation/pages/scan_menu_page.dart';
 import '../../test_menu_editor.dart';
 import '../../test_scan_menu.dart';
+import '../../test_supabase.dart';
+import '../../quick_test_supabase.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../widgets/main_layout.dart';
 
@@ -36,7 +38,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       );
 
       final isOnAuthPage = state.fullPath == '/login' || state.fullPath == '/signup';
-      final isOnTestPage = state.fullPath == '/test' || state.fullPath == '/test-scan';
+      final isOnTestPage = state.fullPath == '/test' || state.fullPath == '/test-scan' || state.fullPath == '/test-supabase' || state.fullPath == '/quick-test';
 
       // Redirect to login if not authenticated and not on auth or test pages
       if (!isLoggedIn && !isOnAuthPage && !isOnTestPage) {
@@ -59,6 +61,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/test-scan',
         builder: (context, state) => const ScanMenuTestPage(),
+      ),
+      GoRoute(
+        path: '/test-supabase',
+        builder: (context, state) => const TestSupabasePage(),
+      ),
+      GoRoute(
+        path: '/quick-test',
+        builder: (context, state) => const QuickTestPage(),
       ),
 
       // Authentication routes
