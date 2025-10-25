@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order.dart';
@@ -12,7 +13,7 @@ class OrdersPage extends StatefulWidget {
   State<OrdersPage> createState() => _OrdersPageState();
 }
 
-class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateMixin {
+class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   final OrderService _orderService = OrderService();
 
@@ -22,17 +23,41 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   // Track completed items (orderId -> Set of item indices)
   final Map<String, Set<int>> _completedItems = {};
 
+  // Timer for periodic refresh
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addObserver(this);
     _loadOrders();
+    _startRefreshTimer();
+  }
+
+  void _startRefreshTimer() {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) {
+        _loadOrders();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh orders when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadOrders();
+    }
   }
 
   Future<void> _loadOrders() async {
