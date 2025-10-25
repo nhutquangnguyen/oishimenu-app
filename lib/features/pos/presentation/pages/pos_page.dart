@@ -228,7 +228,15 @@ class _PosPageState extends ConsumerState<PosPage> {
   Map<String, List<MenuItem>> get _itemsByCategory {
     final Map<String, List<MenuItem>> grouped = {};
 
+    // Get hot items to exclude from category sections (only when no category is selected)
+    final hotItemIds = _selectedCategory == null ? _hotItems.map((item) => item.id).toSet() : <String>{};
+
     for (var item in _filteredMenuItems) {
+      // Skip items that are already shown in hot items section (only when viewing all categories)
+      if (hotItemIds.contains(item.id)) {
+        continue;
+      }
+
       if (!grouped.containsKey(item.categoryName)) {
         grouped[item.categoryName] = [];
       }
