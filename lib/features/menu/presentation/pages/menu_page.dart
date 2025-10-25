@@ -27,7 +27,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   List<OptionGroup> _optionGroups = [];
   bool _isLoading = true;
   Map<String, bool> _expandedCategories = {};
-  Map<String, bool> _expandedOptionGroups = {};
   int _currentTabIndex = 0; // Track tab state independently
   bool _isNavigating = false; // Prevent double navigation
 
@@ -409,7 +408,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   }
 
   Widget _buildOptionGroupCard(OptionGroup group) {
-    final isExpanded = _expandedOptionGroups[group.id] ?? false;
 
     return Container(
       decoration: BoxDecoration(
@@ -429,12 +427,8 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         children: [
           // Option Group Header
           InkWell(
-            onTap: () {
-              setState(() {
-                _expandedOptionGroups[group.id] = !isExpanded;
-              });
-            },
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            onTap: () => _editOptionGroup(group),
+            borderRadius: BorderRadius.circular(12),
             child: Container(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -494,104 +488,10 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
                       ],
                     ),
                   ),
-                  // Action buttons
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        onPressed: () => _editOptionGroup(group),
-                        icon: const Icon(Icons.edit, size: 20),
-                        color: Colors.blue,
-                        tooltip: 'Chỉnh sửa',
-                      ),
-                      IconButton(
-                        onPressed: () => _showDeleteConfirmationForOptionGroup(group),
-                        icon: const Icon(Icons.delete, size: 20),
-                        color: Colors.red,
-                        tooltip: 'Xóa',
-                      ),
-                      Icon(
-                        isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                        color: Colors.grey[600],
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
           ),
-          // Option Items (when expanded)
-          if (isExpanded) ...[
-            const Divider(height: 1),
-            if (group.options.isNotEmpty)
-              ...group.options.map((option) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.grey[200]!),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            option.name,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          if (option.description?.isNotEmpty == true) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              option.description!,
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (option.price > 0) ...[
-                      Text(
-                        '+${option.price.toStringAsFixed(0)}đ',
-                        style: TextStyle(
-                          color: Colors.orange[700],
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    Switch(
-                      value: option.isAvailable,
-                      onChanged: (value) async {
-                        await _toggleOptionAvailability(option, value);
-                      },
-                      activeColor: Colors.green,
-                    ),
-                  ],
-                ),
-              ))
-            else
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Center(
-                  child: Text(
-                    'Chưa có tùy chọn nào trong nhóm này',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-          ],
         ],
       ),
     );

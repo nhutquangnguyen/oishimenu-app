@@ -1,25 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
 import '../../../models/menu_options.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/validation.dart';
 
 /// Card widget for displaying an option group in the list
-/// Shows key information and allows quick actions
+/// Shows key information and navigates to edit page when tapped
 class OptionGroupCard extends StatelessWidget {
   final OptionGroup optionGroup;
   final VoidCallback onTap;
-  final ValueChanged<bool>? onToggleRequired;
-  final VoidCallback? onDelete;
-  final bool showOptions;
 
   const OptionGroupCard({
     super.key,
     required this.optionGroup,
     required this.onTap,
-    this.onToggleRequired,
-    this.onDelete,
-    this.showOptions = false,
   });
 
   @override
@@ -38,226 +31,81 @@ class OptionGroupCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Group name and badges
+              Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Group name and badges
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                optionGroup.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                            if (optionGroup.isRequired)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                margin: const EdgeInsets.only(left: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'BẮT BUỘC',
-                                  style: TextStyle(
-                                    color: Colors.red[700],
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        // Selection rules and option count
-                        Text(
-                          '${optionGroup.options.length} tùy chọn • ${selectionRules.toString()}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                        // Description if available
-                        if (optionGroup.description?.isNotEmpty == true) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            optionGroup.description!,
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 12,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        // Price range
-                        if (optionGroup.options.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            _buildPriceRangeText(),
-                            style: TextStyle(
-                              color: theme.colorScheme.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ],
+                    child: Text(
+                      optionGroup.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                  // Action buttons
-                  PopupMenuButton<String>(
-                    onSelected: (value) => _handleMenuAction(context, value),
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.edit, size: 16),
-                            const SizedBox(width: 8),
-                            Text('option_groups_card.edit_button'.tr()),
-                          ],
-                        ),
+                  if (optionGroup.isRequired)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
                       ),
-                      if (onToggleRequired != null)
-                        PopupMenuItem(
-                          value: 'toggle_required',
-                          child: Row(
-                            children: [
-                              Icon(
-                                optionGroup.isRequired
-                                    ? Icons.toggle_on
-                                    : Icons.toggle_off,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(optionGroup.isRequired
-                                  ? 'option_groups_card.set_optional'.tr()
-                                  : 'option_groups_card.set_required'.tr()),
-                            ],
-                          ),
-                        ),
-                      PopupMenuItem(
-                        value: 'duplicate',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.copy, size: 16),
-                            const SizedBox(width: 8),
-                            Text('option_groups_card.duplicate_button'.tr()),
-                          ],
-                        ),
-                      ),
-                      if (onDelete != null) ...[
-                        const PopupMenuDivider(),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.delete, size: 16, color: Colors.red),
-                              const SizedBox(width: 8),
-                              Text('option_groups_card.delete_button'.tr(), style: const TextStyle(color: Colors.red)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
+                      margin: const EdgeInsets.only(left: 8),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Icon(
-                        Icons.more_vert,
-                        size: 16,
-                        color: Colors.grey[600],
+                      child: Text(
+                        'BẮT BUỘC',
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
-            ),
-            // Options preview (if enabled)
-            if (showOptions && optionGroup.options.isNotEmpty)
-              Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.grey[300]!),
-                  ),
-                ),
-                child: Column(
-                  children: optionGroup.options.take(3).map((option) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            optionGroup.maxSelection > 1
-                                ? Icons.check_box_outline_blank
-                                : Icons.radio_button_unchecked,
-                            size: 16,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              option.name,
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                          if (option.price > 0)
-                            Text(
-                              option.price.toOptionPrice(),
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+              const SizedBox(height: 4),
+              // Selection rules and option count
+              Text(
+                '${optionGroup.options.length} tùy chọn • ${selectionRules.toString()}',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
                 ),
               ),
-            // Show more indicator
-            if (showOptions && optionGroup.options.length > 3)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.grey[300]!),
+              // Description if available
+              if (optionGroup.description?.isNotEmpty == true) ...[
+                const SizedBox(height: 4),
+                Text(
+                  optionGroup.description!,
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 12,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              // Price range
+              if (optionGroup.options.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _buildPriceRangeText(),
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    '+${optionGroup.options.length - 3} tùy chọn khác',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-          ],
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -283,29 +131,4 @@ class OptionGroupCard extends StatelessWidget {
     }
   }
 
-  void _handleMenuAction(BuildContext context, String action) {
-    switch (action) {
-      case 'edit':
-        onTap();
-        break;
-      case 'toggle_required':
-        onToggleRequired?.call(!optionGroup.isRequired);
-        break;
-      case 'duplicate':
-        _showDuplicateSnackbar(context);
-        break;
-      case 'delete':
-        onDelete?.call();
-        break;
-    }
-  }
-
-  void _showDuplicateSnackbar(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('option_groups_card.duplicate_coming_soon'.tr(namedArgs: {'name': optionGroup.name})),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
 }
