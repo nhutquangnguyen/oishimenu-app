@@ -141,6 +141,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Future<void> _searchCustomerByPhone(String phone) async {
+    // Clear customer if phone is empty or too short
+    if (phone.trim().isEmpty) {
+      setState(() {
+        _foundCustomer = null;
+        _customerNameController.clear();
+      });
+      return;
+    }
+
     if (phone.length >= 3) {
       final customer = await _customerService.getCustomerByPhone(phone);
       setState(() {
@@ -648,8 +657,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ),
         const SizedBox(height: 12),
 
-        // Show indicator if customer found
-        if (_foundCustomer != null)
+        // Show indicator if customer found and phone field has content
+        if (_foundCustomer != null && _customerPhoneController.text.trim().isNotEmpty)
           Container(
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 12),
