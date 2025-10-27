@@ -93,9 +93,14 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
       print('🔄 _loadMenuData: Received ${categories.length} categories from service');
       print('📝 Category order in _loadMenuData: ${categories.map((c) => '${c.name}(${c.displayOrder})').join(', ')}');
+      print('📋 _loadMenuData: Received ${menuItems.length} menu items: ${menuItems.map((item) => '${item.name}(${item.availableStatus ? "available" : "unavailable"})').join(', ')}');
+
+      // Client-side filter as backup: only show available items
+      final availableMenuItems = menuItems.where((item) => item.availableStatus).toList();
+      print('📋 After client-side filtering: ${availableMenuItems.length} available items out of ${menuItems.length} total');
 
       setState(() {
-        _menuItems = menuItems;
+        _menuItems = availableMenuItems;
         _categories = {for (var cat in categories) cat.id: cat.name};
         _orderedCategories = categories; // Store ordered categories
         _optionGroups = optionGroups;
@@ -669,12 +674,53 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
             onPressed: () async {
               Navigator.pop(context);
               final currentUser = ref.read(currentUserProvider);
-              if (currentUser != null) {
+              if (currentUser == null) {
+                print('❌ No current user found for deletion');
+                return;
+              }
+
+              try {
+                print('🗑️ Starting deletion for "${menuItem.name}"');
+
+                // ✨ OPTIMISTIC UPDATE: Immediately remove the item from UI
+                final updatedMenuItems = _menuItems.where((item) => item.id != menuItem.id).toList();
+
+                // 🚀 Immediately update local state for smooth UI
+                setState(() {
+                  _menuItems = updatedMenuItems;
+                });
+
+                print('✅ UI updated immediately - item removed from display');
+
+                // 💾 Delete from database in background (no loading spinner)
                 await ref.read(supabaseMenuServiceProvider).deleteMenuItem(menuItem.id, userId: currentUser.id);
-                await _loadMenuData();
+
+                print('✅ Database deletion completed successfully');
+
+                // Show brief success feedback
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${menuItem.name} deleted')),
+                    SnackBar(
+                      content: Text('${menuItem.name} deleted'),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+
+              } catch (e) {
+                print('❌ Error deleting menu item: $e');
+
+                // ❌ Error occurred - revert UI and reload data
+                print('🔄 Database deletion failed, reverting UI changes and reloading...');
+                await _loadMenuData();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting ${menuItem.name}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }
@@ -703,9 +749,37 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     try {
       // Navigate to edit screen and wait for result
       final result = await context.push('/menu/items/${item.id}/edit');
-      // If the menu item was successfully updated, refresh the data
-      if (result == true && mounted) {
-        await _loadMenuData();
+
+      if (result != null && mounted) {
+        // Handle different types of results
+        if (result is Map<String, dynamic> && result['action'] == 'deleted') {
+          // Item was deleted - perform optimistic update
+          final deletedItemId = result['itemId'] as String?;
+          if (deletedItemId != null) {
+            print('📥 Received deletion result from editor for item: $deletedItemId');
+
+            // ✨ OPTIMISTIC UPDATE: Immediately remove the item from UI
+            final updatedMenuItems = _menuItems.where((menuItem) => menuItem.id != deletedItemId).toList();
+
+            setState(() {
+              _menuItems = updatedMenuItems;
+            });
+
+            print('✅ UI updated immediately - deleted item removed from display');
+
+            // Show success feedback
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Item deleted successfully'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else if (result == true) {
+          // Item was updated - refresh the data
+          await _loadMenuData();
+        }
       }
     } finally {
       _isNavigating = false;
@@ -755,19 +829,46 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     if (confirm == true) {
       try {
         final currentUser = ref.read(currentUserProvider);
-        if (currentUser != null) {
-          await ref.read(supabaseMenuServiceProvider).deleteMenuItem(item.id, userId: currentUser.id);
-          await _loadMenuData();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('menu_page.delete_item_success'.tr()),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+        if (currentUser == null) {
+          print('❌ No current user found for deletion');
+          return;
         }
+
+        print('🗑️ Starting deletion for "${item.name}"');
+
+        // ✨ OPTIMISTIC UPDATE: Immediately remove the item from UI
+        final updatedMenuItems = _menuItems.where((menuItem) => menuItem.id != item.id).toList();
+
+        // 🚀 Immediately update local state for smooth UI
+        setState(() {
+          _menuItems = updatedMenuItems;
+        });
+
+        print('✅ UI updated immediately - item removed from display');
+
+        // 💾 Delete from database in background (no loading spinner)
+        await ref.read(supabaseMenuServiceProvider).deleteMenuItem(item.id, userId: currentUser.id);
+
+        print('✅ Database deletion completed successfully');
+
+        // Show brief success feedback
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('menu_page.delete_item_success'.tr()),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
       } catch (e) {
+        print('❌ Error deleting menu item: $e');
+
+        // ❌ Error occurred - revert UI and reload data
+        print('🔄 Database deletion failed, reverting UI changes and reloading...');
+        await _loadMenuData();
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

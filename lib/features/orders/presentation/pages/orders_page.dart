@@ -40,7 +40,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   }
 
   void _startRefreshTimer() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    // 🚀 PERFORMANCE FIX: Reduced refresh frequency from 1s to 30s to reduce network traffic
+    // This reduces database calls from 60/minute to 2/minute (30x improvement!)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (mounted) {
         _loadOrders(showLoading: false); // Background refresh without loading indicator
       }
@@ -73,7 +75,12 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
 
     try {
       final orderService = ref.read(supabaseOrderServiceProvider);
-      final orders = await orderService.getOrders();
+
+      // 🚀 PERFORMANCE FIX: Add pagination limit to prevent loading too many historical orders
+      // This limits the database response size and improves loading speed
+      final orders = await orderService.getOrders(
+        limit: 100, // Limit to most recent 100 orders for better performance
+      );
 
       if (mounted) {
         setState(() {
@@ -83,6 +90,8 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           }
         });
       }
+
+      print('✅ Loaded ${orders.length} orders with pagination limit');
     } catch (e) {
       print('Error loading orders: $e');
       if (showLoading && mounted) {
@@ -817,12 +826,24 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         updatedAt: DateTime.now(),
       );
 
+      // 🚀 PERFORMANCE FIX: Optimistic update - update UI immediately
+      final orderIndex = _orders.indexWhere((o) => o.id == order.id);
+      if (orderIndex != -1) {
+        setState(() {
+          _orders[orderIndex] = updatedOrder;
+        });
+      }
+
+      // Update database in background (no reload needed!)
       final orderService = ref.read(supabaseOrderServiceProvider);
       await orderService.updateOrder(updatedOrder);
 
-      // Reload orders to reflect changes
-      await _loadOrders(showLoading: false);
+      print('✅ Quantity increased with optimistic update - no full reload!');
     } catch (e) {
+      // 🔄 Error occurred - revert UI and reload data
+      print('❌ Update failed, reverting optimistic changes...');
+      await _loadOrders(showLoading: false);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -937,13 +958,24 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           updatedAt: DateTime.now(),
         );
 
+        // 🚀 PERFORMANCE FIX: Optimistic update for decrease quantity
+        final orderIndex = _orders.indexWhere((o) => o.id == order.id);
+        if (orderIndex != -1) {
+          setState(() {
+            _orders[orderIndex] = updatedOrder;
+          });
+        }
+
         final orderService = ref.read(supabaseOrderServiceProvider);
       await orderService.updateOrder(updatedOrder);
-      }
 
-      // Reload orders
-      await _loadOrders(showLoading: false);
+        print('✅ Quantity decreased with optimistic update - no full reload!');
+      }
     } catch (e) {
+      // 🔄 Error occurred - revert UI and reload data
+      print('❌ Update failed, reverting optimistic changes...');
+      await _loadOrders(showLoading: false);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1030,11 +1062,18 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           updatedAt: DateTime.now(),
         );
 
+        // 🚀 PERFORMANCE FIX: Optimistic update for order cancellation
+        final orderIndex = _orders.indexWhere((o) => o.id == order.id);
+        if (orderIndex != -1) {
+          setState(() {
+            _orders[orderIndex] = updatedOrder;
+          });
+        }
+
         final orderService = ref.read(supabaseOrderServiceProvider);
       await orderService.updateOrder(updatedOrder);
 
-        // Reload orders
-        await _loadOrders(showLoading: false);
+        print('✅ Order cancelled with optimistic update - no full reload!');
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1045,6 +1084,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           );
         }
       } catch (e) {
+        // 🔄 Error occurred - revert UI and reload data
+        print('❌ Order cancellation failed, reverting optimistic changes...');
+        await _loadOrders(showLoading: false);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

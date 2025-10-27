@@ -956,7 +956,8 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
     try {
       await ref.read(supabaseMenuServiceProvider).deleteMenuItem(widget.menuItemId!, userId: currentUser.id);
       if (mounted) {
-        context.go('/menu');
+        // Return deletion success result to trigger optimistic update on menu page
+        context.pop({'action': 'deleted', 'itemId': widget.menuItemId});
       }
     } catch (e) {
       if (mounted) {

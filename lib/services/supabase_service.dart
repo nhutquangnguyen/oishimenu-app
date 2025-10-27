@@ -22,13 +22,24 @@ class SupabaseMenuService extends SupabaseService {
 
   Future<List<MenuItem>> getMenuItems() async {
     try {
-      final response = await SupabaseService.client
+      // Try with deleted_at filter first, fallback if column doesn't exist
+      dynamic query = SupabaseService.client
           .from('menu_items')
           .select('''
             *,
             menu_categories!inner(name, display_order)
-          ''')
-          .order('display_order', ascending: true);
+          ''');
+
+      try {
+        query = query.is_('deleted_at', null); // Filter out soft-deleted items (IS NULL)
+        print('✅ Using deleted_at IS NULL filter for soft delete');
+      } catch (e) {
+        // Column doesn't exist yet, fallback to filtering by available_status
+        print('⚠️ deleted_at column not found, using available_status filter instead');
+        query = query.eq('available_status', 1); // Only show available items
+      }
+
+      final response = await query.order('display_order', ascending: true);
 
       // Sort by category display_order first, then by menu item display_order
       final sortedResponse = List.from(response);
@@ -48,7 +59,7 @@ class SupabaseMenuService extends SupabaseService {
         return aItemOrder.compareTo(bItemOrder);
       });
 
-      return sortedResponse.map<MenuItem>((json) {
+      final menuItems = sortedResponse.map<MenuItem>((json) {
         // Transform Supabase response to match current MenuItem model
         final transformedJson = Map<String, dynamic>.from(json);
         transformedJson['category_name'] = json['menu_categories']['name'];
@@ -69,6 +80,9 @@ class SupabaseMenuService extends SupabaseService {
 
         return menuItem;
       }).toList();
+
+      print('📊 getMenuItems() returning ${menuItems.length} items: ${menuItems.map((item) => '${item.name}(${item.availableStatus ? "available" : "unavailable"})').join(', ')}');
+      return menuItems;
     } catch (e) {
       throw Exception('Failed to fetch menu items: $e');
     }
@@ -155,14 +169,22 @@ class SupabaseMenuService extends SupabaseService {
 
   Future<MenuItem?> getMenuItemById(String id) async {
     try {
-      final response = await SupabaseService.client
+      dynamic query = SupabaseService.client
           .from('menu_items')
           .select('''
             *,
             menu_categories!inner(name, display_order)
           ''')
-          .eq('id', id)
-          .maybeSingle();
+          .eq('id', id);
+
+      try {
+        query = query.isFilter('deleted_at', null); // Filter out soft-deleted items
+      } catch (e) {
+        // Column doesn't exist yet, continue without filter
+        print('⚠️ deleted_at column not found, skipping soft delete filter');
+      }
+
+      final response = await query.maybeSingle();
 
       if (response == null) {
         return null;
@@ -188,9 +210,148 @@ class SupabaseMenuService extends SupabaseService {
 
   Future<void> deleteMenuItem(String id, {String? userId}) async {
     try {
-      await SupabaseService.client.from('menu_items').delete().eq('id', id);
+      // Check if menu item is referenced by any ACTIVE order items
+      final activeOrderItemsCount = await _getActiveOrderItemsCountForMenuItem(id);
+      final totalOrderItemsCount = await _getTotalOrderItemsCountForMenuItem(id);
+
+      if (activeOrderItemsCount > 0) {
+        throw Exception('Cannot delete menu item: This item is currently in $activeOrderItemsCount active order(s). Complete or cancel these orders first.');
+      }
+
+      if (totalOrderItemsCount > 0) {
+        // Soft delete: item has been used in completed orders but not in active ones
+        await _softDeleteMenuItem(id);
+        print('✅ Menu item $id soft deleted (used in $totalOrderItemsCount completed orders)');
+      } else {
+        // Hard delete: item has never been used in any orders
+        await SupabaseService.client.from('menu_items').delete().eq('id', id);
+        print('✅ Menu item $id hard deleted (never used in orders)');
+      }
     } catch (e) {
+      if (e.toString().contains('Cannot delete menu item:')) {
+        rethrow; // Re-throw our specific error message
+      }
       throw Exception('Failed to delete menu item: $e');
+    }
+  }
+
+  /// Check how many active order items reference this menu item
+  Future<int> _getActiveOrderItemsCountForMenuItem(String menuItemId) async {
+    try {
+      final response = await SupabaseService.client
+          .from('order_items')
+          .select('id, orders!inner(status)')
+          .eq('menu_item_id', menuItemId)
+          .neq('orders.status', 'DELIVERED')     // Fixed: Use uppercase as stored in DB
+          .neq('orders.status', 'CANCELLED');    // Fixed: Use uppercase as stored in DB
+
+      return response.length;
+    } catch (e) {
+      print('❌ Error checking active order items count: $e');
+      return 0; // Return 0 if check fails, allowing deletion attempt
+    }
+  }
+
+  /// Check total order items that reference this menu item (including completed orders)
+  Future<int> _getTotalOrderItemsCountForMenuItem(String menuItemId) async {
+    try {
+      final response = await SupabaseService.client
+          .from('order_items')
+          .select('id')
+          .eq('menu_item_id', menuItemId);
+
+      return response.length;
+    } catch (e) {
+      print('❌ Error checking total order items count: $e');
+      return 0; // Return 0 if check fails, allowing deletion attempt
+    }
+  }
+
+  /// Perform soft delete by setting deleted_at timestamp
+  Future<void> _softDeleteMenuItem(String id) async {
+    try {
+      final now = DateTime.now().toIso8601String();
+      print('🔧 Setting deleted_at timestamp: $now for item $id');
+      await SupabaseService.client.from('menu_items').update({
+        'deleted_at': now,
+        'available_status': 0, // Also mark as unavailable
+        'updated_at': now,
+      }).eq('id', id);
+      print('✅ Soft delete update completed for item $id');
+    } catch (e) {
+      if (e.toString().contains('column') && e.toString().contains('deleted_at') && e.toString().contains('does not exist')) {
+        // Column doesn't exist, fallback to marking as unavailable only
+        print('⚠️ deleted_at column not found, fallback to marking as unavailable');
+        await SupabaseService.client.from('menu_items').update({
+          'available_status': 0,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', id);
+        return;
+      }
+      throw Exception('Failed to soft delete menu item: $e');
+    }
+  }
+
+  /// Get soft-deleted menu items (for potential restoration)
+  Future<List<MenuItem>> getSoftDeletedMenuItems() async {
+    try {
+      final response = await SupabaseService.client
+          .from('menu_items')
+          .select('''
+            *,
+            menu_categories!inner(name, display_order)
+          ''')
+          .not('deleted_at', 'is', null) // Only soft-deleted items
+          .order('deleted_at', ascending: false);
+
+      final items = response.map<MenuItem>((json) {
+        final transformedJson = Map<String, dynamic>.from(json);
+        transformedJson['created_at'] = DateTime.parse(json['created_at']).millisecondsSinceEpoch;
+        transformedJson['updated_at'] = DateTime.parse(json['updated_at']).millisecondsSinceEpoch;
+        return MenuItem.fromMap(transformedJson);
+      }).toList();
+
+      return items;
+    } catch (e) {
+      if (e.toString().contains('column') && e.toString().contains('deleted_at') && e.toString().contains('does not exist')) {
+        // Column doesn't exist yet, return empty list
+        print('⚠️ deleted_at column not found, returning empty list for soft-deleted items');
+        return [];
+      }
+      throw Exception('Failed to get soft deleted menu items: $e');
+    }
+  }
+
+  /// Restore a soft-deleted menu item
+  Future<void> restoreMenuItem(String id) async {
+    try {
+      await SupabaseService.client.from('menu_items').update({
+        'deleted_at': null,
+        'available_status': 1, // Restore as available
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', id);
+      print('✅ Menu item $id restored successfully');
+    } catch (e) {
+      throw Exception('Failed to restore menu item: $e');
+    }
+  }
+
+  /// Check if soft delete functionality is available (deleted_at column exists)
+  Future<bool> isSoftDeleteAvailable() async {
+    try {
+      // Try to query with deleted_at filter to check if column exists
+      await SupabaseService.client
+          .from('menu_items')
+          .select('id')
+          .isFilter('deleted_at', null)
+          .limit(1);
+      return true;
+    } catch (e) {
+      if (e.toString().contains('column') && e.toString().contains('deleted_at') && e.toString().contains('does not exist')) {
+        return false;
+      }
+      // Other errors are re-thrown
+      rethrow;
     }
   }
 
@@ -489,6 +650,80 @@ class SupabaseMenuService extends SupabaseService {
         // For other errors, re-throw
         rethrow;
       }
+    }
+  }
+
+  /// 🐛 DEBUG: Investigate why deletion says 7 active orders but UI shows no orders
+  Future<void> debugMenuItemDeletion(String menuItemId) async {
+    try {
+      print('🔍 DEBUG: Investigating menu item deletion issue for ID: $menuItemId');
+
+      // 1. Check all order_items that reference this menu item
+      print('\n📋 Step 1: Checking order_items table...');
+      final orderItems = await SupabaseService.client
+          .from('order_items')
+          .select('id, order_id, menu_item_id, quantity')
+          .eq('menu_item_id', menuItemId);
+
+      print('Found ${orderItems.length} order_items referencing this menu item:');
+      for (var item in orderItems) {
+        print('  - OrderItem ID: ${item['id']}, Order ID: ${item['order_id']}, Qty: ${item['quantity']}');
+      }
+
+      // 2. Check the orders that these order_items belong to
+      if (orderItems.isNotEmpty) {
+        print('\n📋 Step 2: Checking corresponding orders...');
+        final orderIds = orderItems.map((item) => item['order_id']).toSet().toList();
+
+        final orders = await SupabaseService.client
+            .from('orders')
+            .select('id, status, created_at, total_amount')
+            .inFilter('id', orderIds);
+
+        print('Found ${orders.length} orders (expected ${orderIds.length}):');
+        for (var order in orders) {
+          print('  - Order ID: ${order['id']}, Status: "${order['status']}", Created: ${order['created_at']}, Total: ${order['total_amount']}');
+        }
+
+        // 3. Check for orphaned order_items (order_items without corresponding orders)
+        final foundOrderIds = orders.map((o) => o['id']).toSet();
+        final orphanedOrderIds = orderIds.where((id) => !foundOrderIds.contains(id)).toList();
+
+        if (orphanedOrderIds.isNotEmpty) {
+          print('\n⚠️  Found ORPHANED order_items (no corresponding order):');
+          for (var orphanId in orphanedOrderIds) {
+            print('  - Missing Order ID: $orphanId');
+          }
+        }
+      }
+
+      // 4. Check the current logic result
+      print('\n📋 Step 3: Testing current deletion logic...');
+      final activeCount = await _getActiveOrderItemsCountForMenuItem(menuItemId);
+      final totalCount = await _getTotalOrderItemsCountForMenuItem(menuItemId);
+
+      print('Active order items count (current logic): $activeCount');
+      print('Total order items count: $totalCount');
+
+      // 5. Check all orders in database (to see if UI is filtering differently)
+      print('\n📋 Step 4: Checking all orders in database...');
+      final allOrders = await SupabaseService.client
+          .from('orders')
+          .select('id, status, created_at')
+          .order('created_at', ascending: false)
+          .limit(10);
+
+      print('Recent orders in database (last 10):');
+      if (allOrders.isEmpty) {
+        print('  - NO ORDERS FOUND in database!');
+      } else {
+        for (var order in allOrders) {
+          print('  - Order ID: ${order['id']}, Status: "${order['status']}", Created: ${order['created_at']}');
+        }
+      }
+
+    } catch (e) {
+      print('❌ DEBUG ERROR: $e');
     }
   }
 }
@@ -1878,7 +2113,7 @@ class SupabaseOrderService extends SupabaseService {
 
   // ============= ORDER CRUD OPERATIONS =============
 
-  /// Get all orders with optional filtering
+  /// Get all orders with optional filtering - OPTIMIZED to fix N+1 query problem
   Future<List<Order>> getOrders({
     OrderStatus? status,
     DateTime? startDate,
@@ -1887,41 +2122,44 @@ class SupabaseOrderService extends SupabaseService {
     String? customerId,
   }) async {
     try {
-      // Build query with fluent chaining
-      dynamic query = SupabaseService.client
+      // 🚀 PERFORMANCE FIX: Single optimized query with JOIN to get orders AND items in one call
+      dynamic ordersQuery = SupabaseService.client
           .from('orders')
           .select('''
             *,
-            customers(id, name, phone, email, address)
+            customers(id, name, phone, email, address),
+            order_items(*)
           ''');
 
       // Apply filters
       if (status != null) {
-        query = query.eq('status', status.value);
+        ordersQuery = ordersQuery.eq('status', status.value);
       }
 
       if (startDate != null) {
-        query = query.gte('created_at', startDate.toIso8601String());
+        ordersQuery = ordersQuery.gte('created_at', startDate.toIso8601String());
       }
 
       if (endDate != null) {
-        query = query.lte('created_at', endDate.toIso8601String());
+        ordersQuery = ordersQuery.lte('created_at', endDate.toIso8601String());
       }
 
       if (customerId != null) {
-        query = query.eq('customer_id', customerId);
+        ordersQuery = ordersQuery.eq('customer_id', customerId);
       }
 
       // Apply ordering and limit
-      query = query.order('created_at', ascending: false);
+      ordersQuery = ordersQuery.order('created_at', ascending: false);
 
       if (limit != null) {
-        query = query.limit(limit);
+        ordersQuery = ordersQuery.limit(limit);
       }
 
-      final response = await query;
+      print('🚀 Executing optimized single query for orders + items...');
+      final response = await ordersQuery;
+      print('✅ Single query completed! Processing ${response.length} orders...');
 
-      // Transform response to Order objects
+      // Transform response to Order objects with items included
       final orders = response.map<Order>((json) {
         // Transform Supabase response to match Order model
         final transformedJson = Map<String, dynamic>.from(json);
@@ -1947,15 +2185,15 @@ class SupabaseOrderService extends SupabaseService {
         transformedJson['created_at'] = json['created_at'];
         transformedJson['updated_at'] = json['updated_at'];
 
-        return Order.fromMap(transformedJson);
+        // 🚀 PERFORMANCE FIX: Process order items directly from JOIN result (no separate queries!)
+        final orderItemsJson = json['order_items'] as List? ?? [];
+        final orderItems = orderItemsJson.map<OrderItem>((item) => OrderItem.fromMap(item)).toList();
+
+        final order = Order.fromMap(transformedJson);
+        return order.copyWith(items: orderItems);
       }).toList();
 
-      // Load order items for each order
-      for (int i = 0; i < orders.length; i++) {
-        final orderItems = await getOrderItems(orders[i].id);
-        orders[i] = orders[i].copyWith(items: orderItems);
-      }
-
+      print('✅ Processed ${orders.length} orders with ${orders.fold(0, (sum, order) => sum + order.items.length)} total items');
       return orders;
     } catch (e) {
       print('❌ Error fetching orders: $e');
