@@ -7,9 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
-import '../../services/menu_service.dart';
-import '../../../../services/menu_option_service.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../../core/providers/supabase_providers.dart';
 
 class MenuItemEditorPage extends ConsumerStatefulWidget {
   final String? menuItemId;
@@ -31,12 +30,12 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
 
-  final MenuService _menuService = MenuService();
-  final MenuOptionService _optionService = MenuOptionService();
+  // Services will be initialized from providers in initState
   final ImagePicker _picker = ImagePicker();
 
   List<String> _photos = [];
   String _selectedCategoryName = '';
+  String _selectedCategoryId = '';
   List<String> _selectedOptionGroupIds = [];
   List<OptionGroup> _availableOptionGroups = [];
   List<Map<String, dynamic>> _categories = [];
@@ -76,14 +75,14 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         return;
       }
 
-      final optionGroups = await _optionService.getAllOptionGroups(includeUnavailableOptions: true);
-      final categories = await _menuService.getCategories();
+      final optionGroups = await ref.read(supabaseMenuOptionServiceProvider).getAllOptionGroups(includeUnavailableOptions: true);
+      final categories = await ref.read(supabaseMenuServiceProvider).getCategories();
 
       setState(() {
         _availableOptionGroups = optionGroups;
-        _categories = categories.entries.map((e) => {
-          'id': e.key,
-          'name': e.value,
+        _categories = categories.map((category) => {
+          'id': category.id,
+          'name': category.name,
         }).toList();
       });
 
@@ -106,14 +105,14 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) return;
 
-      final menuItems = await _menuService.getAllMenuItems(userId: currentUser.id);
+      final menuItems = await ref.read(supabaseMenuServiceProvider).getMenuItems();
       final menuItem = menuItems.firstWhere(
         (item) => item.id == widget.menuItemId,
         orElse: () => throw Exception('Menu item not found'),
       );
 
       // Load existing option groups for this menu item
-      final existingOptionGroups = await _optionService.getOptionGroupsForMenuItem(menuItem.id);
+      final existingOptionGroups = await ref.read(supabaseMenuOptionServiceProvider).getOptionGroupsForMenuItem(menuItem.id);
 
       // Populate form fields with existing data
       _nameController.text = menuItem.name;
@@ -123,6 +122,14 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       setState(() {
         _photos = List.from(menuItem.photos);
         _selectedCategoryName = menuItem.categoryName;
+
+        // Look up category ID from the category name
+        final matchingCategory = _categories.firstWhere(
+          (cat) => cat['name'] == menuItem.categoryName,
+          orElse: () => {'id': '', 'name': ''},
+        );
+        _selectedCategoryId = matchingCategory['id'];
+
         _selectedOptionGroupIds = existingOptionGroups.map((group) => group.id).toList();
         _originalAvailabilityStatus = menuItem.availableStatus;
         _originalCreatedAt = menuItem.createdAt;
@@ -904,7 +911,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
 
     setState(() => _isLoading = true);
     try {
-      await _menuService.deleteMenuItem(widget.menuItemId!, userId: currentUser.id);
+      await ref.read(supabaseMenuServiceProvider).deleteMenuItem(widget.menuItemId!, userId: currentUser.id);
       if (mounted) {
         context.go('/menu');
       }
@@ -972,7 +979,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         price: double.parse(_priceController.text),
-        categoryName: _selectedCategoryName,
+        categoryName: _selectedCategoryId, // Use category ID instead of name for Supabase
         photos: _photos,
         availableStatus: widget.menuItemId == null ? true : _originalAvailabilityStatus,
         createdAt: widget.menuItemId == null ? DateTime.now() : (_originalCreatedAt ?? DateTime.now()),
@@ -982,27 +989,25 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       print('Save handler - widget.menuItemId is null: ${widget.menuItemId == null}');
       print('Save handler - menuItem.id: ${menuItem.id}');
 
+      final menuService = ref.read(supabaseMenuServiceProvider);
+
       String savedMenuItemId;
       if (widget.menuItemId == null) {
         print('Taking CREATE path');
-        final result = await _menuService.createMenuItem(menuItem, userId: currentUser.id);
-        if (result == null) {
-          throw Exception('Failed to create menu item');
-        }
-        savedMenuItemId = result;
-        print('CREATE successful with ID: $result');
+        await menuService.createMenuItem(menuItem);
+        // For Supabase, we'll use the item ID that was set during creation
+        savedMenuItemId = menuItem.id.isNotEmpty ? menuItem.id : 'new_item';
+        print('CREATE successful');
       } else {
         print('Taking UPDATE path');
-        final success = await _menuService.updateMenuItem(menuItem, userId: currentUser.id);
-        if (!success) {
-          throw Exception('Failed to update menu item');
-        }
+        await menuService.updateMenuItem(menuItem);
         savedMenuItemId = widget.menuItemId!;
         print('UPDATE successful');
       }
 
-      // Save option group relationships
-      await _saveOptionGroupRelationships(savedMenuItemId);
+      // TODO: Save option group relationships
+      // Temporarily disabled until Supabase service supports option group relationships
+      // await _saveOptionGroupRelationships(savedMenuItemId);
 
       if (mounted) {
         context.pop(true);  // Return true to trigger refresh in calling page
@@ -1020,20 +1025,24 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
     setState(() => _isLoading = false);
   }
 
+  // TODO: Re-implement when Supabase service supports option group relationships
+  /*
   Future<void> _saveOptionGroupRelationships(String menuItemId) async {
     try {
+      final optionService = ref.read(supabaseMenuOptionServiceProvider);
+
       // For updates, we need to clear existing relationships first
       if (widget.menuItemId != null) {
-        final existingOptionGroups = await _optionService.getOptionGroupsForMenuItem(menuItemId);
+        final existingOptionGroups = await optionService.getOptionGroupsForMenuItem(menuItemId);
         for (final optionGroup in existingOptionGroups) {
-          await _optionService.disconnectMenuItemFromOptionGroup(menuItemId, optionGroup.id);
+          await optionService.disconnectMenuItemFromOptionGroup(menuItemId, optionGroup.id);
         }
       }
 
       // Connect the menu item to all selected option groups
       for (int i = 0; i < _selectedOptionGroupIds.length; i++) {
         final optionGroupId = _selectedOptionGroupIds[i];
-        await _optionService.connectMenuItemToOptionGroup(
+        await optionService.connectMenuItemToOptionGroup(
           menuItemId,
           optionGroupId,
           displayOrder: i,
@@ -1046,6 +1055,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       // Don't throw - we want the menu item to be saved even if option groups fail
     }
   }
+  */
 
   Widget _buildCategorySelectionModal() {
     return Container(
@@ -1084,6 +1094,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
                   onChanged: (value) {
                     setState(() {
                       _selectedCategoryName = category['name'];
+                      _selectedCategoryId = category['id'];
                       _isDirty = true;
                     });
                     Navigator.pop(context);

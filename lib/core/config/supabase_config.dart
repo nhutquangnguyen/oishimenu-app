@@ -13,6 +13,10 @@ class SupabaseConfig {
       url: url,
       anonKey: anonKey,
       debug: true, // Set to false in production
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+        autoRefreshToken: true,
+      ),
     );
   }
 }

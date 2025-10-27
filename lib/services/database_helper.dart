@@ -44,7 +44,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _createDatabase,
       onUpgrade: _upgradeDatabase,
     );
@@ -85,7 +85,7 @@ class DatabaseHelper {
         description TEXT,
         price REAL NOT NULL,
         category_id INTEGER,
-        user_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
         cost_price REAL,
         available_status INTEGER DEFAULT 1,
         availability_schedule TEXT, -- JSON for scheduling availability
@@ -563,6 +563,52 @@ class DatabaseHelper {
           updated_at INTEGER NOT NULL
         )
       ''');
+    }
+
+    if (oldVersion < 8 && newVersion >= 8) {
+      // Change user_id from INTEGER to TEXT for version 8 (Supabase UUID support)
+      // SQLite doesn't support ALTER COLUMN, so we need to recreate the menu_items table
+
+      // Step 1: Create new menu_items table with TEXT user_id
+      await db.execute('''
+        CREATE TABLE menu_items_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          price REAL NOT NULL,
+          category_id INTEGER,
+          user_id TEXT NOT NULL,
+          cost_price REAL,
+          available_status INTEGER DEFAULT 1,
+          availability_schedule TEXT,
+          photos TEXT,
+          display_order INTEGER DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (category_id) REFERENCES menu_categories (id),
+          FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+      ''');
+
+      // Step 2: Copy data from old table to new table, converting user_id to TEXT
+      await db.execute('''
+        INSERT INTO menu_items_new (
+          id, name, description, price, category_id, user_id, cost_price,
+          available_status, availability_schedule, photos, display_order,
+          created_at, updated_at
+        )
+        SELECT
+          id, name, description, price, category_id, CAST(user_id AS TEXT), cost_price,
+          available_status, availability_schedule, photos, display_order,
+          created_at, updated_at
+        FROM menu_items
+      ''');
+
+      // Step 3: Drop old table and rename new table
+      await db.execute('DROP TABLE menu_items');
+      await db.execute('ALTER TABLE menu_items_new RENAME TO menu_items');
+
+      print('✅ Successfully migrated menu_items.user_id from INTEGER to TEXT');
     }
   }
 

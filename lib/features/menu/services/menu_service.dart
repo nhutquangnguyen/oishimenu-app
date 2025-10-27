@@ -17,7 +17,7 @@ class MenuService {
         LEFT JOIN menu_categories ON menu_items.category_id = menu_categories.id
         WHERE menu_items.user_id = ?
         ORDER BY menu_categories.display_order ASC, menu_items.display_order ASC, menu_items.created_at ASC
-      ''', [int.tryParse(userId) ?? 0]);
+      ''', [userId]);
 
       return List.generate(maps.length, (i) {
         return MenuItem.fromMap(maps[i]);
@@ -39,7 +39,7 @@ class MenuService {
         LEFT JOIN menu_categories ON menu_items.category_id = menu_categories.id
         WHERE menu_items.category_id = ? AND menu_items.user_id = ?
         ORDER BY menu_items.display_order ASC, menu_items.created_at ASC
-      ''', [categoryId, int.tryParse(userId) ?? 0]);
+      ''', [categoryId, userId]);
 
       return List.generate(maps.length, (i) {
         return MenuItem.fromMap(maps[i]);
@@ -99,7 +99,7 @@ class MenuService {
           'updated_at': DateTime.now().millisecondsSinceEpoch,
         },
         where: 'id = ? AND user_id = ?',
-        whereArgs: [int.tryParse(itemId) ?? 0, int.tryParse(userId) ?? 0],
+        whereArgs: [int.tryParse(itemId) ?? 0, userId],
       );
     } catch (e) {
       print('Error updating menu item status: $e');
@@ -112,7 +112,7 @@ class MenuService {
       await db.delete(
         'menu_items',
         where: 'id = ? AND user_id = ?',
-        whereArgs: [int.tryParse(itemId) ?? 0, int.tryParse(userId) ?? 0],
+        whereArgs: [int.tryParse(itemId) ?? 0, userId],
       );
     } catch (e) {
       print('Error deleting menu item: $e');
@@ -127,7 +127,7 @@ class MenuService {
       final itemsInCategory = await db.query(
         'menu_items',
         where: 'category_id = ? AND user_id = ?',
-        whereArgs: [int.tryParse(categoryId) ?? 0, int.tryParse(userId) ?? 0],
+        whereArgs: [int.tryParse(categoryId) ?? 0, userId],
       );
 
       if (itemsInCategory.isNotEmpty) {
@@ -212,7 +212,7 @@ class MenuService {
       // Create menu item with category_id and user_id
       final itemData = menuItem.toMap();
       itemData['category_id'] = int.tryParse(categoryId);
-      itemData['user_id'] = int.tryParse(userId) ?? 0;
+      itemData['user_id'] = userId; // Store userId as-is (supports both numeric strings and UUIDs)
       itemData.remove('category_name'); // Remove the name field, use ID instead
 
       print('Inserting menu item data: $itemData');
@@ -263,7 +263,7 @@ class MenuService {
       // Update menu item with category_id
       final itemData = menuItem.toMap();
       itemData['category_id'] = int.tryParse(categoryId);
-      itemData['user_id'] = int.tryParse(userId) ?? 0;
+      itemData['user_id'] = userId; // Store userId as-is (supports both numeric strings and UUIDs)
       itemData.remove('category_name'); // Remove the name field, use ID instead
 
       print('Updating menu item data: $itemData');
@@ -273,7 +273,7 @@ class MenuService {
         'menu_items',
         itemData,
         where: 'id = ? AND user_id = ?',
-        whereArgs: [int.tryParse(menuItem.id) ?? 0, int.tryParse(userId) ?? 0],
+        whereArgs: [int.tryParse(menuItem.id) ?? 0, userId],
       );
 
       print('Update result: $result rows affected');

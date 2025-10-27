@@ -45,11 +45,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         context.go('/dashboard');
       }
     } on AuthException catch (e) {
-      ref.read(authErrorProvider.notifier).state = e.message;
+      if (mounted) {
+        ref.read(authErrorProvider.notifier).state = e.message;
+      }
     } catch (e) {
-      ref.read(authErrorProvider.notifier).state = AppLocalizations.error;
+      if (mounted) {
+        ref.read(authErrorProvider.notifier).state = AppLocalizations.error;
+      }
     } finally {
-      ref.read(authLoadingProvider.notifier).state = false;
+      if (mounted) {
+        ref.read(authLoadingProvider.notifier).state = false;
+      }
     }
   }
 
@@ -64,11 +70,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         context.go('/dashboard');
       }
     } on AuthException catch (e) {
-      ref.read(authErrorProvider.notifier).state = e.message;
+      if (mounted) {
+        ref.read(authErrorProvider.notifier).state = e.message;
+      }
     } catch (e) {
-      ref.read(authErrorProvider.notifier).state = AppLocalizations.failedGoogleSignin;
+      if (mounted) {
+        ref.read(authErrorProvider.notifier).state = AppLocalizations.failedGoogleSignin;
+      }
     } finally {
-      ref.read(authLoadingProvider.notifier).state = false;
+      if (mounted) {
+        ref.read(authLoadingProvider.notifier).state = false;
+      }
     }
   }
 

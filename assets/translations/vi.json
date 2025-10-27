@@ -848,7 +848,10 @@
     "delete_group_success": "Đã xóa nhóm tùy chọn \"{name}\" thành công",
     "cannot_undo_message": "Hành động này không thể hoàn tác.",
     "cancel_button": "Hủy",
-    "delete_button": "Xóa"
+    "delete_button": "Xóa",
+    "no_option_groups_title": "Chưa có nhóm tùy chọn",
+    "no_option_groups_subtitle": "Thêm nhóm tùy chọn đầu tiên của bạn",
+    "add_option_group_button": "Thêm nhóm tùy chọn"
   },
 
   "inventory_page": {

@@ -56,6 +56,21 @@
 				<string>com.googleusercontent.apps.198270461285-l9bnra8gj4lnubtlce5auurcgem8md7h</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>oishimenu</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>oishimenu</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>googlegmail</string>
+		<string>googleplus</string>
+		<string>googledrive</string>
+		<string>com.google.gpgmail</string>
 	</array>
 </dict>
 </plist>

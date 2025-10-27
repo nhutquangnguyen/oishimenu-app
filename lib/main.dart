@@ -7,6 +7,7 @@ import 'core/config/app_theme.dart';
 import 'core/config/supabase_config.dart';
 import 'core/router/app_router.dart';
 import 'core/constants/app_constants.dart';
+import 'core/services/deep_link_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'core/providers/supabase_providers.dart';
@@ -22,6 +23,9 @@ void main() async {
 
   // Initialize Supabase
   await SupabaseConfig.initialize();
+
+  // Initialize Deep Link Service for email confirmations
+  await DeepLinkService.initialize();
 
   // Supabase auth is automatically initialized through SupabaseConfig.initialize()
 

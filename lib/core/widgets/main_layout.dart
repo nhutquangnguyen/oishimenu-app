@@ -5,17 +5,22 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:easy_localization/easy_localization.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
-import '../../services/order_service.dart';
 import '../../models/order.dart';
 import '../localization/app_localizations.dart';
+import '../providers/supabase_providers.dart';
 
 // Provider for active orders count
 final activeOrdersCountProvider = StreamProvider<int>((ref) async* {
-  final orderService = OrderService();
+  final orderService = ref.read(supabaseOrderServiceProvider);
 
   while (true) {
     try {
-      final activeOrders = await orderService.getOrders(status: OrderStatus.pending);
+      // Get all orders and filter to match the logic in orders_page.dart
+      final allOrders = await orderService.getOrders();
+      final activeOrders = allOrders.where((order) =>
+        order.status != OrderStatus.delivered &&
+        order.status != OrderStatus.cancelled
+      ).toList();
       yield activeOrders.length;
     } catch (e) {
       yield 0;

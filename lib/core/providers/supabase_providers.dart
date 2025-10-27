@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 import '../../services/supabase_service.dart';
 import '../../models/user.dart';
 import '../../features/auth/services/auth_service.dart';
@@ -23,8 +23,8 @@ class SupabaseAuthServiceAdapter extends AuthService {
           fullName: user.userMetadata?['full_name'] ?? user.email ?? '',
           role: user.userMetadata?['role'] ?? 'staff',
           isActive: true,
-          createdAt: DateTime.parse(user.createdAt),
-          updatedAt: DateTime.parse(user.updatedAt ?? user.createdAt),
+          createdAt: _parseDateTime(user.createdAt),
+          updatedAt: _parseDateTime(user.updatedAt ?? user.createdAt),
         );
         _localCurrentUser = appUser;
         _localAuthStateController.add(appUser);
@@ -44,26 +44,79 @@ class SupabaseAuthServiceAdapter extends AuthService {
   @override
   Future<AppUser?> signInWithEmailAndPassword({required String email, required String password}) async {
     try {
+      print('🔵 Starting email login process...');
+      print('🔵 Email: $email');
+
       final response = await _supabaseAuthService.signInWithEmailAndPassword(email, password);
+
+      print('🔵 Supabase login response received');
+      print('🔵 User logged in: ${response.user != null}');
+      print('🔵 Session created: ${response.session != null}');
+
       if (response.user != null) {
+        print('🟢 User login successful: ${response.user!.email}');
         return currentUser;
       }
+
+      print('🔴 No user returned from login');
       return null;
+    } on AuthException catch (e) {
+      print('🔴 AuthException during login: ${e.message}');
+      rethrow; // Re-throw AuthException as-is
     } catch (e) {
-      throw Exception('Authentication failed: $e');
+      print('🔴 Unexpected error during login: $e');
+      print('🔴 Error type: ${e.runtimeType}');
+
+      // Convert generic errors to AuthException for consistent UI handling
+      if (e.toString().contains('invalid credentials') || e.toString().contains('Invalid login')) {
+        throw AuthException('Invalid email or password. Please check your credentials.');
+      } else if (e.toString().contains('email_not_confirmed')) {
+        throw AuthException('Please check your email and confirm your account.');
+      } else if (e.toString().contains('network')) {
+        throw AuthException('Network error. Please check your internet connection.');
+      } else {
+        throw AuthException('Login failed. Please try again.');
+      }
     }
   }
 
   @override
   Future<AppUser?> createUserWithEmailAndPassword({required String email, required String password, String? displayName}) async {
     try {
+      print('🔵 Starting email signup process...');
+      print('🔵 Email: $email');
+      print('🔵 Display Name: ${displayName ?? 'Not provided'}');
+
       final response = await _supabaseAuthService.signUp(email, password, fullName: displayName);
+
+      print('🔵 Supabase signup response received');
+      print('🔵 User created: ${response.user != null}');
+      print('🔵 Session created: ${response.session != null}');
+
       if (response.user != null) {
+        print('🟢 User signup successful: ${response.user!.email}');
         return currentUser;
       }
+
+      print('🔴 No user returned from signup');
       return null;
+    } on AuthException catch (e) {
+      print('🔴 AuthException during signup: ${e.message}');
+      rethrow; // Re-throw AuthException as-is
     } catch (e) {
-      throw Exception('Account creation failed: $e');
+      print('🔴 Unexpected error during signup: $e');
+      print('🔴 Error type: ${e.runtimeType}');
+
+      // Convert generic errors to AuthException for consistent UI handling
+      if (e.toString().contains('already registered')) {
+        throw AuthException('An account with this email already exists.');
+      } else if (e.toString().contains('invalid email')) {
+        throw AuthException('Please enter a valid email address.');
+      } else if (e.toString().contains('weak password')) {
+        throw AuthException('Password is too weak. Please choose a stronger password.');
+      } else {
+        throw AuthException('Account creation failed. Please try again.');
+      }
     }
   }
 
@@ -89,6 +142,42 @@ class SupabaseAuthServiceAdapter extends AuthService {
       return null;
     } catch (e) {
       throw Exception('Google sign-in failed: $e');
+    }
+  }
+
+  /// Helper method to safely parse DateTime from various formats
+  DateTime _parseDateTime(dynamic dateValue) {
+    if (dateValue == null) {
+      return DateTime.now();
+    }
+
+    try {
+      // If it's already a DateTime, return as-is
+      if (dateValue is DateTime) {
+        return dateValue;
+      }
+
+      // If it's a string, try to parse it
+      if (dateValue is String) {
+        return DateTime.parse(dateValue);
+      }
+
+      // If it's a number (timestamp in milliseconds or seconds)
+      if (dateValue is int) {
+        // Check if it's in milliseconds (13 digits) or seconds (10 digits)
+        if (dateValue.toString().length == 13) {
+          return DateTime.fromMillisecondsSinceEpoch(dateValue);
+        } else {
+          return DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+        }
+      }
+
+      // Fallback to current time
+      print('🔴 Warning: Could not parse dateValue: $dateValue (${dateValue.runtimeType})');
+      return DateTime.now();
+    } catch (e) {
+      print('🔴 Error parsing dateValue: $dateValue, error: $e');
+      return DateTime.now();
     }
   }
 }

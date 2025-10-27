@@ -854,7 +854,10 @@
     "delete_group_success": "Option group \"{name}\" deleted successfully",
     "cannot_undo_message": "This action cannot be undone.",
     "cancel_button": "Cancel",
-    "delete_button": "Delete"
+    "delete_button": "Delete",
+    "no_option_groups_title": "No option groups yet",
+    "no_option_groups_subtitle": "Add your first option group",
+    "add_option_group_button": "Add Option Group"
   },
 
   "inventory_page": {
