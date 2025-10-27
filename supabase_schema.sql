@@ -269,6 +269,18 @@ CREATE TABLE public.order_sources (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Finance Entries table
+CREATE TABLE public.finance_entries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+    amount DECIMAL(10,2) NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL,
+    user_id UUID REFERENCES public.users(id) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_menu_items_category_id ON public.menu_items(category_id);
 CREATE INDEX idx_menu_items_user_id ON public.menu_items(user_id);
@@ -280,6 +292,9 @@ CREATE INDEX idx_order_items_menu_item_id ON public.order_items(menu_item_id);
 CREATE INDEX idx_inventory_transactions_ingredient_id ON public.inventory_transactions(ingredient_id);
 CREATE INDEX idx_recipes_menu_item_id ON public.recipes(menu_item_id);
 CREATE INDEX idx_recipes_ingredient_id ON public.recipes(ingredient_id);
+CREATE INDEX idx_finance_entries_user_id ON public.finance_entries(user_id);
+CREATE INDEX idx_finance_entries_created_at ON public.finance_entries(created_at);
+CREATE INDEX idx_finance_entries_type ON public.finance_entries(type);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -301,6 +316,7 @@ CREATE TRIGGER update_restaurant_tables_updated_at BEFORE UPDATE ON public.resta
 CREATE TRIGGER update_menu_options_updated_at BEFORE UPDATE ON public.menu_options FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_option_groups_updated_at BEFORE UPDATE ON public.option_groups FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_order_sources_updated_at BEFORE UPDATE ON public.order_sources FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_finance_entries_updated_at BEFORE UPDATE ON public.finance_entries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Enable Row Level Security (RLS) for all tables
 -- You can customize these policies based on your needs
@@ -323,6 +339,7 @@ ALTER TABLE public.option_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.option_group_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_item_option_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.finance_entries ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (adjust these based on your authentication requirements)
 -- These are basic policies - you should customize them for your needs
@@ -347,6 +364,7 @@ CREATE POLICY "Allow authenticated read access" ON public.option_groups FOR SELE
 CREATE POLICY "Allow authenticated read access" ON public.option_group_options FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow authenticated read access" ON public.menu_item_option_groups FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow authenticated read access" ON public.order_sources FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated read access" ON public.finance_entries FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Allow authenticated users to insert/update/delete (you may want to restrict this further)
 CREATE POLICY "Allow authenticated write access" ON public.menu_categories FOR ALL USING (auth.role() = 'authenticated');
@@ -367,6 +385,7 @@ CREATE POLICY "Allow authenticated write access" ON public.option_groups FOR ALL
 CREATE POLICY "Allow authenticated write access" ON public.option_group_options FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow authenticated write access" ON public.menu_item_option_groups FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow authenticated write access" ON public.order_sources FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated write access" ON public.finance_entries FOR ALL USING (auth.role() = 'authenticated');
 
 -- Insert sample data
 -- Sample menu categories

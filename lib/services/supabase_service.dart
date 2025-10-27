@@ -2944,3 +2944,216 @@ class SupabaseOrderSourceService extends SupabaseService {
     return id;
   }
 }
+
+/// Finance entries management service using Supabase
+class SupabaseFinanceService extends SupabaseService {
+
+  // ============= FINANCE ENTRY CRUD OPERATIONS =============
+
+  /// Create a new finance entry
+  Future<String> createFinanceEntry({
+    required String type, // 'income' or 'expense'
+    required double amount,
+    required String description,
+    required String category,
+  }) async {
+    try {
+      final currentUser = SupabaseService.client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Try to get a valid user ID
+      String? userIdToUse;
+      try {
+        userIdToUse = await _getValidUserId(currentUser);
+        print('Using user ID for finance entry: $userIdToUse');
+      } catch (e) {
+        print('Could not resolve user ID: $e');
+        throw Exception('User authentication failed');
+      }
+
+      final data = {
+        'type': type,
+        'amount': amount,
+        'description': description,
+        'category': category,
+        'user_id': userIdToUse,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      final response = await SupabaseService.client
+          .from('finance_entries')
+          .insert(data)
+          .select('id')
+          .single();
+
+      print('✅ Finance entry created successfully');
+      return response['id'] as String;
+    } catch (e) {
+      print('❌ Error creating finance entry: $e');
+      throw Exception('Failed to create finance entry: $e');
+    }
+  }
+
+  /// Get finance entries with optional filtering
+  Future<List<Map<String, dynamic>>> getFinanceEntries({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? type, // 'income' or 'expense'
+    String? userId,
+  }) async {
+    try {
+      dynamic query = SupabaseService.client
+          .from('finance_entries')
+          .select();
+
+      // Filter by date range
+      if (startDate != null) {
+        query = query.gte('created_at', startDate.toIso8601String());
+      }
+      if (endDate != null) {
+        query = query.lte('created_at', endDate.toIso8601String());
+      }
+
+      // Filter by type
+      if (type != null) {
+        query = query.eq('type', type);
+      }
+
+      // Filter by user (optional)
+      if (userId != null) {
+        query = query.eq('user_id', userId);
+      }
+
+      // Order by creation date (newest first)
+      query = query.order('created_at', ascending: false);
+
+      final response = await query;
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('❌ Error fetching finance entries: $e');
+      return [];
+    }
+  }
+
+  /// Get today's finance entries
+  Future<List<Map<String, dynamic>>> getTodayFinanceEntries() async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    return getFinanceEntries(
+      startDate: startOfDay,
+      endDate: endOfDay,
+    );
+  }
+
+  /// Get finance summary for a date range
+  Future<Map<String, double>> getFinanceSummary({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      final entries = await getFinanceEntries(
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      double totalIncome = 0.0;
+      double totalExpenses = 0.0;
+
+      for (final entry in entries) {
+        final amount = (entry['amount'] as num).toDouble();
+        if (entry['type'] == 'income') {
+          totalIncome += amount;
+        } else if (entry['type'] == 'expense') {
+          totalExpenses += amount;
+        }
+      }
+
+      return {
+        'income': totalIncome,
+        'expenses': totalExpenses,
+        'profit': totalIncome - totalExpenses,
+      };
+    } catch (e) {
+      print('❌ Error calculating finance summary: $e');
+      return {
+        'income': 0.0,
+        'expenses': 0.0,
+        'profit': 0.0,
+      };
+    }
+  }
+
+  /// Update finance entry
+  Future<void> updateFinanceEntry({
+    required String id,
+    required String type,
+    required double amount,
+    required String description,
+    required String category,
+  }) async {
+    try {
+      final data = {
+        'type': type,
+        'amount': amount,
+        'description': description,
+        'category': category,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      await SupabaseService.client
+          .from('finance_entries')
+          .update(data)
+          .eq('id', id);
+
+      print('✅ Finance entry updated successfully');
+    } catch (e) {
+      print('❌ Error updating finance entry: $e');
+      throw Exception('Failed to update finance entry: $e');
+    }
+  }
+
+  /// Delete finance entry
+  Future<void> deleteFinanceEntry(String id) async {
+    try {
+      await SupabaseService.client
+          .from('finance_entries')
+          .delete()
+          .eq('id', id);
+
+      print('✅ Finance entry deleted successfully');
+    } catch (e) {
+      print('❌ Error deleting finance entry: $e');
+      throw Exception('Failed to delete finance entry: $e');
+    }
+  }
+
+  // ============= HELPER METHODS =============
+
+  /// Get valid user ID for the current user
+  Future<String> _getValidUserId(User currentUser) async {
+    try {
+      // First try to get user record from the database
+      final userRecord = await SupabaseService.client
+          .from('users')
+          .select('id')
+          .eq('email', currentUser.email!)
+          .maybeSingle();
+
+      if (userRecord != null) {
+        return userRecord['id'] as String;
+      }
+
+      // If no user record exists, use the auth user ID
+      return currentUser.id;
+    } catch (e) {
+      print('❌ Error getting valid user ID: $e');
+      throw Exception('Could not determine user ID');
+    }
+  }
+}

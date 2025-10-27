@@ -6,6 +6,7 @@ import '../../../../models/order.dart';
 import '../../../../models/order_source.dart';
 import '../../../../models/customer.dart' as customer_model;
 import '../../../../core/providers/supabase_providers.dart';
+import '../../../../services/supabase_service.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final Order order;
@@ -517,6 +518,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         await orderService.updateOrder(updatedOrder);
       }
 
+      // 🆕 Automatically create finance income entry when order is delivered
+      await _createFinanceIncomeEntry(updatedOrder);
+
       if (mounted) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -546,6 +550,50 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
         );
       }
+    }
+  }
+
+  /// Automatically create a finance income entry when an order is delivered
+  Future<void> _createFinanceIncomeEntry(Order order) async {
+    try {
+      final financeService = SupabaseFinanceService();
+
+      // Calculate net amount after commission (if applicable)
+      double netAmount = order.total;
+      String incomeDescription = 'Order ${order.orderNumber}';
+
+      // If commission was charged, subtract it from the income
+      if (_commissionAmount > 0) {
+        netAmount = order.total - _commissionAmount;
+        incomeDescription += ' (Net after ${_selectedOrderSource?.name} commission)';
+      }
+
+      // Add order ID to description for better tracking and duplicate prevention
+      incomeDescription += ' [ID: ${order.id}]';
+
+      // Create income entry for the order
+      await financeService.createFinanceEntry(
+        type: 'income',
+        amount: netAmount,
+        description: incomeDescription,
+        category: 'Sales - ${_selectedOrderSource?.name ?? 'Direct'}',
+      );
+
+      // If there was commission, also create an expense entry for the commission
+      if (_commissionAmount > 0) {
+        await financeService.createFinanceEntry(
+          type: 'expense',
+          amount: _commissionAmount,
+          description: 'Commission for Order ${order.orderNumber} [ID: ${order.id}]',
+          category: 'Commission - ${_selectedOrderSource?.name}',
+        );
+      }
+
+      print('✅ Finance entries created for order ${order.orderNumber}: Income: ${netAmount}đ, Commission: ${_commissionAmount}đ');
+    } catch (e) {
+      print('❌ Error creating finance entry for order ${order.orderNumber}: $e');
+      // Don't throw the error - we don't want to fail the checkout if finance entry creation fails
+      // The order completion is more important than the finance tracking
     }
   }
 
