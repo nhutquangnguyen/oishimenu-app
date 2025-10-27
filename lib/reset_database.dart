@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'services/database_helper.dart';
-import 'services/inventory_service.dart';
-import 'services/menu_option_service.dart';
+import 'core/config/supabase_config.dart';
+import 'core/providers/supabase_providers.dart';
+import 'services/supabase_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase
+  await SupabaseConfig.initialize();
+
   runApp(const ProviderScope(child: DatabaseResetApp()));
 }
 
@@ -24,14 +29,14 @@ class DatabaseResetApp extends StatelessWidget {
   }
 }
 
-class DatabaseResetPage extends StatefulWidget {
+class DatabaseResetPage extends ConsumerStatefulWidget {
   const DatabaseResetPage({super.key});
 
   @override
-  State<DatabaseResetPage> createState() => _DatabaseResetPageState();
+  ConsumerState<DatabaseResetPage> createState() => _DatabaseResetPageState();
 }
 
-class _DatabaseResetPageState extends State<DatabaseResetPage> {
+class _DatabaseResetPageState extends ConsumerState<DatabaseResetPage> {
   bool _isResetting = false;
   bool _isCleaning = false;
   String _status = '';
@@ -39,48 +44,47 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
   Future<void> _resetDatabase() async {
     setState(() {
       _isResetting = true;
-      _status = 'Resetting database...';
+      _status = 'Resetting Supabase data...';
     });
 
     try {
-      final dbHelper = DatabaseHelper();
+      // Get Supabase services
+      final inventoryService = ref.read(supabaseInventoryServiceProvider);
+      final menuService = ref.read(supabaseMenuServiceProvider);
+      final orderService = ref.read(supabaseOrderServiceProvider);
+      final customerService = ref.read(supabaseCustomerServiceProvider);
+      final orderSourceService = ref.read(supabaseOrderSourceServiceProvider);
 
-      // Delete the existing database
+      // Clear existing data (WARNING: This will delete all user data!)
       setState(() {
-        _status = 'Deleting old database...';
-      });
-      await dbHelper.deleteDatabase();
-
-      // Create fresh database with new schema
-      setState(() {
-        _status = 'Creating fresh database with inventory tables...';
-      });
-      final db = await dbHelper.database;
-
-      // Verify inventory tables exist
-      setState(() {
-        _status = 'Verifying inventory tables...';
+        _status = 'Clearing existing data from Supabase...';
       });
 
-      final tables = await db.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%stock%' OR name LIKE '%ingredient%'"
-      );
+      // Clear tables in dependency order (most dependent first)
+      await SupabaseService.client.from('order_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('inventory_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('stocktake_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('stocktake_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('ingredients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('menu_item_option_groups').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('option_group_options').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('menu_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('option_groups').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('menu_options').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('menu_categories').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('customers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await SupabaseService.client.from('order_sources').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
-      print('📊 Database tables found:');
-      for (final table in tables) {
-        print('  - ${table['name']}');
-      }
-
-      // Create sample inventory data
+      // Initialize default order sources
       setState(() {
-        _status = 'Creating sample Vietnamese inventory data...';
+        _status = 'Creating default order sources...';
       });
+      await orderSourceService.initializeDefaultOrderSources();
 
-      final inventoryService = InventoryService();
-      await inventoryService.createSampleInventoryData();
-
+      // Note: Sample inventory data creation would need to be implemented in SupabaseInventoryService
       setState(() {
-        _status = '✅ Database reset complete! Inventory system ready.';
+        _status = '✅ Supabase data reset complete! Ready for fresh data.';
         _isResetting = false;
       });
 
@@ -89,30 +93,76 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
         _status = '❌ Error: $e';
         _isResetting = false;
       });
+      print('Reset error: $e');
     }
   }
 
   Future<void> _cleanupDatabase() async {
     setState(() {
       _isCleaning = true;
-      _status = 'Starting database cleanup...';
+      _status = 'Starting Supabase data cleanup...';
     });
 
     try {
-      final menuOptionService = MenuOptionService();
-
       setState(() {
-        _status = 'Cleaning up orphaned junction records...';
+        _status = 'Checking for orphaned records...';
       });
 
-      final results = await menuOptionService.performDatabaseCleanup();
+      int totalCleaned = 0;
 
-      final totalCleaned = results.values.fold(0, (sum, count) => sum + count);
+      // Clean orphaned option group options (options that reference non-existent option groups)
+      setState(() {
+        _status = 'Cleaning orphaned option group options...';
+      });
+
+      final orphanedGroupOptions = await SupabaseService.client
+          .from('option_group_options')
+          .select('id')
+          .not('option_group_id', 'in', '(${SupabaseService.client.from('option_groups').select('id')})');
+
+      if (orphanedGroupOptions.isNotEmpty) {
+        final orphanedIds = orphanedGroupOptions.map((record) => record['id']).toList();
+        await SupabaseService.client.from('option_group_options').delete().in_('id', orphanedIds);
+        totalCleaned += orphanedGroupOptions.length;
+      }
+
+      // Clean orphaned menu item option groups (references to non-existent menu items or option groups)
+      setState(() {
+        _status = 'Cleaning orphaned menu item option groups...';
+      });
+
+      final orphanedItemOptions = await SupabaseService.client
+          .from('menu_item_option_groups')
+          .select('id')
+          .not('menu_item_id', 'in', '(${SupabaseService.client.from('menu_items').select('id')})')
+          .not('option_group_id', 'in', '(${SupabaseService.client.from('option_groups').select('id')})');
+
+      if (orphanedItemOptions.isNotEmpty) {
+        final orphanedIds = orphanedItemOptions.map((record) => record['id']).toList();
+        await SupabaseService.client.from('menu_item_option_groups').delete().in_('id', orphanedIds);
+        totalCleaned += orphanedItemOptions.length;
+      }
+
+      // Clean orphaned stocktake items (references to non-existent sessions or ingredients)
+      setState(() {
+        _status = 'Cleaning orphaned stocktake items...';
+      });
+
+      final orphanedStocktakeItems = await SupabaseService.client
+          .from('stocktake_items')
+          .select('id')
+          .not('session_id', 'in', '(${SupabaseService.client.from('stocktake_sessions').select('id')})')
+          .not('ingredient_id', 'in', '(${SupabaseService.client.from('ingredients').select('id')})');
+
+      if (orphanedStocktakeItems.isNotEmpty) {
+        final orphanedIds = orphanedStocktakeItems.map((record) => record['id']).toList();
+        await SupabaseService.client.from('stocktake_items').delete().in_('id', orphanedIds);
+        totalCleaned += orphanedStocktakeItems.length;
+      }
 
       setState(() {
-        _status = '✅ Database cleanup complete! Cleaned $totalCleaned orphaned records.\n\n'
-            'Option group junctions: ${results['optionGroupJunctions'] ?? 0}\n'
-            'Menu item option groups: ${results['menuItemOptionGroupJunctions'] ?? 0}';
+        _status = '✅ Supabase cleanup complete! Cleaned $totalCleaned orphaned records.\n\n'
+            'Data integrity verified and optimized.';
         _isCleaning = false;
       });
 
@@ -121,6 +171,7 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
         _status = '❌ Cleanup Error: $e';
         _isCleaning = false;
       });
+      print('Cleanup error: $e');
     }
   }
 
@@ -128,7 +179,7 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Database Reset Tool'),
+        title: const Text('Supabase Data Management'),
         backgroundColor: Colors.red[600],
         foregroundColor: Colors.white,
       ),
@@ -144,13 +195,13 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Database Reset Required',
+              'Supabase Data Management',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             const Text(
-              'To see the new inventory functionality, we need to reset the database to version 4 with the new stocktake tables.',
+              'Manage your cloud database data with Supabase. Clean orphaned records or reset all data.',
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
@@ -178,7 +229,7 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
               ElevatedButton.icon(
                 onPressed: _cleanupDatabase,
                 icon: const Icon(Icons.cleaning_services),
-                label: const Text('Clean Database (Fix Option Groups)'),
+                label: const Text('Clean Supabase Data'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[600],
                   foregroundColor: Colors.white,
@@ -189,7 +240,7 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
               ElevatedButton.icon(
                 onPressed: _resetDatabase,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Full Reset & Create Inventory'),
+                label: const Text('Reset All Supabase Data'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[600],
                   foregroundColor: Colors.white,
@@ -200,15 +251,15 @@ class _DatabaseResetPageState extends State<DatabaseResetPage> {
 
             const SizedBox(height: 24),
             const Text(
-              'Clean Database:\n'
-              '• Remove orphaned option group records (recommended first)\n'
-              '• Fix performance issues and navigation errors\n'
-              '• Keep all existing data\n\n'
-              'Full Reset:\n'
-              '• Delete existing database\n'
-              '• Create fresh schema with inventory tables\n'
-              '• Add sample Vietnamese restaurant ingredients\n'
-              '• Enable stocktake functionality',
+              'Clean Supabase Data:\n'
+              '• Remove orphaned records and fix data integrity\n'
+              '• Optimize database performance\n'
+              '• Keep all valid data (recommended first)\n\n'
+              'Reset All Supabase Data:\n'
+              '• WARNING: Delete all user data in cloud database\n'
+              '• Initialize default order sources\n'
+              '• Reset to fresh state for testing\n'
+              '• Use with extreme caution in production!',
               style: TextStyle(fontSize: 12, color: Colors.grey),
               textAlign: TextAlign.center,
             ),

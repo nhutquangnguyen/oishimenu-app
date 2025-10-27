@@ -40,7 +40,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   }
 
   void _startRefreshTimer() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         _loadOrders(showLoading: false); // Background refresh without loading indicator
       }
@@ -67,22 +67,25 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   }
 
   Future<void> _loadOrders({bool showLoading = true}) async {
-    if (showLoading) {
+    if (showLoading && mounted) {
       setState(() => _isLoading = true);
     }
 
     try {
       final orderService = ref.read(supabaseOrderServiceProvider);
       final orders = await orderService.getOrders();
-      setState(() {
-        _orders = orders;
-        if (showLoading) {
-          _isLoading = false;
-        }
-      });
+
+      if (mounted) {
+        setState(() {
+          _orders = orders;
+          if (showLoading) {
+            _isLoading = false;
+          }
+        });
+      }
     } catch (e) {
       print('Error loading orders: $e');
-      if (showLoading) {
+      if (showLoading && mounted) {
         setState(() => _isLoading = false);
       }
     }
@@ -781,9 +784,11 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   Future<void> _increaseQuantity(Order order, int itemIndex) async {
     try {
       // Uncheck mark done status when increasing quantity
-      setState(() {
-        _completedItems[order.id]?.remove(itemIndex);
-      });
+      if (mounted) {
+        setState(() {
+          _completedItems[order.id]?.remove(itemIndex);
+        });
+      }
 
       // Update the item quantity
       final updatedItems = List<OrderItem>.from(order.items);

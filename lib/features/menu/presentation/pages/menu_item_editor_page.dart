@@ -42,6 +42,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
   bool _isLoading = false;
   bool _isDirty = false;
   bool _originalAvailabilityStatus = true;
+  bool _currentAvailabilityStatus = true;
   DateTime? _originalCreatedAt;
 
   @override
@@ -62,6 +63,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
       _priceController.text = widget.menuItem!.price.toString();
       _photos = List<String>.from(widget.menuItem!.photos);
       _selectedCategoryName = widget.menuItem!.categoryName;
+      _currentAvailabilityStatus = widget.menuItem!.availableStatus;
       // Option groups will be loaded separately as they're managed through relationships
     }
   }
@@ -126,12 +128,13 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         // Look up category ID from the category name
         final matchingCategory = _categories.firstWhere(
           (cat) => cat['name'] == menuItem.categoryName,
-          orElse: () => {'id': '', 'name': ''},
+          orElse: () => <String, String>{'id': '', 'name': ''},
         );
         _selectedCategoryId = matchingCategory['id'];
 
         _selectedOptionGroupIds = existingOptionGroups.map((group) => group.id).toList();
         _originalAvailabilityStatus = menuItem.availableStatus;
+        _currentAvailabilityStatus = menuItem.availableStatus;
         _originalCreatedAt = menuItem.createdAt;
         _isLoading = false;
       });
@@ -191,6 +194,8 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
                     _buildCategorySection(),
                     const SizedBox(height: 24),
                     _buildPriceSection(),
+                    const SizedBox(height: 24),
+                    _buildAvailabilitySection(),
                     const SizedBox(height: 24),
                     _buildOptionGroupsSection(),
                     const SizedBox(height: 100), // Space for bottom button
@@ -508,6 +513,44 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
             }
             return null;
           },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvailabilitySection() {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Available Status',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _currentAvailabilityStatus
+                  ? 'This item is available for customers to order'
+                  : 'This item is currently unavailable',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: _currentAvailabilityStatus,
+          onChanged: (value) {
+            setState(() {
+              _currentAvailabilityStatus = value;
+              _isDirty = true;
+            });
+          },
+          activeTrackColor: Colors.green[600],
         ),
       ],
     );
@@ -981,7 +1024,7 @@ class _MenuItemEditorPageState extends ConsumerState<MenuItemEditorPage> {
         price: double.parse(_priceController.text),
         categoryName: _selectedCategoryId, // Use category ID instead of name for Supabase
         photos: _photos,
-        availableStatus: widget.menuItemId == null ? true : _originalAvailabilityStatus,
+        availableStatus: _currentAvailabilityStatus,
         createdAt: widget.menuItemId == null ? DateTime.now() : (_originalCreatedAt ?? DateTime.now()),
         updatedAt: DateTime.now(),
       );

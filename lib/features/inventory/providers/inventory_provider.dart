@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/inventory_models.dart';
-import '../../../services/inventory_service.dart';
+import '../../../services/supabase_service.dart';
 
 // Inventory Service Provider
-final inventoryServiceProvider = Provider<InventoryService>((ref) {
-  return InventoryService();
+final inventoryServiceProvider = Provider<SupabaseInventoryService>((ref) {
+  return SupabaseInventoryService();
 });
 
 // Inventory Statistics Provider
@@ -20,30 +20,25 @@ final ingredientsProvider = FutureProvider.autoDispose.family<List<Ingredient>, 
 });
 
 // Single Ingredient Provider
-final ingredientProvider = FutureProvider.family<Ingredient?, int>((ref, id) async {
+final ingredientProvider = FutureProvider.family<Ingredient?, String>((ref, id) async {
   final service = ref.read(inventoryServiceProvider);
   return await service.getIngredientById(id);
 });
 
 // Stocktake Sessions Provider
-final stocktakeSessionsProvider = StreamProvider<List<StocktakeSession>>((ref) {
+final stocktakeSessionsProvider = FutureProvider<List<StocktakeSession>>((ref) async {
   final service = ref.read(inventoryServiceProvider);
-
-  // Initial load
-  service.getStocktakeSessions();
-
-  // Return the stream for real-time updates
-  return service.stocktakeSessionsStream;
+  return await service.getStocktakeSessions();
 });
 
 // Single Stocktake Session Provider
-final stocktakeSessionProvider = FutureProvider.family<StocktakeSession?, int>((ref, id) async {
+final stocktakeSessionProvider = FutureProvider.family<StocktakeSession?, String>((ref, id) async {
   final service = ref.read(inventoryServiceProvider);
   return await service.getStocktakeSessionById(id);
 });
 
 // Stocktake Items Provider
-final stocktakeItemsProvider = FutureProvider.family<List<StocktakeItem>, int>((ref, sessionId) async {
+final stocktakeItemsProvider = FutureProvider.family<List<StocktakeItem>, String>((ref, sessionId) async {
   final service = ref.read(inventoryServiceProvider);
   return await service.getStocktakeItems(sessionId);
 });
@@ -126,7 +121,7 @@ class InventoryActionsNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<void> deleteIngredient(int id) async {
+  Future<void> deleteIngredient(String id) async {
     state = const AsyncLoading();
     try {
       final service = ref.read(inventoryServiceProvider);
@@ -137,7 +132,7 @@ class InventoryActionsNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<void> updateQuantity(int ingredientId, double newQuantity, {String? reason}) async {
+  Future<void> updateQuantity(String ingredientId, double newQuantity, {String? reason}) async {
     state = const AsyncLoading();
     try {
       final service = ref.read(inventoryServiceProvider);
@@ -151,9 +146,9 @@ class InventoryActionsNotifier extends AsyncNotifier<void> {
   Future<void> createSampleData() async {
     state = const AsyncLoading();
     try {
-      final service = ref.read(inventoryServiceProvider);
-      await service.createSampleInventoryData();
-      state = const AsyncData(null);
+      // TODO: Implement sample data creation for Supabase
+      // For now, this method is disabled until sample data service is migrated
+      throw UnimplementedError('Sample data creation not yet implemented for Supabase');
     } catch (e, stack) {
       state = AsyncError(e, stack);
     }
@@ -170,7 +165,7 @@ class StocktakeActionsNotifier extends AsyncNotifier<void> {
     // Initial state
   }
 
-  Future<int> createStocktakeSession({
+  Future<String> createStocktakeSession({
     required String name,
     String? description,
     required String type,
@@ -195,7 +190,7 @@ class StocktakeActionsNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<void> startSession(int sessionId) async {
+  Future<void> startSession(String sessionId) async {
     state = const AsyncLoading();
     try {
       final service = ref.read(inventoryServiceProvider);
@@ -206,34 +201,33 @@ class StocktakeActionsNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<void> updateItemCount(int itemId, double countedQuantity, {String? notes}) async {
+  Future<void> updateItemCount(String sessionId, String itemId, double countedQuantity, {String? notes}) async {
     state = const AsyncLoading();
     try {
       final service = ref.read(inventoryServiceProvider);
-      await service.updateStocktakeItemCount(itemId, countedQuantity, notes: notes);
+      await service.updateStocktakeItemCount(sessionId, itemId, countedQuantity, notes: notes);
       state = const AsyncData(null);
     } catch (e, stack) {
       state = AsyncError(e, stack);
     }
   }
 
-  Future<void> completeSession(int sessionId, {bool applyChanges = false}) async {
+  Future<void> completeSession(String sessionId, {bool applyChanges = false}) async {
     state = const AsyncLoading();
     try {
       final service = ref.read(inventoryServiceProvider);
-      await service.completeStocktakeSession(sessionId, applyChanges: applyChanges);
+      await service.completeStocktakeSession(sessionId);
       state = const AsyncData(null);
     } catch (e, stack) {
       state = AsyncError(e, stack);
     }
   }
 
-  Future<void> cancelSession(int sessionId) async {
+  Future<void> cancelSession(String sessionId) async {
     state = const AsyncLoading();
     try {
-      final service = ref.read(inventoryServiceProvider);
-      await service.cancelStocktakeSession(sessionId);
-      state = const AsyncData(null);
+      // TODO: Implement cancel stocktake session in SupabaseInventoryService
+      throw UnimplementedError('Cancel stocktake session not yet implemented for Supabase');
     } catch (e, stack) {
       state = AsyncError(e, stack);
     }

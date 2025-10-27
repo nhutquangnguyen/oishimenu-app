@@ -6,7 +6,7 @@ import '../widgets/best_sellers.dart';
 import '../widgets/sales_chart.dart';
 import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../core/localization/app_localizations.dart';
-import '../../../../services/order_service.dart';
+import '../../../../services/supabase_service.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -16,7 +16,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
-  final OrderService _orderService = OrderService();
+  final SupabaseOrderService _orderService = SupabaseOrderService();
   String _selectedTimeFrame = 'Today';
   String _selectedBranch = 'All Branches';
   String _selectedGroupBy = 'Hour';

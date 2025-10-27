@@ -6,7 +6,6 @@ import '../../../../models/order.dart';
 import '../../../../models/order_source.dart';
 import '../../../../models/customer.dart' as customer_model;
 import '../../../../core/providers/supabase_providers.dart';
-import '../../../../services/order_source_service.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final Order order;
@@ -18,7 +17,6 @@ class CheckoutPage extends ConsumerStatefulWidget {
 }
 
 class _CheckoutPageState extends ConsumerState<CheckoutPage> {
-  final OrderSourceService _orderSourceService = OrderSourceService();
 
   // Customer information
   final TextEditingController _customerPhoneController = TextEditingController();
@@ -54,11 +52,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   Future<void> _loadOrderSources() async {
     try {
+      final orderSourceService = ref.read(supabaseOrderSourceServiceProvider);
+
       // Initialize default order sources if needed
-      await _orderSourceService.initializeDefaultOrderSources();
+      await orderSourceService.initializeDefaultOrderSources();
 
       // Load active order sources from database
-      final sources = await _orderSourceService.getOrderSources(isActive: true);
+      final sources = await orderSourceService.getOrderSources(isActive: true);
 
       setState(() {
         _orderSources = sources;
@@ -326,7 +326,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         total: _total,
         orderType: widget.order.orderType,
         status: OrderStatus.pending, // Active order status
-        paymentMethod: _selectedPaymentMethod ?? PaymentMethod.cash, // Default to cash if not selected
+        paymentMethod: _selectedPaymentMethod ?? PaymentMethod.none, // No default payment method
         paymentStatus: PaymentStatus.pending, // Payment pending
         deliveryInfo: widget.order.deliveryInfo,
         tableNumber: widget.order.tableNumber,
@@ -531,9 +531,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
     } catch (e) {
       if (mounted) {
+        // Check if it's a payment method validation error
+        String errorMessage;
+        if (e.toString().contains('Payment method is required')) {
+          errorMessage = 'checkout_page.select_payment_error'.tr();
+        } else {
+          errorMessage = 'checkout_page.payment_error'.tr(namedArgs: {'error': e.toString()});
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('checkout_page.payment_error'.tr(namedArgs: {'error': e.toString()})),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
           ),
         );
@@ -1092,10 +1100,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
           ],
         ),
+        const SizedBox(height: 8),
+        Text(
+          'checkout_page.payment_method_required_note'.tr(),
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(
+              color: _selectedPaymentMethod == null ? Colors.red[300]! : Colors.grey[300]!,
+              width: _selectedPaymentMethod == null ? 2 : 1,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(

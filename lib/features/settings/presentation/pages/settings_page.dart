@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../providers/settings_provider.dart';
 import 'order_source_management_page.dart';
+import '../../../testing/test_results_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -103,6 +104,31 @@ class SettingsPage extends ConsumerWidget {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const OrderSourceManagementPage(),
+                      ),
+                    );
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Testing Section
+            _buildSectionCard(
+              context: context,
+              title: 'Testing & Quality Assurance',
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.science, color: Colors.blue),
+                  title: const Text('Automated Tests'),
+                  subtitle: const Text('Run comprehensive system tests'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TestResultsPage(),
                       ),
                     );
                   },

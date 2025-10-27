@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/menu_item.dart';
-import '../../services/menu_service.dart';
+import '../../../../services/supabase_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 
 class ScanMenuPage extends ConsumerStatefulWidget {
@@ -13,7 +13,7 @@ class ScanMenuPage extends ConsumerStatefulWidget {
 }
 
 class _ScanMenuPageState extends ConsumerState<ScanMenuPage> {
-  final MenuService _menuService = MenuService();
+  final SupabaseMenuService _menuService = SupabaseMenuService();
   bool _isScanning = false;
   bool _isProcessing = false;
   String _scannedData = '';
@@ -703,29 +703,25 @@ Rice Dishes:
         return;
       }
 
-      final result = await _menuService.createMenuItem(item, userId: currentUser.id);
-      if (result != null) {
-        setState(() {
-          _extractedItems.removeAt(index);
-        });
+      await _menuService.createMenuItem(item);
+      // SupabaseMenuService createMenuItem doesn't return a result, success means no exception
+      setState(() {
+        _extractedItems.removeAt(index);
+      });
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Imported "${item.name}" successfully')),
         );
-      } else {
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to import "${item.name}"'),
+            content: Text('Error importing "${item.name}": $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error importing "${item.name}": $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -748,12 +744,8 @@ Rice Dishes:
 
     for (final item in _extractedItems) {
       try {
-        final result = await _menuService.createMenuItem(item, userId: currentUser.id);
-        if (result != null) {
-          successCount++;
-        } else {
-          errorCount++;
-        }
+        await _menuService.createMenuItem(item);
+        successCount++;
       } catch (e) {
         errorCount++;
       }

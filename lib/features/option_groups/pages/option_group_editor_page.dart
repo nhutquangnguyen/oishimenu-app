@@ -7,9 +7,8 @@ import '../../../models/menu_options.dart';
 import '../../../models/menu_item.dart';
 import '../providers/option_group_provider.dart';
 import '../utils/validation.dart';
-import '../../../services/menu_option_service.dart';
-import '../../menu/services/menu_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/providers/supabase_providers.dart';
 
 /// Main editor page for creating and editing option groups
 /// Implements the complete UI specification including validation, preview, etc.
@@ -104,14 +103,16 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
   Future<void> _loadMenuItems() async {
     setState(() => _isLoadingMenuItems = true);
     try {
-      final menuService = MenuService();
-      final menuOptionService = MenuOptionService();
+      final menuService = ref.read(supabaseMenuServiceProvider);
+      final menuOptionService = ref.read(supabaseMenuOptionServiceProvider);
       final currentUser = ref.read(currentUserProvider);
 
       if (currentUser == null) return;
 
-      // Load all menu items
-      final menuItems = await menuService.getAllMenuItems(userId: currentUser.id);
+      // Load all menu items using Supabase service
+      final menuItems = await menuService.getMenuItems();
+
+      // Successfully loaded menu items from Supabase
 
       // If editing existing group, load linked menu items
       List<String> linkedIds = [];
@@ -303,10 +304,12 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
                     Switch(
                       value: option.isAvailable,
                       onChanged: (value) {
+                        print('🔄 Toggling option "${option.name}" (ID: ${option.id}) from ${option.isAvailable} to $value');
                         setState(() {
                           _options[index] = option.copyWith(isAvailable: value);
                           _isDirty = true;
                         });
+                        print('✅ Option "${option.name}" is now: isAvailable=$value, ID=${_options[index].id}');
                       },
                       activeTrackColor: Colors.green[200],
                       thumbColor: WidgetStateProperty.resolveWith((states) {
@@ -353,6 +356,22 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
                           ],
                         ),
                       ),
+                    ),
+                    // Delete button
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: Colors.red[400],
+                        size: 18,
+                      ),
+                      onPressed: () => _showDeleteOptionConfirmation(index, option),
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(
+                        minWidth: 30,
+                        minHeight: 30,
+                      ),
+                      tooltip: 'Delete option',
                     ),
                   ],
                 ),
@@ -423,6 +442,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
               value: _isRequired,
               onChanged: (value) => setState(() {
                 _isRequired = value;
+                _isDirty = true; // Mark form as dirty when toggle changes
                 _computeSelectionRules();
                 _validateForm();
               }),
@@ -460,6 +480,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
               value: _allowMultiple,
               onChanged: (value) => setState(() {
                 _allowMultiple = value;
+                _isDirty = true; // Mark form as dirty when toggle changes
                 // When enabling multiple selection, set a reasonable default max
                 if (value && _maxSelections <= 1) {
                   // Set to at least 2, even if there's only 1 option now
@@ -802,13 +823,87 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
     _showOptionDialog(_options[index], index);
   }
 
+  void _showDeleteOptionConfirmation(int index, MenuOption option) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Option'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete this option?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.restaurant_menu,
+                    color: Colors.grey[600],
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      option.name.isEmpty ? 'Option ${index + 1}' : option.name,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  if (option.price > 0)
+                    Text(
+                      '+${option.price.toStringAsFixed(0)}đ',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'This action cannot be undone.',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteOption(index);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _deleteOption(int index) {
+    print('🗑️ Deleting option at index $index: ${_options[index].name}');
     setState(() {
       _options.removeAt(index);
       _isDirty = true;
       _computeSelectionRules();
       _validateForm();
     });
+    print('✅ Option deleted successfully, remaining options: ${_options.length}');
   }
 
   void _reorderOptions(int oldIndex, int newIndex) {
@@ -948,7 +1043,29 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
     print('🔄 Starting to save ${_options.length} options for group $groupId');
     final notifier = ref.read(optionGroupNotifierProvider.notifier);
 
+    // For updates, first clear all existing option links for this group
+    if (widget.optionGroupId != null) {
+      print('🧹 Clearing existing option links for group $groupId (this is an update)');
+      try {
+        // Get current options for the group (including unavailable ones)
+        final service = ref.read(optionGroupServiceProvider);
+        final currentOptions = await service.getOptionsForGroup(groupId, includeUnavailable: true);
+
+        // Disconnect all current options
+        for (final currentOption in currentOptions) {
+          print('🔓 Disconnecting option ${currentOption.id} from group $groupId');
+          await notifier.disconnectOptionFromGroup(currentOption.id, groupId);
+        }
+        print('✅ Cleared ${currentOptions.length} existing option links (including inactive ones)');
+        print('📋 Current options that were disconnected: ${currentOptions.map((o) => '${o.name}(${o.id}, available: ${o.isAvailable})').join(', ')}');
+      } catch (e) {
+        print('⚠️ Warning: Failed to clear existing links: $e (continuing anyway)');
+      }
+    }
+
     // Save each option and link it to the group
+    print('📋 Options to be saved: ${_options.map((o) => '${o.name}(${o.id.isEmpty ? "NEW" : o.id}, available: ${o.isAvailable})').join(', ')}');
+
     for (int i = 0; i < _options.length; i++) {
       final option = _options[i];
       print('💾 Processing option ${i + 1}: "${option.name}" (price: \$${option.price})');
@@ -969,10 +1086,10 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
         print('✅ Updated option: ${option.name}');
       }
 
-      // Link the option to the group
+      // Link the option to the group (with display order)
       if (optionId != null) {
-        print('🔗 Linking option $optionId to group $groupId');
-        final linked = await notifier.connectOptionToGroup(optionId, groupId);
+        print('🔗 Linking option $optionId to group $groupId (display order: $i)');
+        final linked = await notifier.connectOptionToGroup(optionId, groupId, displayOrder: i);
         print('${linked ? '✅' : '❌'} Link result: $linked');
       } else {
         print('❌ Failed to create option: ${option.name}');
@@ -1196,34 +1313,51 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
                   decoration: BoxDecoration(
                     border: Border(top: BorderSide(color: Colors.grey[200]!)),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Text(
-                        '${tempLinkedIds.length} items selected',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
+                      // Status text row
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${tempLinkedIds.length} items selected',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
                         ),
                       ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text('option_groups_editor.cancel_button'.tr()),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () async {
-                          print('💾 Save Links button pressed! tempLinkedIds: $tempLinkedIds');
-                          // Save the changes
-                          await _updateMenuItemLinks(tempLinkedIds);
-                          print('✅ Save Links completed, closing modal');
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[600],
-                          foregroundColor: Colors.white,
-                        ),
-                        child: Text('option_groups_editor.save_links_button'.tr()),
+                      const SizedBox(height: 12),
+                      // Buttons row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                print('💾 Save Links button pressed! tempLinkedIds: $tempLinkedIds');
+                                // Save the changes
+                                await _updateMenuItemLinks(tempLinkedIds);
+                                print('✅ Save Links completed, closing modal');
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue[600],
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Save'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1245,7 +1379,7 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
     // If this is an existing option group, save the links immediately
     if (widget.optionGroupId != null) {
       try {
-        final menuOptionService = MenuOptionService();
+        final menuOptionService = ref.read(supabaseMenuOptionServiceProvider);
 
         // Keep track of the old linked IDs before updating the state
         final oldLinkedIds = List<String>.from(_linkedMenuItemIds);
@@ -1293,13 +1427,113 @@ class _OptionGroupEditorPageState extends ConsumerState<OptionGroupEditorPage> {
   }
 
   void _showDeleteConfirmation() {
-    // TODO: Implement delete confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Delete confirmation - Coming soon!'),
-        backgroundColor: Colors.orange,
+    if (widget.optionGroupId == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Option Group'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete "${_nameController.text}"?'),
+            const SizedBox(height: 12),
+            if (_options.isNotEmpty) ...[
+              Text(
+                'This will also delete ${_options.length} option(s):',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 150),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: _options.map((option) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          const Text('• ', style: TextStyle(color: Colors.grey)),
+                          Expanded(child: Text(option.name)),
+                          Text('\$${option.price.toStringAsFixed(2)}',
+                               style: const TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    )).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            const Text(
+              'This action cannot be undone.',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _handleDelete();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _handleDelete() async {
+    if (widget.optionGroupId == null) return;
+
+    try {
+      print('🗑️ Starting delete process for option group: ${widget.optionGroupId}');
+
+      final notifier = ref.read(optionGroupNotifierProvider.notifier);
+      final success = await notifier.deleteOptionGroup(widget.optionGroupId!);
+
+      if (mounted) {
+        if (success) {
+          print('✅ Successfully deleted option group');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Deleted option group "${_nameController.text}"'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Navigate back to menu page
+          context.pop(true); // Return true to indicate successful deletion
+        } else {
+          print('❌ Failed to delete option group');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete option group'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error deleting option group: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting option group: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showUnsavedChangesDialog() {

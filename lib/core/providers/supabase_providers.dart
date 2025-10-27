@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 import '../../services/supabase_service.dart';
+import '../../services/supabase_import_export_service.dart';
 import '../../models/user.dart';
 import '../../features/auth/services/auth_service.dart';
 
@@ -203,6 +204,21 @@ final supabaseOrderServiceProvider = Provider<SupabaseOrderService>((ref) {
 // Menu Option Service Provider
 final supabaseMenuOptionServiceProvider = Provider<SupabaseMenuOptionService>((ref) {
   return SupabaseMenuOptionService();
+});
+
+// Order Source Service Provider
+final supabaseOrderSourceServiceProvider = Provider<SupabaseOrderSourceService>((ref) {
+  return SupabaseOrderSourceService();
+});
+
+// Inventory Service Provider
+final supabaseInventoryServiceProvider = Provider<SupabaseInventoryService>((ref) {
+  return SupabaseInventoryService();
+});
+
+// Import/Export Service Provider
+final supabaseImportExportServiceProvider = Provider<SupabaseImportExportService>((ref) {
+  return SupabaseImportExportService();
 });
 
 // Auth Service Provider - compatible with existing AuthService interface

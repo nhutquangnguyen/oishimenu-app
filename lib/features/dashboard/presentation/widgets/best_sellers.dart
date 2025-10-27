@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localizations.dart';
-import '../../../../services/database_helper.dart';
+import '../../../../services/supabase_service.dart';
 
 class BestSellers extends StatefulWidget {
   final String timeFrame;
@@ -19,7 +19,7 @@ class BestSellers extends StatefulWidget {
 }
 
 class _BestSellersState extends State<BestSellers> {
-  final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final SupabaseOrderService _orderService = SupabaseOrderService();
   bool _showAll = false;
   List<BestSellerItem> _bestSellerItems = [];
   bool _isLoading = true;
@@ -46,38 +46,23 @@ class _BestSellersState extends State<BestSellers> {
 
     try {
       final dateRanges = _getDateRangesForTimeFrame(widget.timeFrame);
-      final db = await _databaseHelper.database;
 
-      // Query to aggregate order items by menu item
       print('Best sellers query date range: ${dateRanges['start']} to ${dateRanges['end']}');
       print('Time frame: ${widget.timeFrame}');
 
-      final results = await db.rawQuery('''
-        SELECT
-          oi.menu_item_name as name,
-          COALESCE(mc.name, 'Other') as category,
-          SUM(oi.quantity) as total_quantity,
-          SUM(oi.subtotal) as total_revenue
-        FROM order_items oi
-        INNER JOIN orders o ON CAST(oi.order_id AS TEXT) = CAST(o.id AS TEXT)
-        LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-        LEFT JOIN menu_categories mc ON mi.category_id = mc.id
-        WHERE (o.payment_status = 'PAID' OR o.status = 'DELIVERED')
-          AND o.created_at >= ?
-          AND o.created_at <= ?
-        GROUP BY oi.menu_item_id, oi.menu_item_name, mc.name
-        ORDER BY ${widget.sortByRevenue ? 'total_revenue' : 'total_quantity'} DESC
-        LIMIT 15
-      ''', [
-        dateRanges['start']!.millisecondsSinceEpoch,
-        dateRanges['end']!.millisecondsSinceEpoch,
-      ]);
+      // Use Supabase analytics service
+      final results = await _orderService.getBestSellingItems(
+        startDate: dateRanges['start'],
+        endDate: dateRanges['end'],
+        limit: 15,
+      );
 
       print('Best sellers query returned ${results.length} results');
 
-      final items = results.map((row) {
-        final revenue = (row['total_revenue'] as num?)?.toDouble() ?? 0.0;
-        final quantity = (row['total_quantity'] as num?)?.toInt() ?? 0;
+      // Transform data to BestSellerItem format
+      final items = results.map((data) {
+        final revenue = (data['total_revenue'] as num?)?.toDouble() ?? 0.0;
+        final quantity = (data['total_quantity'] as num?)?.toInt() ?? 0;
 
         final revenueStr = revenue.toInt().toString().replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -85,13 +70,20 @@ class _BestSellersState extends State<BestSellers> {
         );
 
         return BestSellerItem(
-          name: row['name'] as String? ?? 'Unknown',
-          category: row['category'] as String? ?? 'Other',
+          name: data['menu_item_name'] as String? ?? 'Unknown',
+          category: 'Menu Item', // Category info not included in current analytics, could be added later
           revenue: '₫$revenueStr',
           quantity: quantity,
           revenueValue: revenue,
         );
       }).toList();
+
+      // Sort by preference (revenue or quantity)
+      if (widget.sortByRevenue) {
+        items.sort((a, b) => b.revenueValue.compareTo(a.revenueValue));
+      } else {
+        items.sort((a, b) => b.quantity.compareTo(a.quantity));
+      }
 
       setState(() {
         _bestSellerItems = items;

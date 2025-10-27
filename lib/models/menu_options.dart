@@ -25,16 +25,70 @@ class MenuOption {
   });
 
   factory MenuOption.fromMap(Map<String, dynamic> map) {
+    // Debug logging to see what we're getting from database
+    print('🔍 MenuOption.fromMap received for "${stringFromDynamic(map['name'])}":');
+    print('   is_available raw value: ${map['is_available']} (${map['is_available'].runtimeType})');
+
+    // Handle both boolean and integer values from database
+    bool isAvailableValue;
+    final rawIsAvailable = map['is_available'];
+    if (rawIsAvailable is bool) {
+      isAvailableValue = rawIsAvailable;
+      print('   is_available as bool: $isAvailableValue');
+    } else if (rawIsAvailable is int) {
+      isAvailableValue = rawIsAvailable == 1;
+      print('   is_available as int->bool: $isAvailableValue (from $rawIsAvailable)');
+    } else {
+      isAvailableValue = true; // Default to available if unexpected type
+      print('   is_available defaulted to true (unexpected type: ${rawIsAvailable.runtimeType})');
+    }
+
     return MenuOption(
   id: map['id']?.toString() ?? '',
   name: stringFromDynamic(map['name']),
       price: (map['price'] ?? 0).toDouble(),
   description: stringFromDynamic(map['description']),
   category: stringFromDynamic(map['category']),
-      isAvailable: (map['is_available'] ?? 1) == 1,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] ?? 0),
+      isAvailable: isAvailableValue,
+      createdAt: _parseDateTime(map['created_at']),
+      updatedAt: _parseDateTime(map['updated_at']),
     );
+  }
+
+  /// Helper method to parse DateTime from various formats (SQLite integer or Supabase ISO string)
+  static DateTime _parseDateTime(dynamic dateValue) {
+    if (dateValue == null) {
+      return DateTime.now();
+    }
+
+    try {
+      // If it's already a DateTime, return as-is
+      if (dateValue is DateTime) {
+        return dateValue;
+      }
+
+      // If it's a string (Supabase ISO format), try to parse it
+      if (dateValue is String) {
+        return DateTime.parse(dateValue);
+      }
+
+      // If it's a number (SQLite timestamp in milliseconds or seconds)
+      if (dateValue is int) {
+        // Check if it's in milliseconds (13 digits) or seconds (10 digits)
+        if (dateValue.toString().length == 13) {
+          return DateTime.fromMillisecondsSinceEpoch(dateValue);
+        } else {
+          return DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+        }
+      }
+
+      // Fallback to current time
+      print('⚠️ Warning: Could not parse dateValue: $dateValue (${dateValue.runtimeType})');
+      return DateTime.now();
+    } catch (e) {
+      print('❌ Error parsing dateValue: $dateValue, error: $e');
+      return DateTime.now();
+    }
   }
 
   Map<String, dynamic> toMap() {
@@ -101,6 +155,24 @@ class OptionGroup {
   });
 
   factory OptionGroup.fromMap(Map<String, dynamic> map) {
+    // Debug logging to see what we're getting from database
+    print('🔍 OptionGroup.fromMap received:');
+    print('   is_required raw value: ${map['is_required']} (${map['is_required'].runtimeType})');
+
+    // Handle both boolean and integer values from database
+    bool isRequiredValue;
+    final rawIsRequired = map['is_required'];
+    if (rawIsRequired is bool) {
+      isRequiredValue = rawIsRequired;
+      print('   is_required as bool: $isRequiredValue');
+    } else if (rawIsRequired is int) {
+      isRequiredValue = rawIsRequired == 1;
+      print('   is_required as int->bool: $isRequiredValue (from $rawIsRequired)');
+    } else {
+      isRequiredValue = false;
+      print('   is_required defaulted to false (unexpected type: ${rawIsRequired.runtimeType})');
+    }
+
     return OptionGroup(
       id: map['id']?.toString() ?? '',
       name: stringFromDynamic(map['name']),
@@ -108,11 +180,11 @@ class OptionGroup {
       minSelection: map['min_selection'] ?? 0,
       maxSelection: map['max_selection'] ?? 1,
       options: [], // Will be loaded separately
-      isRequired: (map['is_required'] ?? 0) == 1,
+      isRequired: isRequiredValue,
       displayOrder: map['display_order'] ?? 0,
       isActive: (map['is_active'] ?? 1) == 1,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] ?? 0),
+      createdAt: MenuOption._parseDateTime(map['created_at']),
+      updatedAt: MenuOption._parseDateTime(map['updated_at']),
     );
   }
 
@@ -191,7 +263,7 @@ class MenuItemOptionGroup {
       optionGroupId: map['option_group_id']?.toString() ?? '',
       isRequired: (map['is_required'] ?? 0) == 1,
       displayOrder: map['display_order'] ?? 0,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
+      createdAt: MenuOption._parseDateTime(map['created_at']),
     );
   }
 
@@ -229,7 +301,7 @@ class OptionGroupOption {
       optionGroupId: map['option_group_id']?.toString() ?? '',
       optionId: map['option_id']?.toString() ?? '',
       displayOrder: map['display_order'] ?? 0,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
+      createdAt: MenuOption._parseDateTime(map['created_at']),
     );
   }
 

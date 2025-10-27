@@ -1096,7 +1096,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           total: orderTotal,
           orderType: _originalOrderType ?? orderType, // Preserve original order type
           status: order_model.OrderStatus.pending, // Keep as pending for active orders
-          paymentMethod: _originalPaymentMethod ?? order_model.PaymentMethod.cash, // Preserve original payment method
+          paymentMethod: _originalPaymentMethod ?? order_model.PaymentMethod.none, // Preserve original payment method
           paymentStatus: _originalPaymentStatus ?? order_model.PaymentStatus.pending, // Preserve original payment status
           tableNumber: _selectedTable,
           platform: _originalPlatform ?? 'POS', // Preserve original platform
@@ -1120,7 +1120,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           total: _totalAmount,
           orderType: orderType,
           status: order_model.OrderStatus.pending,
-          paymentMethod: order_model.PaymentMethod.cash,
+          paymentMethod: order_model.PaymentMethod.none,
           paymentStatus: order_model.PaymentStatus.pending,
           tableNumber: _selectedTable,
           platform: 'POS',
@@ -1323,7 +1323,7 @@ class _PosPageState extends ConsumerState<PosPage> {
         total: _totalAmount,
         orderType: orderType,
         status: order_model.OrderStatus.pending,
-        paymentMethod: order_model.PaymentMethod.cash,
+        paymentMethod: order_model.PaymentMethod.none,
         paymentStatus: order_model.PaymentStatus.pending,
         tableNumber: _selectedTable,
         platform: 'POS',

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order_source.dart';
-import '../../../../services/order_source_service.dart';
+import '../../../../core/providers/supabase_providers.dart';
 
-class OrderSourceManagementPage extends StatefulWidget {
+class OrderSourceManagementPage extends ConsumerStatefulWidget {
   const OrderSourceManagementPage({super.key});
 
   @override
-  State<OrderSourceManagementPage> createState() => _OrderSourceManagementPageState();
+  ConsumerState<OrderSourceManagementPage> createState() => _OrderSourceManagementPageState();
 }
 
-class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
-  final OrderSourceService _orderSourceService = OrderSourceService();
+class _OrderSourceManagementPageState extends ConsumerState<OrderSourceManagementPage> {
   List<OrderSource> _orderSources = [];
   bool _isLoading = true;
 
@@ -25,10 +25,12 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
   Future<void> _loadOrderSources() async {
     setState(() => _isLoading = true);
     try {
-      // Initialize default sources if empty
-      await _orderSourceService.initializeDefaultOrderSources();
+      final orderSourceService = ref.read(supabaseOrderSourceServiceProvider);
 
-      final sources = await _orderSourceService.getOrderSources();
+      // Initialize default sources if empty
+      await orderSourceService.initializeDefaultOrderSources();
+
+      final sources = await orderSourceService.getOrderSources();
       setState(() {
         _orderSources = sources;
         _isLoading = false;
@@ -217,10 +219,12 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
                 );
 
                 try {
+                  final orderSourceService = ref.read(supabaseOrderSourceServiceProvider);
+
                   if (isEdit) {
-                    await _orderSourceService.updateOrderSource(newSource);
+                    await orderSourceService.updateOrderSource(newSource);
                   } else {
-                    await _orderSourceService.createOrderSource(newSource);
+                    await orderSourceService.createOrderSource(newSource);
                   }
                   Navigator.pop(context, true);
                 } catch (e) {
@@ -263,7 +267,8 @@ class _OrderSourceManagementPageState extends State<OrderSourceManagementPage> {
 
     if (confirmed == true) {
       try {
-        await _orderSourceService.deleteOrderSource(source.id);
+        final orderSourceService = ref.read(supabaseOrderSourceServiceProvider);
+        await orderSourceService.deleteOrderSource(source.id);
         _loadOrderSources();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

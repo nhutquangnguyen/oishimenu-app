@@ -15,7 +15,7 @@ enum OrderStatus {
 
   static OrderStatus fromString(String value) {
     return OrderStatus.values.firstWhere(
-      (status) => status.value == value,
+      (status) => status.value.toLowerCase() == value.toLowerCase(),
       orElse: () => OrderStatus.pending,
     );
   }
@@ -31,13 +31,14 @@ enum OrderType {
 
   static OrderType fromString(String value) {
     return OrderType.values.firstWhere(
-      (type) => type.value == value,
+      (type) => type.value.toLowerCase() == value.toLowerCase(),
       orElse: () => OrderType.dineIn,
     );
   }
 }
 
 enum PaymentMethod {
+  none('none'),
   cash('cash'),
   card('card'),
   digitalWallet('digital_wallet'),
@@ -47,9 +48,14 @@ enum PaymentMethod {
   final String value;
 
   static PaymentMethod fromString(String value) {
+    // Handle empty string as 'none' for backward compatibility
+    if (value.isEmpty) {
+      return PaymentMethod.none;
+    }
+
     return PaymentMethod.values.firstWhere(
-      (method) => method.value == value,
-      orElse: () => PaymentMethod.cash,
+      (method) => method.value.toLowerCase() == value.toLowerCase(),
+      orElse: () => PaymentMethod.none,
     );
   }
 }
@@ -65,7 +71,7 @@ enum PaymentStatus {
 
   static PaymentStatus fromString(String value) {
     return PaymentStatus.values.firstWhere(
-      (status) => status.value == value,
+      (status) => status.value.toLowerCase() == value.toLowerCase(),
       orElse: () => PaymentStatus.pending,
     );
   }
@@ -138,23 +144,40 @@ class Order {
       total: (map['total'] ?? 0).toDouble(),
       orderType: OrderType.fromString(map['order_type'] ?? 'DINE_IN'),
       status: OrderStatus.fromString(map['status'] ?? 'PENDING'),
-      paymentMethod: PaymentMethod.fromString(map['payment_method'] ?? 'cash'),
+      paymentMethod: map['payment_method'] == null ? PaymentMethod.none : PaymentMethod.fromString(map['payment_method']),
       paymentStatus: PaymentStatus.fromString(map['payment_status'] ?? 'PENDING'),
       deliveryInfo: null, // Will be handled separately if needed
       tableNumber: stringFromDynamic(map['table_number']),
       platform: stringFromDynamic(map['platform']) == '' ? 'direct' : stringFromDynamic(map['platform']),
       assignedStaff: map['assigned_staff_id']?.toString(),
       notes: stringFromDynamic(map['notes']),
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] ?? 0),
+      createdAt: _parseDateTimeFromDynamic(map['created_at']),
+      updatedAt: _parseDateTimeFromDynamic(map['updated_at']),
     );
+  }
+
+  /// Helper method to parse DateTime from various data types (ISO strings or milliseconds)
+  static DateTime _parseDateTimeFromDynamic(dynamic value) {
+    if (value == null) return DateTime.now();
+
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        return DateTime.now();
+      }
+    } else if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+
+    return DateTime.now(); // Default fallback
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id.isEmpty ? null : int.tryParse(id),
+      'id': id.isEmpty ? null : _parseIdForDatabase(id),
       'order_number': orderNumber,
-      'customer_id': customer.id.isEmpty ? null : int.tryParse(customer.id),
+      'customer_id': customer.id.isEmpty ? null : _parseIdForDatabase(customer.id),
       'subtotal': subtotal,
       'delivery_fee': deliveryFee,
       'discount': discount,
@@ -163,15 +186,28 @@ class Order {
       'total': total,
       'order_type': orderType.value,
       'status': status.value,
-      'payment_method': paymentMethod.value,
+      'payment_method': paymentMethod == PaymentMethod.none ? null : paymentMethod.value,
       'payment_status': paymentStatus.value,
       'table_number': tableNumber,
       'platform': platform,
-      'assigned_staff_id': assignedStaff?.isEmpty == true ? null : int.tryParse(assignedStaff ?? ''),
+      'assigned_staff_id': assignedStaff?.isEmpty == true ? null : _parseIdForDatabase(assignedStaff ?? ''),
       'notes': notes,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
+  }
+
+  /// Helper method to handle both UUID and integer IDs for database compatibility
+  dynamic _parseIdForDatabase(String id) {
+    if (id.isEmpty) return null;
+
+    // If it looks like a UUID (contains hyphens), keep as string for Supabase
+    if (id.contains('-') && id.length >= 32) {
+      return id;
+    }
+
+    // Otherwise try to parse as integer for legacy compatibility
+    return int.tryParse(id);
   }
 
   Order copyWith({
@@ -262,8 +298,8 @@ class OrderItem {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id.isEmpty ? null : int.tryParse(id),
-      'menu_item_id': int.tryParse(menuItemId),
+      'id': id.isEmpty ? null : _parseIdForDatabase(id),
+      'menu_item_id': _parseIdForDatabase(menuItemId),
       'menu_item_name': menuItemName,
       'base_price': basePrice,
       'quantity': quantity,
@@ -271,6 +307,19 @@ class OrderItem {
       'subtotal': subtotal,
       'notes': notes,
     };
+  }
+
+  /// Helper method to handle both UUID and integer IDs for database compatibility
+  dynamic _parseIdForDatabase(String id) {
+    if (id.isEmpty) return null;
+
+    // If it looks like a UUID (contains hyphens), keep as string for Supabase
+    if (id.contains('-') && id.length >= 32) {
+      return id;
+    }
+
+    // Otherwise try to parse as integer for legacy compatibility
+    return int.tryParse(id);
   }
 }
 

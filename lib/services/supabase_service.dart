@@ -2,11 +2,14 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:intl/intl.dart';
 import '../core/config/supabase_config.dart';
 import '../models/menu_item.dart';
 import '../models/customer.dart' as customer_model;
 import '../models/order.dart';
 import '../models/menu_options.dart';
+import '../models/inventory_models.dart';
+import '../models/order_source.dart';
 import '../features/auth/services/auth_service.dart' show AuthException;
 
 /// Base Supabase service class that other services can extend
@@ -23,20 +26,48 @@ class SupabaseMenuService extends SupabaseService {
           .from('menu_items')
           .select('''
             *,
-            menu_categories!inner(name)
+            menu_categories!inner(name, display_order)
           ''')
-          .eq('available_status', true)
-          .order('display_order');
+          .order('display_order', ascending: true);
 
-      return response.map<MenuItem>((json) {
+      // Sort by category display_order first, then by menu item display_order
+      final sortedResponse = List.from(response);
+      sortedResponse.sort((a, b) {
+        final aCategoryOrder = a['menu_categories']['display_order'] ?? 0;
+        final bCategoryOrder = b['menu_categories']['display_order'] ?? 0;
+
+        // First compare by category display_order
+        final categoryComparison = aCategoryOrder.compareTo(bCategoryOrder);
+        if (categoryComparison != 0) {
+          return categoryComparison;
+        }
+
+        // If categories are the same, compare by menu item display_order
+        final aItemOrder = a['display_order'] ?? 0;
+        final bItemOrder = b['display_order'] ?? 0;
+        return aItemOrder.compareTo(bItemOrder);
+      });
+
+      return sortedResponse.map<MenuItem>((json) {
         // Transform Supabase response to match current MenuItem model
-        final transformedJson = {
-          ...json,
-          'category_name': json['menu_categories']['name'],
-          'created_at': DateTime.parse(json['created_at']).millisecondsSinceEpoch,
-          'updated_at': DateTime.parse(json['updated_at']).millisecondsSinceEpoch,
-        };
-        return MenuItem.fromMap(transformedJson);
+        final transformedJson = Map<String, dynamic>.from(json);
+        transformedJson['category_name'] = json['menu_categories']['name'];
+        transformedJson['created_at'] = DateTime.parse(json['created_at']).millisecondsSinceEpoch;
+        transformedJson['updated_at'] = DateTime.parse(json['updated_at']).millisecondsSinceEpoch;
+
+        // Debug the raw database values before conversion
+        print('📥 Raw DB data for "${json['name']}":');
+        print('   available_status from DB: ${json['available_status']} (${json['available_status'].runtimeType})');
+        print('   transformed available_status: ${transformedJson['available_status']} (${transformedJson['available_status'].runtimeType})');
+
+        final menuItem = MenuItem.fromMap(transformedJson);
+
+        // Debug the final converted values
+        print('✅ Final MenuItem values:');
+        print('   menuItem.availableStatus: ${menuItem.availableStatus} (${menuItem.availableStatus.runtimeType})');
+        print('---');
+
+        return menuItem;
       }).toList();
     } catch (e) {
       throw Exception('Failed to fetch menu items: $e');
@@ -76,7 +107,7 @@ class SupabaseMenuService extends SupabaseService {
         'price': item.price,
         'category_id': item.categoryName, // This contains category UUID for Supabase
         'cost_price': item.costPrice,
-        'available_status': item.availableStatus,
+        'available_status': item.availableStatus ? 1 : 0,  // Convert boolean to integer
         'photos': item.photos,
         'display_order': item.displayOrder,
       };
@@ -112,13 +143,46 @@ class SupabaseMenuService extends SupabaseService {
         'description': item.description,
         'price': item.price,
         'cost_price': item.costPrice,
-        'available_status': item.availableStatus,
+        'available_status': item.availableStatus ? 1 : 0,  // Convert boolean to integer
         'photos': item.photos,
         'display_order': item.displayOrder,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', item.id);
     } catch (e) {
       throw Exception('Failed to update menu item: $e');
+    }
+  }
+
+  Future<MenuItem?> getMenuItemById(String id) async {
+    try {
+      final response = await SupabaseService.client
+          .from('menu_items')
+          .select('''
+            *,
+            menu_categories!inner(name, display_order)
+          ''')
+          .eq('id', id)
+          .maybeSingle();
+
+      if (response == null) {
+        return null;
+      }
+
+      return MenuItem(
+        id: response['id'],
+        name: response['name'] ?? '',
+        description: response['description'],
+        price: (response['price'] as num?)?.toDouble() ?? 0.0,
+        categoryName: response['menu_categories']['name'] ?? '',
+        availableStatus: response['available_status'] == 1,
+        photos: List<String>.from(response['photos'] ?? []),
+        displayOrder: response['display_order'] ?? 0,
+        costPrice: (response['cost_price'] as num?)?.toDouble() ?? 0.0,
+        createdAt: DateTime.tryParse(response['created_at'] ?? '') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse(response['updated_at'] ?? '') ?? DateTime.now(),
+      );
+    } catch (e) {
+      throw Exception('Failed to get menu item by ID: $e');
     }
   }
 
@@ -132,24 +196,32 @@ class SupabaseMenuService extends SupabaseService {
 
   Future<void> updateMenuItemStatus(String id, bool status, {String? userId}) async {
     try {
-      await SupabaseService.client.from('menu_items').update({
-        'available_status': status,
+      print('🔄 Database update: Setting item $id to ${status ? 1 : 0}');
+
+      final result = await SupabaseService.client.from('menu_items').update({
+        'available_status': status ? 1 : 0,  // Convert boolean to integer
         'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', id);
+      }).eq('id', id).select();
+
+      print('✅ Database update result: $result');
     } catch (e) {
+      print('❌ Database update failed: $e');
       throw Exception('Failed to update menu item status: $e');
     }
   }
 
   Future<List<MenuCategory>> getCategories() async {
     try {
+      print('🔍 Fetching categories from database...');
       final response = await SupabaseService.client
           .from('menu_categories')
           .select()
           .eq('is_active', true)
-          .order('display_order');
+          .order('display_order', ascending: true);
 
-      return response.map<MenuCategory>((json) {
+      print('📋 Raw categories from DB: ${response.map((r) => '${r['name']}(${r['display_order']})').join(', ')}');
+
+      final categories = response.map<MenuCategory>((json) {
         // Transform timestamps for compatibility
         final transformedJson = {
           ...json,
@@ -158,7 +230,12 @@ class SupabaseMenuService extends SupabaseService {
         };
         return MenuCategory.fromMap(transformedJson);
       }).toList();
+
+      print('📊 Mapped categories: ${categories.map((c) => '${c.name}(order: ${c.displayOrder})').join(', ')}');
+
+      return categories;
     } catch (e) {
+      print('❌ Error fetching categories: $e');
       throw Exception('Failed to fetch categories: $e');
     }
   }
@@ -183,42 +260,111 @@ class SupabaseMenuService extends SupabaseService {
     }
   }
 
+  Future<bool> updateCategory(MenuCategory category) async {
+    try {
+      // Validate that we have a valid category ID
+      if (category.id.isEmpty) {
+        throw Exception('Category ID is required for update');
+      }
+
+      // Check if category with this name already exists (excluding current category)
+      final existing = await SupabaseService.client
+          .from('menu_categories')
+          .select('id')
+          .eq('name', category.name)
+          .neq('id', category.id)
+          .maybeSingle();
+
+      if (existing != null) {
+        throw Exception('Category name already exists');
+      }
+
+      await SupabaseService.client
+          .from('menu_categories')
+          .update({
+            'name': category.name,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', category.id);
+
+      return true;
+    } catch (e) {
+      throw Exception('Failed to update category: $e');
+    }
+  }
+
+  Future<int> getCategoryItemCount(String categoryId) async {
+    try {
+      final result = await SupabaseService.client
+          .from('menu_items')
+          .select('id')
+          .eq('category_id', categoryId)
+          .eq('available_status', 1);  // Use 1 for true in integer format
+
+      return result.length;
+    } catch (e) {
+      throw Exception('Failed to get category item count: $e');
+    }
+  }
+
   Future<bool> deleteCategory(String id, {String? userId}) async {
     try {
+      // Check if category contains any menu items
+      final itemCount = await getCategoryItemCount(id);
+
+      if (itemCount > 0) {
+        throw Exception('Cannot delete category that contains menu items');
+      }
+
       await SupabaseService.client.from('menu_categories').update({
         'is_active': false,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', id);
       return true;
     } catch (e) {
+      if (e.toString().contains('Cannot delete category that contains menu items')) {
+        rethrow; // Re-throw the specific error message
+      }
       throw Exception('Failed to delete category: $e');
     }
   }
 
   Future<bool> reorderCategories(List<MenuCategory> categories) async {
     try {
+      print('Reordering ${categories.length} categories');
+
       for (int i = 0; i < categories.length; i++) {
+        print('Updating category ${categories[i].name} to display_order: $i');
         await SupabaseService.client.from('menu_categories').update({
           'display_order': i,
           'updated_at': DateTime.now().toIso8601String(),
         }).eq('id', categories[i].id);
       }
+
+      print('Successfully reordered categories');
       return true;
     } catch (e) {
+      print('Error reordering categories: $e');
       throw Exception('Failed to reorder categories: $e');
     }
   }
 
-  Future<bool> reorderMenuItems(List<MenuItem> items, int categoryId) async {
+  Future<bool> reorderMenuItems(List<MenuItem> items, String categoryId) async {
     try {
+      print('Reordering ${items.length} menu items for category: $categoryId');
+
       for (int i = 0; i < items.length; i++) {
+        print('Updating item ${items[i].name} to display_order: $i');
         await SupabaseService.client.from('menu_items').update({
           'display_order': i,
           'updated_at': DateTime.now().toIso8601String(),
         }).eq('id', items[i].id);
       }
+
+      print('Successfully reordered menu items');
       return true;
     } catch (e) {
+      print('Error reordering menu items: $e');
       throw Exception('Failed to reorder menu items: $e');
     }
   }
@@ -421,171 +567,6 @@ class SupabaseCustomerService extends SupabaseService {
   }
 }
 
-/// Order service using Supabase
-class SupabaseOrderService extends SupabaseService {
-
-  Future<List<Order>> getOrders() async {
-    try {
-      final response = await SupabaseService.client
-          .from('orders')
-          .select('''
-            *,
-            customers(*),
-            order_items(*)
-          ''')
-          .order('created_at', ascending: false);
-
-      return response.map<Order>((json) {
-        // Transform nested data to match current Order model structure
-        final customer = json['customers'] != null
-            ? customer_model.Customer.fromMap({
-                ...json['customers'],
-                'created_at': DateTime.parse(json['customers']['created_at']).millisecondsSinceEpoch,
-                'updated_at': DateTime.parse(json['customers']['updated_at']).millisecondsSinceEpoch,
-              })
-            : customer_model.Customer(
-                id: '',
-                name: '',
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-              );
-
-        final orderItems = (json['order_items'] as List?)
-            ?.map((item) => OrderItem.fromMap(item))
-            .toList() ?? [];
-
-        final transformedJson = {
-          ...json,
-          'created_at': DateTime.parse(json['created_at']).millisecondsSinceEpoch,
-          'updated_at': DateTime.parse(json['updated_at']).millisecondsSinceEpoch,
-        };
-
-        // Create Order model Customer from customer_model.Customer
-        final orderCustomer = Customer(
-          id: customer.id,
-          name: customer.name,
-          phone: customer.phone,
-          email: customer.email,
-          address: customer.address,
-          createdAt: customer.createdAt,
-          updatedAt: customer.updatedAt,
-        );
-
-        return Order.fromMap(transformedJson).copyWith(
-          customer: orderCustomer,
-          items: orderItems,
-        );
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to fetch orders: $e');
-    }
-  }
-
-  Future<String> createOrder(Order order) async {
-    try {
-      // Create customer if needed
-      String? customerId;
-      if (order.customer.name.isNotEmpty) {
-        final existingCustomer = order.customer.phone?.isNotEmpty == true
-            ? await SupabaseCustomerService().getCustomerByPhone(order.customer.phone!)
-            : null;
-
-        if (existingCustomer != null) {
-          customerId = existingCustomer.id;
-        } else {
-          // Convert Order Customer to customer_model.Customer
-          final customerModel = customer_model.Customer(
-            id: order.customer.id,
-            name: order.customer.name,
-            phone: order.customer.phone,
-            email: order.customer.email,
-            address: order.customer.address,
-            createdAt: order.customer.createdAt ?? DateTime.now(),
-            updatedAt: order.customer.updatedAt ?? DateTime.now(),
-          );
-          customerId = await SupabaseCustomerService().createCustomer(customerModel);
-        }
-      }
-
-      // Create order
-      final orderResponse = await SupabaseService.client.from('orders').insert({
-        'order_number': order.orderNumber,
-        'customer_id': customerId,
-        'subtotal': order.subtotal,
-        'delivery_fee': order.deliveryFee,
-        'discount': order.discount,
-        'tax': order.tax,
-        'service_charge': order.serviceCharge,
-        'total': order.total,
-        'order_type': order.orderType.toString().split('.').last.toUpperCase(),
-        'status': order.status.toString().split('.').last.toUpperCase(),
-        'payment_method': order.paymentMethod.toString().split('.').last,
-        'payment_status': order.paymentStatus.toString().split('.').last.toUpperCase(),
-        'table_number': order.tableNumber,
-        'platform': order.platform,
-        'notes': order.notes,
-      }).select().single();
-
-      final orderId = orderResponse['id'];
-
-      // Create order items
-      if (order.items.isNotEmpty) {
-        final orderItemsData = order.items.map((item) => {
-          'order_id': orderId,
-          'menu_item_id': item.menuItemId,
-          'menu_item_name': item.menuItemName,
-          'base_price': item.basePrice,
-          'quantity': item.quantity,
-          'selected_size': item.selectedSize,
-          'subtotal': item.subtotal,
-          'notes': item.notes,
-          'selected_options': item.selectedOptions, // Store as JSON
-        }).toList();
-
-        await SupabaseService.client.from('order_items').insert(orderItemsData);
-      }
-
-      return orderId;
-    } catch (e) {
-      throw Exception('Failed to create order: $e');
-    }
-  }
-
-  Future<void> updateOrder(Order order) async {
-    try {
-      await SupabaseService.client.from('orders').update({
-        'subtotal': order.subtotal,
-        'delivery_fee': order.deliveryFee,
-        'discount': order.discount,
-        'tax': order.tax,
-        'service_charge': order.serviceCharge,
-        'total': order.total,
-        'order_type': order.orderType.toString().split('.').last.toUpperCase(),
-        'status': order.status.toString().split('.').last.toUpperCase(),
-        'payment_method': order.paymentMethod.toString().split('.').last,
-        'payment_status': order.paymentStatus.toString().split('.').last.toUpperCase(),
-        'table_number': order.tableNumber,
-        'platform': order.platform,
-        'notes': order.notes,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', order.id);
-
-      // Update order items if needed
-      // You might want to implement a more sophisticated sync here
-    } catch (e) {
-      throw Exception('Failed to update order: $e');
-    }
-  }
-
-  Future<void> deleteOrder(String orderId) async {
-    try {
-      // Order items will be deleted automatically due to CASCADE
-      await SupabaseService.client.from('orders').delete().eq('id', orderId);
-    } catch (e) {
-      throw Exception('Failed to delete order: $e');
-    }
-  }
-}
 
 /// Authentication service using Supabase Auth
 class SupabaseAuthService extends SupabaseService {
@@ -1011,42 +992,58 @@ class SupabaseMenuOptionService extends SupabaseService {
 
   Future<String?> createMenuOption(MenuOption option) async {
     try {
+      final insertData = {
+        'name': option.name,
+        'category': option.category,
+        'price': option.price,
+        'is_available': option.isAvailable ? 1 : 0, // Convert boolean to integer
+        'description': option.description,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      print('🔍 Creating menu option "${option.name}" with data:');
+      print('   option.isAvailable: ${option.isAvailable}');
+      print('   sending is_available: ${insertData['is_available']} (${insertData['is_available'].runtimeType})');
+
       final response = await SupabaseService.client
           .from('menu_options')
-          .insert({
-            'name': option.name,
-            'category': option.category,
-            'price': option.price,
-            'is_available': option.isAvailable,
-            'description': option.description,
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
+          .insert(insertData)
           .select('id')
           .single();
 
+      print('✅ Created option with ID: ${response['id']}');
       return response['id'];
     } catch (e) {
+      print('❌ Create option failed: $e');
       throw Exception('Failed to create menu option: $e');
     }
   }
 
   Future<bool> updateMenuOption(MenuOption option) async {
     try {
+      final updateData = {
+        'name': option.name,
+        'category': option.category,
+        'price': option.price,
+        'is_available': option.isAvailable ? 1 : 0, // Convert boolean to integer
+        'description': option.description,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      print('🔍 Updating menu option "${option.name}" (${option.id}) with data:');
+      print('   option.isAvailable: ${option.isAvailable}');
+      print('   sending is_available: ${updateData['is_available']} (${updateData['is_available'].runtimeType})');
+
       await SupabaseService.client
           .from('menu_options')
-          .update({
-            'name': option.name,
-            'category': option.category,
-            'price': option.price,
-            'is_available': option.isAvailable,
-            'description': option.description,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
+          .update(updateData)
           .eq('id', option.id);
 
+      print('✅ Updated option ${option.id} successfully');
       return true;
     } catch (e) {
+      print('❌ Update option failed: $e');
       throw Exception('Failed to update menu option: $e');
     }
   }
@@ -1112,7 +1109,7 @@ class SupabaseMenuOptionService extends SupabaseService {
     try {
       var query = SupabaseService.client
           .from('option_group_options')
-          .select('menu_option_id, display_order, menu_options(*)')
+          .select('option_id, display_order, menu_options(*)')
           .eq('option_group_id', optionGroupId)
           .order('display_order');
 
@@ -1142,7 +1139,7 @@ class SupabaseMenuOptionService extends SupabaseService {
             'description': optionGroup.description,
             'min_selection': optionGroup.minSelection,
             'max_selection': optionGroup.maxSelection,
-            'is_required': optionGroup.isRequired,
+            'is_required': optionGroup.isRequired ? 1 : 0, // Convert boolean to integer
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           })
@@ -1157,33 +1154,88 @@ class SupabaseMenuOptionService extends SupabaseService {
 
   Future<bool> updateOptionGroup(OptionGroup optionGroup) async {
     try {
+      final updateData = {
+        'name': optionGroup.name,
+        'description': optionGroup.description,
+        'min_selection': optionGroup.minSelection,
+        'max_selection': optionGroup.maxSelection,
+        'is_required': optionGroup.isRequired ? 1 : 0, // Convert boolean to integer
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      print('🔍 Updating option group ${optionGroup.id} with data:');
+      print('   optionGroup.isRequired: ${optionGroup.isRequired}');
+      print('   sending is_required: ${updateData['is_required']} (${updateData['is_required'].runtimeType})');
+
       await SupabaseService.client
           .from('option_groups')
-          .update({
-            'name': optionGroup.name,
-            'description': optionGroup.description,
-            'min_selection': optionGroup.minSelection,
-            'max_selection': optionGroup.maxSelection,
-            'is_required': optionGroup.isRequired,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
+          .update(updateData)
           .eq('id', optionGroup.id);
 
+      print('✅ Update completed successfully');
       return true;
     } catch (e) {
+      print('❌ Update failed: $e');
       throw Exception('Failed to update option group: $e');
     }
   }
 
   Future<bool> deleteOptionGroup(String optionGroupId) async {
     try {
+      print('🗑️ Starting deletion process for option group: $optionGroupId');
+
+      // Step 1: Get all options linked to this group (before removing links)
+      print('📝 Getting options linked to this group...');
+      final linkedOptions = await getOptionsForGroup(optionGroupId);
+      final optionIds = linkedOptions.map((option) => option.id).toList();
+      print('📝 Found ${optionIds.length} options to check: $optionIds');
+
+      // Step 2: Delete all option-to-group links
+      print('🔗 Removing option-group links...');
+      await SupabaseService.client
+          .from('option_group_options')
+          .delete()
+          .eq('option_group_id', optionGroupId);
+
+      // Step 3: Delete all menu item-to-group links
+      print('📋 Removing menu item-group links...');
+      await SupabaseService.client
+          .from('menu_item_option_groups')
+          .delete()
+          .eq('option_group_id', optionGroupId);
+
+      // Step 4: Delete orphaned options (options that are no longer linked to any group)
+      print('🧹 Checking for orphaned options...');
+      for (final optionId in optionIds) {
+        // Check if this option is still linked to any other group
+        final remainingLinks = await SupabaseService.client
+            .from('option_group_options')
+            .select('id')
+            .eq('option_id', optionId)
+            .limit(1);
+
+        if (remainingLinks.isEmpty) {
+          print('🗑️ Deleting orphaned option: $optionId');
+          await SupabaseService.client
+              .from('menu_options')
+              .delete()
+              .eq('id', optionId);
+        } else {
+          print('🔗 Option $optionId is still linked to other groups, keeping it');
+        }
+      }
+
+      // Step 5: Finally delete the option group itself
+      print('🗑️ Deleting option group...');
       await SupabaseService.client
           .from('option_groups')
           .delete()
           .eq('id', optionGroupId);
 
+      print('✅ Successfully deleted option group and all related data');
       return true;
     } catch (e) {
+      print('❌ Error during deletion: $e');
       throw Exception('Failed to delete option group: $e');
     }
   }
@@ -1194,7 +1246,7 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('option_group_options')
           .insert({
             'option_group_id': groupId,
-            'menu_option_id': optionId,
+            'option_id': optionId,
             'display_order': displayOrder,
             'created_at': DateTime.now().toIso8601String(),
           });
@@ -1211,7 +1263,7 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('option_group_options')
           .delete()
           .eq('option_group_id', groupId)
-          .eq('menu_option_id', optionId);
+          .eq('option_id', optionId);
 
       return true;
     } catch (e) {
@@ -1230,5 +1282,1427 @@ class SupabaseMenuOptionService extends SupabaseService {
     } catch (e) {
       throw Exception('Failed to fetch menu items using option group: $e');
     }
+  }
+
+  /// Connect a menu item to an option group
+  Future<bool> connectMenuItemToOptionGroup(
+    String menuItemId,
+    String optionGroupId, {
+    bool isRequired = false,
+    int displayOrder = 0,
+  }) async {
+    try {
+      // Check if relationship already exists
+      final existing = await SupabaseService.client
+          .from('menu_item_option_groups')
+          .select('id')
+          .eq('menu_item_id', menuItemId)
+          .eq('option_group_id', optionGroupId)
+          .maybeSingle();
+
+      if (existing != null) {
+        print('✅ Menu item $menuItemId already linked to option group $optionGroupId');
+        return true; // Relationship already exists
+      }
+
+      // Create new relationship
+      await SupabaseService.client.from('menu_item_option_groups').insert({
+        'menu_item_id': menuItemId,
+        'option_group_id': optionGroupId,
+        'is_required': isRequired,
+        'display_order': displayOrder,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      print('✅ Connected menu item $menuItemId to option group $optionGroupId');
+      return true;
+    } catch (e) {
+      print('❌ Error connecting menu item to option group: $e');
+      throw Exception('Failed to connect menu item to option group: $e');
+    }
+  }
+
+  /// Disconnect a menu item from an option group
+  Future<bool> disconnectMenuItemFromOptionGroup(
+    String menuItemId,
+    String optionGroupId,
+  ) async {
+    try {
+      await SupabaseService.client
+          .from('menu_item_option_groups')
+          .delete()
+          .eq('menu_item_id', menuItemId)
+          .eq('option_group_id', optionGroupId);
+
+      print('✅ Disconnected menu item $menuItemId from option group $optionGroupId');
+      return true;
+    } catch (e) {
+      print('❌ Error disconnecting menu item from option group: $e');
+      throw Exception('Failed to disconnect menu item from option group: $e');
+    }
+  }
+
+  /// Update menu item links for an option group
+  Future<bool> updateMenuItemLinks(String optionGroupId, List<String> menuItemIds) async {
+    try {
+      print('🔗 Updating menu item links for option group $optionGroupId');
+      print('📋 New menu item IDs: $menuItemIds');
+
+      // Get current links
+      final currentLinks = await SupabaseService.client
+          .from('menu_item_option_groups')
+          .select('menu_item_id')
+          .eq('option_group_id', optionGroupId);
+
+      final currentMenuItemIds = currentLinks
+          .map((link) => link['menu_item_id'] as String)
+          .toList();
+
+      print('📋 Current menu item IDs: $currentMenuItemIds');
+
+      // Remove links that are no longer needed
+      final toRemove = currentMenuItemIds.where((id) => !menuItemIds.contains(id));
+      for (final menuItemId in toRemove) {
+        await disconnectMenuItemFromOptionGroup(menuItemId, optionGroupId);
+      }
+
+      // Add new links
+      final toAdd = menuItemIds.where((id) => !currentMenuItemIds.contains(id));
+      for (final menuItemId in toAdd) {
+        await connectMenuItemToOptionGroup(menuItemId, optionGroupId);
+      }
+
+      print('✅ Successfully updated menu item links');
+      return true;
+    } catch (e) {
+      print('❌ Error updating menu item links: $e');
+      throw Exception('Failed to update menu item links: $e');
+    }
+  }
+}
+
+/// Inventory management service using Supabase
+class SupabaseInventoryService extends SupabaseService {
+
+  // ============= INGREDIENT MANAGEMENT =============
+
+  Future<List<Ingredient>> getIngredients({InventoryFilter? filter}) async {
+    try {
+      var query = SupabaseService.client
+          .from('ingredients')
+          .select();
+
+      // Apply filters
+      if (filter != null) {
+        if (filter.active != null) {
+          query = query.eq('is_active', filter.active!);
+        }
+
+        if (filter.categories != null && filter.categories!.isNotEmpty) {
+          query = query.inFilter('category', filter.categories!);
+        }
+      } else {
+        // Default to active ingredients only
+        query = query.eq('is_active', true);
+      }
+
+      // Apply sorting and execute query
+      dynamic finalQuery;
+      if (filter?.sortBy != null) {
+        final ascending = filter?.sortOrder?.toLowerCase() != 'desc';
+        switch (filter!.sortBy) {
+          case 'name':
+            finalQuery = query.order('name', ascending: ascending);
+            break;
+          case 'quantity':
+            finalQuery = query.order('current_quantity', ascending: ascending);
+            break;
+          case 'cost':
+            finalQuery = query.order('cost_per_unit', ascending: ascending);
+            break;
+          default:
+            finalQuery = query.order('name');
+        }
+      } else {
+        finalQuery = query.order('name');
+      }
+
+      final response = await finalQuery;
+
+      List<Ingredient> ingredients = response.map<Ingredient>((json) => Ingredient.fromMap(json)).toList();
+
+      // Client-side filtering for low stock if needed
+      if (filter?.lowStock == true) {
+        ingredients = ingredients.where((ingredient) =>
+          ingredient.currentQuantity <= ingredient.minimumThreshold
+        ).toList();
+      }
+
+      return ingredients;
+    } catch (e) {
+      throw Exception('Failed to fetch ingredients: $e');
+    }
+  }
+
+  Future<Ingredient?> getIngredientById(String id) async {
+    try {
+      final response = await SupabaseService.client
+          .from('ingredients')
+          .select()
+          .eq('id', id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+      if (response != null) {
+        return Ingredient.fromMap(response);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to fetch ingredient: $e');
+    }
+  }
+
+  Future<String> createIngredient(Ingredient ingredient) async {
+    try {
+      final response = await SupabaseService.client
+          .from('ingredients')
+          .insert({
+            'name': ingredient.name,
+            'description': ingredient.description,
+            'category': ingredient.category,
+            'unit': ingredient.unit,
+            'current_quantity': ingredient.currentQuantity,
+            'minimum_threshold': ingredient.minimumThreshold,
+            'cost_per_unit': ingredient.costPerUnit,
+            'supplier': ingredient.supplier,
+            'is_active': true,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .select('id')
+          .single();
+
+      return response['id'] as String;
+    } catch (e) {
+      throw Exception('Failed to create ingredient: $e');
+    }
+  }
+
+  Future<void> updateIngredient(Ingredient ingredient) async {
+    try {
+      await SupabaseService.client
+          .from('ingredients')
+          .update({
+            'name': ingredient.name,
+            'description': ingredient.description,
+            'category': ingredient.category,
+            'unit': ingredient.unit,
+            'current_quantity': ingredient.currentQuantity,
+            'minimum_threshold': ingredient.minimumThreshold,
+            'cost_per_unit': ingredient.costPerUnit,
+            'supplier': ingredient.supplier,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', ingredient.id.toString());
+    } catch (e) {
+      throw Exception('Failed to update ingredient: $e');
+    }
+  }
+
+  Future<void> deleteIngredient(String id) async {
+    try {
+      // Soft delete by setting is_active to false
+      await SupabaseService.client
+          .from('ingredients')
+          .update({
+            'is_active': false,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', id);
+    } catch (e) {
+      throw Exception('Failed to delete ingredient: $e');
+    }
+  }
+
+  Future<void> updateIngredientQuantity(String ingredientId, double newQuantity, {String? reason}) async {
+    try {
+      // Get current ingredient
+      final ingredient = await getIngredientById(ingredientId);
+      if (ingredient == null) {
+        throw Exception('Ingredient not found');
+      }
+
+      final now = DateTime.now();
+
+      // Update ingredient quantity
+      await SupabaseService.client
+          .from('ingredients')
+          .update({
+            'current_quantity': newQuantity,
+            'updated_at': now.toIso8601String(),
+          })
+          .eq('id', ingredientId);
+
+      // Record transaction
+      await SupabaseService.client
+          .from('inventory_transactions')
+          .insert({
+            'ingredient_id': ingredientId,
+            'transaction_type': 'ADJUSTMENT',
+            'quantity': newQuantity - ingredient.currentQuantity,
+            'unit': ingredient.unit,
+            'reason': reason ?? 'Manual adjustment',
+            'created_at': now.toIso8601String(),
+          });
+    } catch (e) {
+      throw Exception('Failed to update ingredient quantity: $e');
+    }
+  }
+
+  // ============= STOCKTAKE MANAGEMENT =============
+
+  Future<List<StocktakeSession>> getStocktakeSessions() async {
+    try {
+      final response = await SupabaseService.client
+          .from('stocktake_sessions')
+          .select()
+          .order('created_at', ascending: false);
+
+      return response.map((json) => _stocktakeSessionFromSupabaseMap(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch stocktake sessions: $e');
+    }
+  }
+
+  Future<StocktakeSession?> getStocktakeSessionById(String id) async {
+    try {
+      final response = await SupabaseService.client
+          .from('stocktake_sessions')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+
+      if (response != null) {
+        return _stocktakeSessionFromSupabaseMap(response);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to fetch stocktake session: $e');
+    }
+  }
+
+  Future<String> createStocktakeSession({
+    required String name,
+    String? description,
+    required String type,
+    String? location,
+    List<String>? categoryFilter,
+  }) async {
+    try {
+      final now = DateTime.now();
+
+      // Get all ingredients to include in stocktake
+      final filter = InventoryFilter(
+        categories: categoryFilter,
+        active: true,
+      );
+      final ingredients = await getIngredients(filter: filter);
+
+      // Create stocktake session
+      final sessionResponse = await SupabaseService.client
+          .from('stocktake_sessions')
+          .insert({
+            'name': name,
+            'description': description,
+            'type': type,
+            'status': 'draft',
+            'location': location,
+            'total_items': ingredients.length,
+            'counted_items': 0,
+            'variance_count': 0,
+            'total_variance_value': 0,
+            'created_at': now.toIso8601String(),
+          })
+          .select('id')
+          .single();
+
+      final sessionId = sessionResponse['id'] as String;
+
+      // Create stocktake items for each ingredient
+      final stocktakeItems = ingredients.map((ingredient) => {
+        'session_id': sessionId,
+        'ingredient_id': ingredient.id.toString(),
+        'ingredient_name': ingredient.name,
+        'unit': ingredient.unit,
+        'expected_quantity': ingredient.currentQuantity,
+      }).toList();
+
+      if (stocktakeItems.isNotEmpty) {
+        await SupabaseService.client
+            .from('stocktake_items')
+            .insert(stocktakeItems);
+      }
+
+      return sessionId;
+    } catch (e) {
+      throw Exception('Failed to create stocktake session: $e');
+    }
+  }
+
+  Future<void> startStocktakeSession(String sessionId) async {
+    try {
+      await SupabaseService.client
+          .from('stocktake_sessions')
+          .update({
+            'status': 'in_progress',
+            'started_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', sessionId);
+    } catch (e) {
+      throw Exception('Failed to start stocktake session: $e');
+    }
+  }
+
+  Future<List<StocktakeItem>> getStocktakeItems(String sessionId) async {
+    try {
+      final response = await SupabaseService.client
+          .from('stocktake_items')
+          .select()
+          .eq('session_id', sessionId)
+          .order('ingredient_name');
+
+      return response.map((json) => _stocktakeItemFromSupabaseMap(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch stocktake items: $e');
+    }
+  }
+
+  Future<void> updateStocktakeItemCount(
+    String sessionId,
+    String itemId,
+    double countedQuantity, {
+    String? notes,
+  }) async {
+    try {
+      final now = DateTime.now();
+
+      // Get the stocktake item to calculate variance
+      final item = await SupabaseService.client
+          .from('stocktake_items')
+          .select()
+          .eq('id', itemId)
+          .single();
+
+      final expectedQuantity = (item['expected_quantity'] as num).toDouble();
+      final variance = countedQuantity - expectedQuantity;
+
+      // Update the stocktake item
+      await SupabaseService.client
+          .from('stocktake_items')
+          .update({
+            'counted_quantity': countedQuantity,
+            'variance': variance,
+            'notes': notes,
+            'counted_at': now.toIso8601String(),
+          })
+          .eq('id', itemId);
+
+      // Update session statistics
+      await _updateSessionStatistics(sessionId);
+    } catch (e) {
+      throw Exception('Failed to update stocktake item count: $e');
+    }
+  }
+
+  Future<void> _updateSessionStatistics(String sessionId) async {
+    try {
+      // Get all items for this session
+      final items = await SupabaseService.client
+          .from('stocktake_items')
+          .select()
+          .eq('session_id', sessionId);
+
+      int countedItems = 0;
+      int varianceCount = 0;
+      double totalVarianceValue = 0;
+
+      for (final item in items) {
+        if (item['counted_quantity'] != null) {
+          countedItems++;
+
+          final variance = item['variance'] as num?;
+          if (variance != null && variance != 0) {
+            varianceCount++;
+            // You might want to calculate monetary variance here
+          }
+        }
+      }
+
+      // Update session statistics
+      await SupabaseService.client
+          .from('stocktake_sessions')
+          .update({
+            'counted_items': countedItems,
+            'variance_count': varianceCount,
+            'total_variance_value': totalVarianceValue,
+          })
+          .eq('id', sessionId);
+    } catch (e) {
+      throw Exception('Failed to update session statistics: $e');
+    }
+  }
+
+  Future<void> completeStocktakeSession(String sessionId, {bool applyChanges = false}) async {
+    try {
+      final now = DateTime.now();
+
+      if (applyChanges) {
+        // Apply counted quantities to actual inventory
+        final items = await SupabaseService.client
+            .from('stocktake_items')
+            .select()
+            .eq('session_id', sessionId)
+            .not('counted_quantity', 'is', null);
+
+        for (final item in items) {
+          final ingredientId = item['ingredient_id'] as String;
+          final countedQuantity = (item['counted_quantity'] as num).toDouble();
+
+          await updateIngredientQuantity(
+            ingredientId,
+            countedQuantity,
+            reason: 'Stocktake adjustment - Session: ${sessionId}',
+          );
+        }
+      }
+
+      // Mark session as completed
+      await SupabaseService.client
+          .from('stocktake_sessions')
+          .update({
+            'status': 'completed',
+            'completed_at': now.toIso8601String(),
+          })
+          .eq('id', sessionId);
+    } catch (e) {
+      throw Exception('Failed to complete stocktake session: $e');
+    }
+  }
+
+  Future<void> cancelStocktakeSession(String sessionId) async {
+    try {
+      await SupabaseService.client
+          .from('stocktake_sessions')
+          .update({
+            'status': 'cancelled',
+          })
+          .eq('id', sessionId);
+    } catch (e) {
+      throw Exception('Failed to cancel stocktake session: $e');
+    }
+  }
+
+  // ============= ANALYTICS & UTILITIES =============
+
+  Future<Map<String, dynamic>> getInventoryStatistics() async {
+    try {
+      // Get all active ingredients
+      final ingredients = await getIngredients();
+
+      double totalValue = 0;
+      int lowStockCount = 0;
+      int outOfStockCount = 0;
+
+      for (final ingredient in ingredients) {
+        totalValue += ingredient.totalValue;
+
+        if (ingredient.currentQuantity <= 0) {
+          outOfStockCount++;
+        } else if (ingredient.currentQuantity <= ingredient.minimumThreshold) {
+          lowStockCount++;
+        }
+      }
+
+      return {
+        'total_ingredients': ingredients.length,
+        'total_value': totalValue,
+        'low_stock_count': lowStockCount,
+        'out_of_stock_count': outOfStockCount,
+        'in_stock_count': ingredients.length - lowStockCount - outOfStockCount,
+      };
+    } catch (e) {
+      throw Exception('Failed to get inventory statistics: $e');
+    }
+  }
+
+  // ============= HELPER METHODS =============
+
+
+  StocktakeSession _stocktakeSessionFromSupabaseMap(Map<String, dynamic> map) {
+    return StocktakeSession(
+      id: int.tryParse(map['id']?.toString() ?? ''), // Convert UUID back to int for compatibility
+      name: map['name'] ?? '',
+      description: map['description'],
+      type: map['type'] ?? '',
+      status: map['status'] ?? 'draft',
+      location: map['location'],
+      totalItems: map['total_items'] ?? 0,
+      countedItems: map['counted_items'] ?? 0,
+      varianceCount: map['variance_count'] ?? 0,
+      totalVarianceValue: (map['total_variance_value'] ?? 0).toDouble(),
+      createdAt: DateTime.parse(map['created_at']),
+      startedAt: map['started_at'] != null ? DateTime.parse(map['started_at']) : null,
+      completedAt: map['completed_at'] != null ? DateTime.parse(map['completed_at']) : null,
+    );
+  }
+
+  StocktakeItem _stocktakeItemFromSupabaseMap(Map<String, dynamic> map) {
+    return StocktakeItem(
+      id: int.tryParse(map['id']?.toString() ?? ''), // Convert UUID back to int for compatibility
+      sessionId: int.tryParse(map['session_id']?.toString() ?? '') ?? 0,
+      ingredientId: int.tryParse(map['ingredient_id']?.toString() ?? '') ?? 0,
+      ingredientName: map['ingredient_name'] ?? '',
+      unit: map['unit'] ?? '',
+      expectedQuantity: (map['expected_quantity'] ?? 0).toDouble(),
+      countedQuantity: map['counted_quantity'] != null ? (map['counted_quantity'] as num).toDouble() : null,
+      variance: map['variance'] != null ? (map['variance'] as num).toDouble() : null,
+      varianceValue: map['variance_value'] != null ? (map['variance_value'] as num).toDouble() : null,
+      notes: map['notes'],
+      countedAt: map['counted_at'] != null ? DateTime.parse(map['counted_at']) : null,
+    );
+  }
+}
+
+/// Order management service using Supabase
+class SupabaseOrderService extends SupabaseService {
+
+  // ============= ORDER CRUD OPERATIONS =============
+
+  /// Get all orders with optional filtering
+  Future<List<Order>> getOrders({
+    OrderStatus? status,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    String? customerId,
+  }) async {
+    try {
+      // Build query with fluent chaining
+      dynamic query = SupabaseService.client
+          .from('orders')
+          .select('''
+            *,
+            customers(id, name, phone, email, address)
+          ''');
+
+      // Apply filters
+      if (status != null) {
+        query = query.eq('status', status.value);
+      }
+
+      if (startDate != null) {
+        query = query.gte('created_at', startDate.toIso8601String());
+      }
+
+      if (endDate != null) {
+        query = query.lte('created_at', endDate.toIso8601String());
+      }
+
+      if (customerId != null) {
+        query = query.eq('customer_id', customerId);
+      }
+
+      // Apply ordering and limit
+      query = query.order('created_at', ascending: false);
+
+      if (limit != null) {
+        query = query.limit(limit);
+      }
+
+      final response = await query;
+
+      // Transform response to Order objects
+      final orders = response.map<Order>((json) {
+        // Transform Supabase response to match Order model
+        final transformedJson = Map<String, dynamic>.from(json);
+
+        // Handle nested customer data
+        if (json['customers'] != null) {
+          final customerData = json['customers'];
+          transformedJson['customer_id'] = customerData['id'];
+          transformedJson['customer_name'] = customerData['name'] ?? '';
+          transformedJson['customer_phone'] = customerData['phone'] ?? '';
+          transformedJson['customer_email'] = customerData['email'] ?? '';
+          transformedJson['customer_address'] = customerData['address'] ?? '';
+        } else {
+          // Handle missing customer data gracefully
+          transformedJson['customer_id'] = json['customer_id'] ?? '';
+          transformedJson['customer_name'] = 'Unknown Customer';
+          transformedJson['customer_phone'] = '';
+          transformedJson['customer_email'] = '';
+          transformedJson['customer_address'] = '';
+        }
+
+        // Keep original timestamp values - let Order.fromMap() handle parsing
+        transformedJson['created_at'] = json['created_at'];
+        transformedJson['updated_at'] = json['updated_at'];
+
+        return Order.fromMap(transformedJson);
+      }).toList();
+
+      // Load order items for each order
+      for (int i = 0; i < orders.length; i++) {
+        final orderItems = await getOrderItems(orders[i].id);
+        orders[i] = orders[i].copyWith(items: orderItems);
+      }
+
+      return orders;
+    } catch (e) {
+      print('❌ Error fetching orders: $e');
+      return [];
+    }
+  }
+
+  /// Get a single order by ID
+  Future<Order?> getOrderById(String id) async {
+    try {
+      final response = await SupabaseService.client
+          .from('orders')
+          .select('''
+            *,
+            customers!inner(id, name, phone, email, address)
+          ''')
+          .eq('id', _convertToSupabaseId(id))
+          .single();
+
+      // Transform customer data
+      final transformedJson = Map<String, dynamic>.from(response);
+      if (response['customers'] != null) {
+        final customerData = response['customers'];
+        transformedJson['customer_id'] = customerData['id'];
+        transformedJson['customer_name'] = customerData['name'];
+        transformedJson['customer_phone'] = customerData['phone'];
+        transformedJson['customer_email'] = customerData['email'];
+        transformedJson['customer_address'] = customerData['address'];
+      }
+
+      // Convert timestamps
+      transformedJson['created_at'] = DateTime.parse(response['created_at']).millisecondsSinceEpoch;
+      transformedJson['updated_at'] = DateTime.parse(response['updated_at']).millisecondsSinceEpoch;
+
+      final order = Order.fromMap(transformedJson);
+
+      // Load order items
+      final orderItems = await getOrderItems(order.id);
+
+      return order.copyWith(items: orderItems);
+    } catch (e) {
+      print('❌ Error fetching order: $e');
+      return null;
+    }
+  }
+
+  /// Get order items for a specific order
+  Future<List<OrderItem>> getOrderItems(String orderId) async {
+    try {
+      final response = await SupabaseService.client
+          .from('order_items')
+          .select('*')
+          .eq('order_id', _convertToSupabaseId(orderId))
+          .order('id');
+
+      return response.map<OrderItem>((item) => OrderItem.fromMap(item)).toList();
+    } catch (e) {
+      print('❌ Error fetching order items: $e');
+      return [];
+    }
+  }
+
+  /// Create a new order
+  Future<String> createOrder(Order order) async {
+    try {
+      // Validate payment method for delivered orders
+      if (_requiresPaymentMethod(order.status)) {
+        _validatePaymentMethodForOrder(order);
+      }
+
+      final data = order.toMap();
+
+      // Remove ID for insert, let Supabase generate UUID
+      data.remove('id');
+
+      // Convert timestamps to ISO strings for Supabase
+      data['created_at'] = DateTime.now().toIso8601String();
+      data['updated_at'] = DateTime.now().toIso8601String();
+
+      // Create order
+      final response = await SupabaseService.client
+          .from('orders')
+          .insert(data)
+          .select('id')
+          .single();
+
+      final orderId = response['id'] as String;
+
+      // Create order items
+      for (final item in order.items) {
+        final itemData = item.toMap();
+        itemData.remove('id');
+        itemData['order_id'] = orderId;
+
+        await SupabaseService.client
+            .from('order_items')
+            .insert(itemData);
+      }
+
+      return orderId;
+    } catch (e) {
+      print('❌ Error creating order: $e');
+
+      // Check if this is a user-friendly validation error
+      final errorMessage = e.toString();
+      if (errorMessage.contains('Payment method required') ||
+          errorMessage.contains('method required') ||
+          errorMessage.contains('phương thức thanh toán')) {
+        // Pass through validation errors as-is for better UX
+        rethrow;
+      }
+
+      // For database/technical errors, provide context
+      throw Exception('Failed to create order: $e');
+    }
+  }
+
+  /// Update an existing order
+  Future<void> updateOrder(Order order) async {
+    try {
+      // Validate payment method for delivered orders
+      if (_requiresPaymentMethod(order.status)) {
+        _validatePaymentMethodForOrder(order);
+      }
+
+      final data = order.toMap();
+
+      // Remove id and created_at from updates (shouldn't change)
+      data.remove('id');
+      data.remove('created_at');
+
+      // Convert timestamp to ISO string for Supabase
+      data['updated_at'] = DateTime.now().toIso8601String();
+
+      await SupabaseService.client
+          .from('orders')
+          .update(data)
+          .eq('id', _convertToSupabaseId(order.id));
+    } catch (e) {
+      print('❌ Error updating order: $e');
+
+      // Check if this is a user-friendly validation error
+      final errorMessage = e.toString();
+      if (errorMessage.contains('Payment method required') ||
+          errorMessage.contains('method required') ||
+          errorMessage.contains('phương thức thanh toán')) {
+        // Pass through validation errors as-is for better UX
+        rethrow;
+      }
+
+      // For database/technical errors, provide context
+      throw Exception('Failed to update order: $e');
+    }
+  }
+
+  /// Update order status
+  Future<void> updateOrderStatus(String orderId, OrderStatus status) async {
+    try {
+      // Validate payment method is required for completion statuses
+      if (_requiresPaymentMethod(status)) {
+        await _validatePaymentMethodForCompletion(orderId, status);
+      }
+
+      await SupabaseService.client
+          .from('orders')
+          .update({
+            'status': status.value,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', _convertToSupabaseId(orderId));
+    } catch (e) {
+      print('❌ Error updating order status: $e');
+
+      // Check if this is a user-friendly validation error
+      final errorMessage = e.toString();
+      if (errorMessage.contains('Payment method required') ||
+          errorMessage.contains('method required') ||
+          errorMessage.contains('phương thức thanh toán')) {
+        // Pass through validation errors as-is for better UX
+        rethrow;
+      }
+
+      // For database/technical errors, provide context
+      throw Exception('Failed to update order status: $e');
+    }
+  }
+
+  /// Check if the order status requires a payment method
+  bool _requiresPaymentMethod(OrderStatus status) {
+    return status == OrderStatus.delivered;
+  }
+
+  /// Validate that payment method is set when completing an order
+  Future<void> _validatePaymentMethodForCompletion(String orderId, OrderStatus targetStatus) async {
+    try {
+      // Fetch current order to check payment method
+      final response = await SupabaseService.client
+          .from('orders')
+          .select('payment_method')
+          .eq('id', _convertToSupabaseId(orderId))
+          .single();
+
+      final currentPaymentMethod = response['payment_method'] as String?;
+
+      // Check if payment method is missing or set to 'none'
+      if (currentPaymentMethod == null ||
+          currentPaymentMethod.isEmpty ||
+          currentPaymentMethod == 'none') {
+        throw Exception('Payment method required');
+      }
+    } catch (e) {
+      if (e.toString().contains('Payment method is required')) {
+        rethrow; // Re-throw our validation error
+      }
+      throw Exception('Failed to validate payment method for order completion: $e');
+    }
+  }
+
+  /// Validate that payment method is set for an order object
+  void _validatePaymentMethodForOrder(Order order) {
+    // Check if payment method is missing or set to 'none'
+    if (order.paymentMethod == PaymentMethod.none) {
+      throw Exception('Payment method required');
+    }
+  }
+
+  /// Update payment status
+  Future<void> updatePaymentStatus(String orderId, PaymentStatus status) async {
+    try {
+      await SupabaseService.client
+          .from('orders')
+          .update({
+            'payment_status': status.value,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', _convertToSupabaseId(orderId));
+    } catch (e) {
+      print('❌ Error updating payment status: $e');
+      throw Exception('Failed to update payment status: $e');
+    }
+  }
+
+  /// Complete order with payment method and status atomically
+  /// This ensures payment method is set before marking order as delivered
+  Future<void> completeOrderWithPayment(
+    String orderId,
+    PaymentMethod paymentMethod, {
+    PaymentStatus paymentStatus = PaymentStatus.paid,
+    OrderStatus orderStatus = OrderStatus.delivered,
+  }) async {
+    try {
+      // Validate payment method is not 'none'
+      if (paymentMethod == PaymentMethod.none) {
+        throw Exception('Payment method required');
+      }
+
+      // Update payment method, payment status, and order status atomically
+      await SupabaseService.client
+          .from('orders')
+          .update({
+            'payment_method': paymentMethod.value,
+            'payment_status': paymentStatus.value,
+            'status': orderStatus.value,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', _convertToSupabaseId(orderId));
+    } catch (e) {
+      print('❌ Error completing order with payment: $e');
+      throw Exception('Failed to complete order with payment: $e');
+    }
+  }
+
+  /// Delete an order
+  Future<void> deleteOrder(String id) async {
+    try {
+      // Delete order items first (foreign key constraint)
+      await SupabaseService.client
+          .from('order_items')
+          .delete()
+          .eq('order_id', _convertToSupabaseId(id));
+
+      // Delete order
+      await SupabaseService.client
+          .from('orders')
+          .delete()
+          .eq('id', _convertToSupabaseId(id));
+    } catch (e) {
+      print('❌ Error deleting order: $e');
+      throw Exception('Failed to delete order: $e');
+    }
+  }
+
+  // ============= ORDER QUERIES & FILTERS =============
+
+  /// Get orders by status
+  Future<List<Order>> getOrdersByStatus(OrderStatus status) async {
+    return getOrders(status: status);
+  }
+
+  /// Get today's orders
+  Future<List<Order>> getTodaysOrders() async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    return getOrders(startDate: startOfDay, endDate: endOfDay);
+  }
+
+  /// Get orders for a specific date range
+  Future<List<Order>> getOrdersInDateRange(DateTime startDate, DateTime endDate) async {
+    return getOrders(startDate: startDate, endDate: endDate);
+  }
+
+  // ============= ANALYTICS & STATISTICS =============
+
+  /// Get comprehensive order statistics
+  Future<Map<String, dynamic>> getOrderStatistics({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      // Build date filter
+      dynamic query = SupabaseService.client
+          .from('orders')
+          .select('total, status, order_type, payment_status, created_at');
+
+      if (startDate != null) {
+        query = query.gte('created_at', startDate.toIso8601String());
+      }
+
+      if (endDate != null) {
+        query = query.lte('created_at', endDate.toIso8601String());
+      }
+
+      final response = await query;
+
+      // Calculate statistics
+      double totalRevenue = 0;
+      int totalOrders = response.length;
+      int completedOrders = 0;
+      int pendingOrders = 0;
+      int cancelledOrders = 0;
+      int paidOrders = 0;
+
+      Map<String, int> orderTypeCount = {};
+      Map<String, double> orderTypeRevenue = {};
+
+      for (final order in response) {
+        final total = (order['total'] ?? 0).toDouble();
+        final status = order['status'] as String;
+        final paymentStatus = order['payment_status'] as String;
+        final orderType = order['order_type'] as String;
+
+        totalRevenue += total;
+
+        // Count by status
+        switch (OrderStatus.fromString(status)) {
+          case OrderStatus.delivered:
+          case OrderStatus.ready:
+            completedOrders++;
+            break;
+          case OrderStatus.cancelled:
+          case OrderStatus.failed:
+            cancelledOrders++;
+            break;
+          default:
+            pendingOrders++;
+        }
+
+        // Count paid orders
+        if (PaymentStatus.fromString(paymentStatus) == PaymentStatus.paid) {
+          paidOrders++;
+        }
+
+        // Count by order type
+        orderTypeCount[orderType] = (orderTypeCount[orderType] ?? 0) + 1;
+        orderTypeRevenue[orderType] = (orderTypeRevenue[orderType] ?? 0) + total;
+      }
+
+      return {
+        'total_revenue': totalRevenue,
+        'total_orders': totalOrders,
+        'completed_orders': completedOrders,
+        'pending_orders': pendingOrders,
+        'cancelled_orders': cancelledOrders,
+        'paid_orders': paidOrders,
+        'average_order_value': totalOrders > 0 ? totalRevenue / totalOrders : 0,
+        'completion_rate': totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0,
+        'payment_rate': totalOrders > 0 ? (paidOrders / totalOrders) * 100 : 0,
+        'order_type_breakdown': orderTypeCount,
+        'revenue_by_type': orderTypeRevenue,
+        'generated_at': DateTime.now().toIso8601String(),
+      };
+    } catch (e) {
+      print('❌ Error getting order statistics: $e');
+      return {};
+    }
+  }
+
+  /// Get best selling items analytics
+  Future<List<Map<String, dynamic>>> getBestSellingItems({
+    DateTime? startDate,
+    DateTime? endDate,
+    int limit = 10,
+  }) async {
+    try {
+      // Build query for order items with date filter via orders table
+      dynamic orderQuery = SupabaseService.client
+          .from('orders')
+          .select('id');
+
+      if (startDate != null) {
+        orderQuery = orderQuery.gte('created_at', startDate.toIso8601String());
+      }
+
+      if (endDate != null) {
+        orderQuery = orderQuery.lte('created_at', endDate.toIso8601String());
+      }
+
+      final orderResponse = await orderQuery;
+      final orderIds = orderResponse.map((order) => order['id'] as String).toList();
+
+      if (orderIds.isEmpty) {
+        return [];
+      }
+
+      // Get order items for these orders
+      final itemResponse = await SupabaseService.client
+          .from('order_items')
+          .select('menu_item_id, menu_item_name, quantity, subtotal')
+          .inFilter('order_id', orderIds);
+
+      // Aggregate by menu item
+      final Map<String, Map<String, dynamic>> aggregated = {};
+
+      for (final item in itemResponse) {
+        final menuItemId = item['menu_item_id'] as String;
+        final menuItemName = item['menu_item_name'] as String;
+        final quantity = item['quantity'] as int;
+        final subtotal = (item['subtotal'] ?? 0).toDouble();
+
+        if (aggregated.containsKey(menuItemId)) {
+          aggregated[menuItemId]!['total_quantity'] += quantity;
+          aggregated[menuItemId]!['total_revenue'] += subtotal;
+          aggregated[menuItemId]!['order_count'] += 1;
+        } else {
+          aggregated[menuItemId] = {
+            'menu_item_id': menuItemId,
+            'menu_item_name': menuItemName,
+            'total_quantity': quantity,
+            'total_revenue': subtotal,
+            'order_count': 1,
+          };
+        }
+      }
+
+      // Convert to list and sort by quantity
+      final bestSellers = aggregated.values.toList();
+      bestSellers.sort((a, b) => (b['total_quantity'] as int).compareTo(a['total_quantity'] as int));
+
+      return bestSellers.take(limit).toList();
+    } catch (e) {
+      print('❌ Error getting best selling items: $e');
+      return [];
+    }
+  }
+
+  /// Get sales data for charting
+  Future<List<Map<String, dynamic>>> getSalesChartData({
+    DateTime? startDate,
+    DateTime? endDate,
+    String groupBy = 'day', // 'hour', 'day', 'week', 'month'
+  }) async {
+    try {
+      dynamic query = SupabaseService.client
+          .from('orders')
+          .select('total, created_at')
+          .eq('payment_status', PaymentStatus.paid.value);
+
+      if (startDate != null) {
+        query = query.gte('created_at', startDate.toIso8601String());
+      }
+
+      if (endDate != null) {
+        query = query.lte('created_at', endDate.toIso8601String());
+      }
+
+      final response = await query.order('created_at');
+
+      // Group sales data
+      final Map<String, double> groupedSales = {};
+      final DateFormat formatter;
+
+      switch (groupBy) {
+        case 'hour':
+          formatter = DateFormat('yyyy-MM-dd HH:00');
+          break;
+        case 'week':
+          formatter = DateFormat('yyyy-ww');
+          break;
+        case 'month':
+          formatter = DateFormat('yyyy-MM');
+          break;
+        default:
+          formatter = DateFormat('yyyy-MM-dd');
+      }
+
+      for (final order in response) {
+        final createdAt = DateTime.parse(order['created_at']);
+        final total = (order['total'] ?? 0).toDouble();
+        final key = formatter.format(createdAt);
+
+        groupedSales[key] = (groupedSales[key] ?? 0) + total;
+      }
+
+      // Convert to chart data format
+      return groupedSales.entries.map((entry) => {
+        'period': entry.key,
+        'sales': entry.value,
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting sales chart data: $e');
+      return [];
+    }
+  }
+
+  /// Generate order number
+  Future<String> generateOrderNumber() async {
+    try {
+      final now = DateTime.now();
+      final datePrefix = DateFormat('yyyyMMdd').format(now);
+
+      // Get count of orders created today
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+      final todayOrders = await getOrders(
+        startDate: startOfDay,
+        endDate: endOfDay,
+      );
+
+      final orderCount = todayOrders.length + 1;
+      return '$datePrefix-${orderCount.toString().padLeft(4, '0')}';
+    } catch (e) {
+      print('❌ Error generating order number: $e');
+      // Fallback to timestamp-based number
+      return 'ORD-${DateTime.now().millisecondsSinceEpoch}';
+    }
+  }
+
+  // ============= DASHBOARD ANALYTICS =============
+
+  /// Get dashboard statistics summary
+  Future<Map<String, dynamic>> getDashboardStats({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      final stats = await getOrderStatistics(
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      final bestSellers = await getBestSellingItems(
+        startDate: startDate,
+        endDate: endDate,
+        limit: 5,
+      );
+
+      final salesData = await getSalesChartData(
+        startDate: startDate,
+        endDate: endDate,
+        groupBy: 'day',
+      );
+
+      return {
+        ...stats,
+        'best_sellers': bestSellers,
+        'sales_chart_data': salesData,
+      };
+    } catch (e) {
+      print('❌ Error getting dashboard stats: $e');
+      return {};
+    }
+  }
+
+  // ============= HELPER METHODS =============
+
+  /// Convert ID to Supabase format (UUID)
+  /// Handles both string UUIDs and legacy integer IDs
+  String _convertToSupabaseId(String id) {
+    // If it's already a UUID format, return as-is
+    if (id.contains('-') && id.length >= 32) {
+      return id;
+    }
+
+    // For backward compatibility with integer IDs,
+    // in production you might need to maintain a mapping table
+    // or convert them to UUIDs. For now, return as-is and let Supabase handle it.
+    return id;
+  }
+}
+
+/// Order Source management service using Supabase
+class SupabaseOrderSourceService extends SupabaseService {
+
+  // ============= ORDER SOURCE CRUD OPERATIONS =============
+
+  /// Get all order sources
+  Future<List<OrderSource>> getOrderSources({bool? isActive}) async {
+    try {
+      dynamic query = SupabaseService.client
+          .from('order_sources')
+          .select();
+
+      if (isActive != null) {
+        query = query.eq('is_active', isActive);
+      }
+
+      query = query.order('created_at', ascending: true);
+
+      final response = await query;
+
+      return response.map<OrderSource>((json) {
+        // Transform Supabase response to match OrderSource model
+        final transformedJson = Map<String, dynamic>.from(json);
+
+        // Keep original boolean and string values from Supabase - let the model handle conversion
+        // The fromMap method now has robust parsing for these fields
+
+        return OrderSource.fromMap(transformedJson);
+      }).toList();
+    } catch (e) {
+      print('❌ Error fetching order sources: $e');
+      return [];
+    }
+  }
+
+  /// Get order source by ID
+  Future<OrderSource?> getOrderSourceById(String id) async {
+    try {
+      final response = await SupabaseService.client
+          .from('order_sources')
+          .select()
+          .eq('id', _convertToSupabaseId(id))
+          .maybeSingle();
+
+      if (response != null) {
+        // Let the model handle all data type conversions
+        return OrderSource.fromMap(response);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error fetching order source: $e');
+      return null;
+    }
+  }
+
+  /// Create order source
+  Future<String> createOrderSource(OrderSource orderSource) async {
+    try {
+      final data = orderSource.toMap();
+
+      // Remove id field for new records
+      data.remove('id');
+
+      // Convert timestamps to ISO strings for Supabase
+      data['created_at'] = DateTime.now().toIso8601String();
+      data['updated_at'] = DateTime.now().toIso8601String();
+
+      final response = await SupabaseService.client
+          .from('order_sources')
+          .insert(data)
+          .select('id')
+          .single();
+
+      return response['id'] as String;
+    } catch (e) {
+      print('❌ Error creating order source: $e');
+      throw Exception('Failed to create order source: $e');
+    }
+  }
+
+  /// Update order source
+  Future<void> updateOrderSource(OrderSource orderSource) async {
+    try {
+      final data = orderSource.toMap();
+
+      // Remove id field for updates (used in WHERE clause)
+      data.remove('id');
+
+      // Update timestamp to ISO string for Supabase
+      data['updated_at'] = DateTime.now().toIso8601String();
+
+      await SupabaseService.client
+          .from('order_sources')
+          .update(data)
+          .eq('id', _convertToSupabaseId(orderSource.id));
+    } catch (e) {
+      print('❌ Error updating order source: $e');
+      throw Exception('Failed to update order source: $e');
+    }
+  }
+
+  /// Delete order source
+  Future<void> deleteOrderSource(String id) async {
+    try {
+      await SupabaseService.client
+          .from('order_sources')
+          .delete()
+          .eq('id', _convertToSupabaseId(id));
+    } catch (e) {
+      print('❌ Error deleting order source: $e');
+      throw Exception('Failed to delete order source: $e');
+    }
+  }
+
+  /// Initialize default order sources if table is empty
+  Future<void> initializeDefaultOrderSources() async {
+    try {
+      final sources = await getOrderSources();
+      if (sources.isEmpty) {
+        final defaultSources = OrderSource.getDefaultSources();
+        for (final source in defaultSources) {
+          await createOrderSource(source);
+        }
+        print('✅ Initialized ${defaultSources.length} default order sources');
+      }
+    } catch (e) {
+      print('❌ Error initializing default order sources: $e');
+      throw Exception('Failed to initialize default order sources: $e');
+    }
+  }
+
+  // ============= HELPER METHODS =============
+
+  /// Convert ID to Supabase format (UUID)
+  /// Handles both string UUIDs and legacy integer IDs
+  String _convertToSupabaseId(String id) {
+    // If it's already a UUID format, return as-is
+    if (id.contains('-') && id.length >= 32) {
+      return id;
+    }
+
+    // For backward compatibility with integer IDs,
+    // in production you might need to maintain a mapping table
+    // or convert them to UUIDs. For now, return as-is and let Supabase handle it.
+    return id;
   }
 }

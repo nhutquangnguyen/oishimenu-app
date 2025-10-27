@@ -104,14 +104,36 @@ class OrderSource {
       iconPath: map['icon_path'] as String,
       type: OrderSourceType.fromString(map['type'] as String),
       commissionRate: (map['commission_rate'] as num?)?.toDouble() ?? 0,
-      requiresCommissionInput: (map['requires_commission_input'] as int?) == 1,
+      requiresCommissionInput: _parseBoolFromDynamic(map['requires_commission_input']),
       commissionInputType: CommissionInputType.fromString(
         map['commission_input_type'] as String? ?? 'after_fee',
       ),
-      isActive: (map['is_active'] as int?) == 1,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
+      isActive: _parseBoolFromDynamic(map['is_active']),
+      createdAt: _parseDateTimeFromDynamic(map['created_at']),
+      updatedAt: _parseDateTimeFromDynamic(map['updated_at']),
     );
+  }
+
+  /// Helper method to parse boolean from various data types
+  static bool _parseBoolFromDynamic(dynamic value) {
+    if (value is bool) {
+      return value;
+    } else if (value is int) {
+      return value == 1;
+    } else if (value is String) {
+      return value.toLowerCase() == 'true' || value == '1';
+    }
+    return false; // Default to false for null or unexpected types
+  }
+
+  /// Helper method to parse DateTime from various data types
+  static DateTime _parseDateTimeFromDynamic(dynamic value) {
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    } else if (value is String) {
+      return DateTime.parse(value);
+    }
+    return DateTime.now(); // Default fallback
   }
 
   // Default order sources
@@ -169,16 +191,16 @@ class OrderSource {
 }
 
 enum OrderSourceType {
-  onsite('ONSITE'),
-  takeaway('TAKEAWAY'),
-  delivery('DELIVERY');
+  onsite('onsite'),
+  takeaway('takeaway'),
+  delivery('delivery');
 
   const OrderSourceType(this.value);
   final String value;
 
   static OrderSourceType fromString(String value) {
     return OrderSourceType.values.firstWhere(
-      (type) => type.value == value,
+      (type) => type.value == value.toLowerCase(),
       orElse: () => OrderSourceType.onsite,
     );
   }

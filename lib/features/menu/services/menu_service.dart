@@ -174,6 +174,39 @@ class MenuService {
     }
   }
 
+  Future<bool> updateCategory(MenuCategory category) async {
+    try {
+      final db = await _databaseHelper.database;
+
+      // Check if category with this name already exists (excluding current category)
+      final existing = await db.query(
+        'menu_categories',
+        where: 'name = ? AND id != ?',
+        whereArgs: [category.name, int.tryParse(category.id) ?? 0],
+        limit: 1,
+      );
+
+      if (existing.isNotEmpty) {
+        throw Exception('Category name already exists');
+      }
+
+      final result = await db.update(
+        'menu_categories',
+        {
+          'name': category.name,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [int.tryParse(category.id) ?? 0],
+      );
+
+      return result > 0;
+    } catch (e) {
+      print('Error updating category: $e');
+      rethrow; // Re-throw so UI can handle the error message
+    }
+  }
+
   Future<String?> createMenuItem(MenuItem menuItem, {required String userId}) async {
     try {
       final db = await _databaseHelper.database;

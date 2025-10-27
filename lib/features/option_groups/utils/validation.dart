@@ -26,10 +26,8 @@ class OptionGroupValidation {
       errors['name'] = nameLength;
     }
 
-    // 2. Group must have at least 1 option
-    if (group.options.isEmpty) {
-      errors['options'] = optionsEmpty;
-    } else {
+    // 2. Validate individual options (if any exist)
+    if (group.options.isNotEmpty) {
       // 3. Validate individual options
       final optionValidation = validateOptions(group.options);
       errors.addAll(optionValidation.errors);
@@ -40,6 +38,7 @@ class OptionGroupValidation {
         errors['options'] = '$duplicateOptionLabel: ${duplicates.join(', ')}';
       }
     }
+    // Note: Allow saving option groups without options - users can add them later
 
     // 5. Validate selection rules
     final selectionValidation = validateSelectionRules(group);
@@ -102,6 +101,18 @@ class OptionGroupValidation {
   /// Validate selection rules based on business requirements
   static ValidationResult validateSelectionRules(OptionGroup group) {
     final errors = <String, String>{};
+
+    // Allow lenient validation for empty option groups - users can fix rules when adding options
+    if (group.options.isEmpty) {
+      // Skip strict validation for empty groups, just ensure basic rule consistency
+      if (group.maxSelection < group.minSelection) {
+        errors['selection'] = selectionConflict;
+      }
+      return ValidationResult(
+        isValid: errors.isEmpty,
+        errors: errors,
+      );
+    }
 
     // Determine if multiple selections are allowed
     final allowMultiple = group.maxSelection > 1;

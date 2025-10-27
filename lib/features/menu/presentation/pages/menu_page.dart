@@ -21,6 +21,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
   List<MenuItem> _menuItems = [];
   Map<String, String> _categories = {};
+  List<MenuCategory> _orderedCategories = []; // Preserve category ordering
   List<OptionGroup> _optionGroups = [];
   bool _isLoading = true;
   Map<String, bool> _expandedCategories = {};
@@ -90,12 +91,18 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       final categories = await menuService.getCategories();
       final optionGroups = await optionGroupService.getAllOptionGroups(includeUnavailableOptions: true);
 
+      print('🔄 _loadMenuData: Received ${categories.length} categories from service');
+      print('📝 Category order in _loadMenuData: ${categories.map((c) => '${c.name}(${c.displayOrder})').join(', ')}');
+
       setState(() {
         _menuItems = menuItems;
         _categories = {for (var cat in categories) cat.id: cat.name};
+        _orderedCategories = categories; // Store ordered categories
         _optionGroups = optionGroups;
         _isLoading = false;
       });
+
+      print('✅ State updated in _loadMenuData, _orderedCategories has ${_orderedCategories.length} items');
 
       // Restore the original tab index
       if (_tabController.index != currentTabIndex) {
@@ -203,33 +210,29 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   }
 
   Widget _buildDraggableView() {
-    return FutureBuilder<List<MenuCategory>>(
-      future: ref.read(supabaseMenuServiceProvider).getCategoriesOrdered(),
-      builder: (context, categorySnapshot) {
-        if (!categorySnapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    // Use the already loaded and ordered categories instead of making a new network call
+    if (_isLoading || _orderedCategories.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        final orderedCategories = categorySnapshot.data!;
+    final orderedCategories = _orderedCategories;
 
-        return ReorderableListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          itemCount: orderedCategories.length,
-          onReorder: (oldIndex, newIndex) => _reorderCategories(oldIndex, newIndex, orderedCategories),
-          itemBuilder: (context, index) {
-            final category = orderedCategories[index];
-            final categoryItems = _menuItems.where((item) =>
-              item.categoryName == category.name
-            ).toList();
-            final isExpanded = _expandedCategories[category.name] ?? true;
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: orderedCategories.length,
+      onReorder: (oldIndex, newIndex) => _reorderCategories(oldIndex, newIndex, orderedCategories),
+      itemBuilder: (context, index) {
+        final category = orderedCategories[index];
+        final categoryItems = _menuItems.where((item) =>
+          item.categoryName == category.name
+        ).toList();
+        final isExpanded = _expandedCategories[category.name] ?? true;
 
-            return _buildDraggableCategorySection(
-              key: ValueKey(category.id),
-              category: category,
-              items: categoryItems,
-              isExpanded: isExpanded,
-            );
-          },
+        return _buildDraggableCategorySection(
+          key: ValueKey(category.id),
+          category: category,
+          items: categoryItems,
+          isExpanded: isExpanded,
         );
       },
     );
@@ -267,6 +270,20 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
                     ),
                   ),
                 ),
+                // Edit category button
+                InkWell(
+                  onTap: () => _editCategory(category),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      color: Colors.blue[600],
+                      size: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 // Delete category button
                 InkWell(
                   onTap: () => _showDeleteCategoryConfirmation(category),
@@ -529,11 +546,77 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   }
 
   void _toggleAvailability(MenuItem menuItem) async {
-    final currentUser = ref.read(currentUserProvider);
-    if (currentUser == null) return;
+    try {
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) {
+        print('❌ No current user found for toggle');
+        return;
+      }
 
-    await ref.read(supabaseMenuServiceProvider).updateMenuItemStatus(menuItem.id, !menuItem.availableStatus, userId: currentUser.id);
-    await _loadMenuData();
+      final newAvailabilityStatus = !menuItem.availableStatus;
+
+      print('🔄 Toggling availability for "${menuItem.name}"');
+      print('   Current status: ${menuItem.availableStatus}');
+      print('   New status will be: $newAvailabilityStatus');
+
+      // ✨ OPTIMISTIC UPDATE: Immediately update the UI with new status
+      final updatedMenuItems = _menuItems.map((item) {
+        if (item.id == menuItem.id) {
+          return item.copyWith(
+            availableStatus: newAvailabilityStatus,
+            updatedAt: DateTime.now(),
+          );
+        }
+        return item;
+      }).toList();
+
+      // 🚀 Immediately update local state for smooth UI
+      setState(() {
+        _menuItems = updatedMenuItems;
+      });
+
+      print('✅ UI updated immediately with new status: $newAvailabilityStatus');
+
+      // 💾 Update database in background (no loading spinner)
+      await ref.read(supabaseMenuServiceProvider).updateMenuItemStatus(
+        menuItem.id,
+        newAvailabilityStatus,
+        userId: currentUser.id
+      );
+
+      print('✅ Database update completed successfully');
+
+      // Optionally show brief success feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newAvailabilityStatus
+                ? 'menu_page.item_enabled'.tr(namedArgs: {'name': menuItem.name})
+                : 'menu_page.item_disabled'.tr(namedArgs: {'name': menuItem.name})
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+
+    } catch (e) {
+      print('❌ Error toggling availability: $e');
+
+      // ❌ Error occurred - revert UI and reload data
+      print('🔄 Database update failed, reverting UI changes and reloading...');
+      await _loadMenuData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating item status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _toggleOptionAvailability(MenuOption option, bool newValue) async {
@@ -863,7 +946,63 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     }
   }
 
-  void _showDeleteCategoryConfirmation(MenuCategory category) {
+  Future<void> _showDeleteCategoryConfirmation(MenuCategory category) async {
+    try {
+      // Check if category has items before showing delete dialog
+      final itemCount = await ref.read(supabaseMenuServiceProvider).getCategoryItemCount(category.id);
+
+      if (!mounted) return;
+
+      if (itemCount > 0) {
+        // Show dialog indicating category has items
+        _showCategoryHasItemsDialog(category, itemCount);
+      } else {
+        // Show regular delete confirmation
+        _showDeleteConfirmationDialog(category);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking category items: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showCategoryHasItemsDialog(MenuCategory category, int itemCount) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('menu_page.category_has_items_title'.tr()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('menu_page.category_has_items_message'.tr(namedArgs: {'name': category.name, 'count': itemCount.toString()})),
+            const SizedBox(height: 8),
+            Text(
+              'menu_page.category_items_help'.tr(),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(MenuCategory category) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1132,6 +1271,100 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     );
   }
 
+  Future<void> _editCategory(MenuCategory category) async {
+    if (!mounted) return;
+
+    try {
+      String? newCategoryName = await showDialog<String>(
+        context: context,
+        barrierDismissible: true,
+        useRootNavigator: true,
+        builder: (dialogContext) => _buildEditCategoryDialog(category),
+      );
+
+      if (newCategoryName != null && newCategoryName.trim().isNotEmpty && mounted) {
+        // Check if name actually changed
+        if (newCategoryName.trim() == category.name.trim()) {
+          return; // No change, don't update
+        }
+
+        try {
+          final updatedCategory = category.copyWith(
+            name: newCategoryName.trim(),
+            updatedAt: DateTime.now(),
+          );
+
+          final success = await ref.read(supabaseMenuServiceProvider).updateCategory(updatedCategory);
+          if (success && mounted) {
+            await _loadMenuData();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('menu_page.category_updated_success'.tr(namedArgs: {'name': newCategoryName})),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            String errorMessage = 'menu_page.error_updating_category'.tr(namedArgs: {'error': e.toString()});
+            if (e.toString().contains('already exists')) {
+              errorMessage = 'menu_page.category_name_exists'.tr();
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(errorMessage),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Error already handled in inner try-catch
+    }
+  }
+
+  Widget _buildEditCategoryDialog(MenuCategory category) {
+    final controller = TextEditingController(text: category.name);
+
+    return AlertDialog(
+      title: Text('menu_page.edit_category_title'.tr()),
+      content: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          hintText: 'menu_page.enter_category_name'.tr(),
+          border: const OutlineInputBorder(),
+        ),
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        onSubmitted: (value) {
+          if (value.trim().isNotEmpty) {
+            Navigator.of(context, rootNavigator: true).pop(value.trim());
+          }
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context, rootNavigator: true).pop();
+          },
+          child: Text('menu_page.cancel_button'.tr()),
+        ),
+        TextButton(
+          onPressed: () {
+            final text = controller.text.trim();
+            if (text.isNotEmpty) {
+              Navigator.of(context, rootNavigator: true).pop(text);
+            }
+          },
+          child: Text('menu_page.update_button'.tr()),
+        ),
+      ],
+    );
+  }
+
   Future<void> _addMenuItem() async {
     if (_isNavigating) return; // Prevent double navigation
 
@@ -1149,37 +1382,54 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     }
   }
 
-  // Reordering methods
+  // Reordering methods with optimistic updates for smooth UX
   Future<void> _reorderCategories(int oldIndex, int newIndex, List<MenuCategory> categories) async {
+    print('🔄 Reordering categories: moving ${categories[oldIndex].name} from index $oldIndex to $newIndex');
+
+    // Adjust newIndex for the standard behavior expected by ReorderableListView
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+
+    print('📝 Adjusted newIndex: $newIndex');
+
+    // ✨ OPTIMISTIC UPDATE: Immediately update the UI with new order
+    final List<MenuCategory> reorderedCategories = List.from(categories);
+    final MenuCategory movedCategory = reorderedCategories.removeAt(oldIndex);
+    reorderedCategories.insert(newIndex, movedCategory);
+
+    // Update display order for UI consistency
+    for (int i = 0; i < reorderedCategories.length; i++) {
+      reorderedCategories[i] = reorderedCategories[i].copyWith(displayOrder: i);
+    }
+
+    // 🚀 Immediately update local state for smooth UI
+    setState(() {
+      _orderedCategories = reorderedCategories;
+    });
+
+    print('✅ UI updated immediately with new order: ${reorderedCategories.map((c) => c.name).join(', ')}');
+
+    // 💾 Update database in background (no loading spinner)
     try {
-      setState(() => _isLoading = true);
-
-      // Adjust newIndex for the standard behavior expected by ReorderableListView
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
-
-      // Create a new list with reordered categories
-      final List<MenuCategory> reorderedCategories = List.from(categories);
-      final MenuCategory movedCategory = reorderedCategories.removeAt(oldIndex);
-      reorderedCategories.insert(newIndex, movedCategory);
-
-      // Update the service with the new order
       final success = await ref.read(supabaseMenuServiceProvider).reorderCategories(reorderedCategories);
 
       if (success) {
-        // Refresh the data to reflect the changes
-        await _loadMenuData();
+        print('✅ Database update successful');
+        // Optionally show success feedback (without reload)
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('menu_page.category_order_updated'.tr()),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 1),
             ),
           );
         }
       } else {
+        // ❌ Database update failed - revert UI and reload data
+        print('❌ Database update failed, reverting UI changes');
+        await _loadMenuData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1190,7 +1440,9 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         }
       }
     } catch (e) {
-      print('Error reordering categories: $e');
+      print('❌ Error reordering categories: $e');
+      // ❌ Error occurred - revert UI and reload data
+      await _loadMenuData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1199,42 +1451,58 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           ),
         );
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _reorderMenuItems(int oldIndex, int newIndex, List<MenuItem> items, MenuCategory category) async {
+    print('🔄 Reordering menu items in category ${category.name}: moving ${items[oldIndex].name} from index $oldIndex to $newIndex');
+
+    // Adjust newIndex for the standard behavior expected by ReorderableListView
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+
+    print('📝 Adjusted newIndex: $newIndex');
+
+    // ✨ OPTIMISTIC UPDATE: Immediately update the UI with new order
+    final List<MenuItem> reorderedItems = List.from(items);
+    final MenuItem movedItem = reorderedItems.removeAt(oldIndex);
+    reorderedItems.insert(newIndex, movedItem);
+
+    // 🚀 Immediately update local state for smooth UI
+    // Update the _menuItems list with the new order
+    final updatedMenuItems = List<MenuItem>.from(_menuItems);
+
+    // Remove the old items for this category and add the reordered ones
+    updatedMenuItems.removeWhere((item) => item.categoryName == category.name);
+    updatedMenuItems.addAll(reorderedItems);
+
+    setState(() {
+      _menuItems = updatedMenuItems;
+    });
+
+    print('✅ UI updated immediately with new order: ${reorderedItems.map((i) => i.name).join(', ')}');
+
+    // 💾 Update database in background (no loading spinner)
     try {
-      setState(() => _isLoading = true);
-
-      // Adjust newIndex for the standard behavior expected by ReorderableListView
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
-
-      // Create a new list with reordered menu items
-      final List<MenuItem> reorderedItems = List.from(items);
-      final MenuItem movedItem = reorderedItems.removeAt(oldIndex);
-      reorderedItems.insert(newIndex, movedItem);
-
-      // Update the service with the new order
-      final categoryId = int.tryParse(category.id) ?? 0;
-      final success = await ref.read(supabaseMenuServiceProvider).reorderMenuItems(reorderedItems, categoryId);
+      final success = await ref.read(supabaseMenuServiceProvider).reorderMenuItems(reorderedItems, category.id);
 
       if (success) {
-        // Refresh the data to reflect the changes
-        await _loadMenuData();
+        print('✅ Database update successful');
+        // Optionally show success feedback (without reload)
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('menu_page.item_order_updated'.tr()),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 1),
             ),
           );
         }
       } else {
+        // ❌ Database update failed - revert UI and reload data
+        print('❌ Database update failed, reverting UI changes');
+        await _loadMenuData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1245,7 +1513,9 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         }
       }
     } catch (e) {
-      print('Error reordering menu items: $e');
+      print('❌ Error reordering menu items: $e');
+      // ❌ Error occurred - revert UI and reload data
+      await _loadMenuData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1254,8 +1524,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           ),
         );
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -1314,32 +1582,46 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   }
 
   Future<void> _moveItemToPosition(MenuItem item, MenuCategory category, int oldIndex, int newIndex) async {
+    print('🔄 Moving item ${item.name} from position ${oldIndex + 1} to ${newIndex + 1}');
+
+    // Get all items in this category
+    final categoryItems = _menuItems.where((i) => i.categoryName == category.name).toList();
+
+    // ✨ OPTIMISTIC UPDATE: Create reordered list and update UI immediately
+    final reorderedItems = List<MenuItem>.from(categoryItems);
+    reorderedItems.removeAt(oldIndex);
+    reorderedItems.insert(newIndex, item);
+
+    // 🚀 Immediately update local state for smooth UI
+    final updatedMenuItems = List<MenuItem>.from(_menuItems);
+    updatedMenuItems.removeWhere((item) => item.categoryName == category.name);
+    updatedMenuItems.addAll(reorderedItems);
+
+    setState(() {
+      _menuItems = updatedMenuItems;
+    });
+
+    print('✅ UI updated immediately - ${item.name} moved to position ${newIndex + 1}');
+
+    // 💾 Update database in background (no loading spinner)
     try {
-      setState(() => _isLoading = true);
-
-      // Get all items in this category
-      final categoryItems = _menuItems.where((i) => i.categoryName == category.name).toList();
-
-      // Create reordered list
-      final reorderedItems = List<MenuItem>.from(categoryItems);
-      reorderedItems.removeAt(oldIndex);
-      reorderedItems.insert(newIndex, item);
-
-      // Update the service with the new order
-      final categoryId = int.tryParse(category.id) ?? 0;
-      final success = await ref.read(supabaseMenuServiceProvider).reorderMenuItems(reorderedItems, categoryId);
+      final success = await ref.read(supabaseMenuServiceProvider).reorderMenuItems(reorderedItems, category.id);
 
       if (success) {
-        await _loadMenuData();
+        print('✅ Database update successful');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('menu_page.item_moved_success'.tr(namedArgs: {'name': item.name, 'position': (newIndex + 1).toString()})),
               backgroundColor: Colors.green,
+              duration: const Duration(seconds: 1),
             ),
           );
         }
       } else {
+        // ❌ Database update failed - revert UI and reload data
+        print('❌ Database update failed, reverting UI changes');
+        await _loadMenuData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1350,7 +1632,9 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         }
       }
     } catch (e) {
-      print('Error moving menu item: $e');
+      print('❌ Error moving menu item: $e');
+      // ❌ Error occurred - revert UI and reload data
+      await _loadMenuData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1359,8 +1643,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
           ),
         );
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 }

@@ -35,6 +35,16 @@ class MenuItem {
   });
 
   factory MenuItem.fromMap(Map<String, dynamic> map) {
+    // Debug the boolean conversion process
+    final rawAvailableStatus = map['available_status'];
+    final convertedBool = rawAvailableStatus is bool
+        ? rawAvailableStatus
+        : (rawAvailableStatus ?? 1) == 1;
+
+    print('🔍 MenuItem.fromMap boolean conversion for "${map['name']}":');
+    print('   raw available_status: $rawAvailableStatus (${rawAvailableStatus.runtimeType})');
+    print('   final boolean: $convertedBool');
+
     return MenuItem(
   id: map['id']?.toString() ?? '',
   name: stringFromDynamic(map['name']),
@@ -42,7 +52,7 @@ class MenuItem {
   categoryName: stringFromDynamic(map['category_name']),
   description: stringFromDynamic(map['description']),
       photos: _parsePhotos(map['photos']),
-      availableStatus: (map['available_status'] ?? 1) == 1,
+      availableStatus: convertedBool,
       availabilitySchedule: map['availability_schedule'],
       sizes: [],  // Simplified for now
       recipes: [], // Simplified for now

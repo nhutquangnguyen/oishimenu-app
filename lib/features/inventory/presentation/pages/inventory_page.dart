@@ -456,7 +456,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
   Future<void> _updateIngredientQuantity(int ingredientId, double newQuantity) async {
     try {
       await ref.read(inventoryActionsProvider.notifier).updateQuantity(
-        ingredientId,
+        ingredientId.toString(),
         newQuantity,
         reason: 'Manual adjustment from inventory page',
       );
