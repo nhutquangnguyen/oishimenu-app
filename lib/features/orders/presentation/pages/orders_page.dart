@@ -658,6 +658,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        onTap: () => _showOrderDetailsDialog(order), // 🆕 Add tap handler to show order details
         leading: CircleAvatar(
           backgroundColor: order.status == OrderStatus.delivered
               ? Colors.green[100]
@@ -686,20 +687,40 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
             ),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${order.total.toStringAsFixed(0)}đ',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+        trailing: SizedBox(
+          width: 100,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      '${order.total.toStringAsFixed(0)}đ',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // 🆕 Compact visual hint that the card is tappable
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 12,
+                    color: Colors.grey[400],
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            _buildStatusChip(order.status),
-          ],
+              const SizedBox(height: 2),
+              _buildCompactStatusChip(order.status),
+            ],
+          ),
         ),
         isThreeLine: true,
       ),
@@ -753,6 +774,60 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           fontWeight: FontWeight.w600,
           color: Colors.grey[800],
         ),
+      ),
+    );
+  }
+
+  /// 🆕 Compact version of status chip for trailing section to prevent overflow
+  Widget _buildCompactStatusChip(OrderStatus status) {
+    Color bgColor;
+    String label;
+
+    switch (status) {
+      case OrderStatus.pending:
+        bgColor = Colors.orange[100]!;
+        label = 'orders_page.status_pending'.tr();
+        break;
+      case OrderStatus.confirmed:
+        bgColor = Colors.blue[100]!;
+        label = 'orders_page.status_confirmed'.tr();
+        break;
+      case OrderStatus.preparing:
+        bgColor = Colors.purple[100]!;
+        label = 'orders_page.status_preparing'.tr();
+        break;
+      case OrderStatus.ready:
+        bgColor = Colors.teal[100]!;
+        label = 'orders_page.status_ready'.tr();
+        break;
+      case OrderStatus.delivered:
+        bgColor = Colors.green[100]!;
+        label = 'orders_page.status_delivered'.tr();
+        break;
+      case OrderStatus.cancelled:
+        bgColor = Colors.red[100]!;
+        label = 'orders_page.status_cancelled'.tr();
+        break;
+      default:
+        bgColor = Colors.grey[100]!;
+        label = status.value;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey[800],
+        ),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
       ),
     );
   }
@@ -1098,5 +1173,464 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         }
       }
     }
+  }
+
+  /// 🆕 Show comprehensive order details dialog
+  void _showOrderDetailsDialog(Order order) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: order.status == OrderStatus.delivered
+                      ? Colors.green[50]
+                      : Colors.red[50],
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'orders_page.order_details_title'.tr(),
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            order.orderNumber,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildStatusChip(order.status),
+                  ],
+                ),
+              ),
+
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Order Info Section
+                      _buildOrderInfoSection(order),
+                      const SizedBox(height: 20),
+
+                      // Customer Info Section
+                      _buildCustomerInfoSection(order),
+                      const SizedBox(height: 20),
+
+                      // Order Items Section
+                      _buildOrderItemsSection(order),
+                      const SizedBox(height: 20),
+
+                      // Order Notes Section (if exists)
+                      if (order.notes != null && order.notes!.isNotEmpty) ...[
+                        _buildOrderNotesSection(order),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // Order Total Section
+                      _buildOrderTotalSection(order),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Footer with close button
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('orders_page.close_button'.tr()),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderInfoSection(Order order) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'orders_page.order_information'.tr(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            children: [
+              _buildInfoRow(Icons.access_time, 'orders_page.order_time'.tr(), _formatDateTime(order.createdAt)),
+              const SizedBox(height: 8),
+              if (order.tableNumber != null)
+                _buildInfoRow(Icons.table_restaurant, 'orders_page.table_number'.tr(), order.tableNumber!),
+              if (order.platform.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.delivery_dining, 'orders_page.platform'.tr(), order.platform),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCustomerInfoSection(Order order) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'orders_page.customer_information'.tr(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue[200]!),
+          ),
+          child: Column(
+            children: [
+              _buildInfoRow(Icons.person, 'orders_page.customer_name'.tr(), order.customer.name.isEmpty ? 'orders_page.unknown_customer'.tr() : order.customer.name),
+              if (order.customer.phone?.isNotEmpty == true) ...[
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.phone, 'orders_page.phone_number'.tr(), order.customer.phone!),
+              ],
+              if (order.customer.email?.isNotEmpty == true) ...[
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.email, 'orders_page.email'.tr(), order.customer.email!),
+              ],
+              if (order.customer.address?.isNotEmpty == true) ...[
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.location_on, 'orders_page.address'.tr(), order.customer.address!),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderItemsSection(Order order) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'orders_page.order_items'.tr(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        ...order.items.map((item) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.menuItemName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'x${item.quantity}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ],
+              ),
+              if (item.selectedOptions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ...item.selectedOptions.map((option) => Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 2),
+                  child: Row(
+                    children: [
+                      Icon(Icons.add, size: 12, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          option.optionName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                      if (option.price > 0)
+                        Text(
+                          '+${option.price.toStringAsFixed(0)}đ',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                    ],
+                  ),
+                )),
+              ],
+              if (item.notes != null && item.notes!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[50],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.amber[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_note, size: 14, color: Colors.amber[800]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          item.notes!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[800],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'orders_page.base_price'.tr(namedArgs: {'price': item.basePrice.toStringAsFixed(0)}),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    '${item.subtotal.toStringAsFixed(0)}đ',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        )),
+      ],
+    );
+  }
+
+  Widget _buildOrderNotesSection(Order order) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'orders_page.order_notes'.tr(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.amber[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.amber[200]!),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.note_alt_outlined, color: Colors.amber[800]),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  order.notes!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderTotalSection(Order order) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'orders_page.order_total'.tr(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.green[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.green[200]!),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'orders_page.subtotal'.tr(),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  Text(
+                    '${order.subtotal.toStringAsFixed(0)}đ',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+              if (order.discount > 0) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'orders_page.discount'.tr(),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    Text(
+                      '-${order.discount.toStringAsFixed(0)}đ',
+                      style: const TextStyle(fontSize: 14, color: Colors.red),
+                    ),
+                  ],
+                ),
+              ],
+              if (order.tax > 0) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'orders_page.tax'.tr(),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    Text(
+                      '${order.tax.toStringAsFixed(0)}đ',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ],
+              const Divider(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'orders_page.total'.tr(),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${order.total.toStringAsFixed(0)}đ',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
+    );
   }
 }

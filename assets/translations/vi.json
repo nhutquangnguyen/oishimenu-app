@@ -241,7 +241,13 @@
 
   "errors": {
     "failed_google_signin": "Không thể đăng nhập bằng Google",
-    "unexpected_error": "Đã xảy ra lỗi không mong muốn"
+    "unexpected_error": "Đã xảy ra lỗi không mong muốn",
+    "cannot_delete_menu_item": "Không thể xóa món ăn: Món này đã được sử dụng trong đơn hàng. Hãy đặt thành 'Không có sẵn' thay vì xóa.",
+    "menu_item_in_use": "Món ăn này đã được sử dụng trong {count} đơn hàng và không thể xóa.",
+    "use_unavailable_instead": "Để loại bỏ khỏi menu, hãy đặt thành 'Không có sẵn' thay vì xóa.",
+    "menu_item_in_active_orders": "Không thể xóa món ăn: Món này hiện có trong {count} đơn hàng đang hoạt động. Hãy hoàn thành hoặc hủy các đơn hàng này trước.",
+    "menu_item_soft_deleted": "Món ăn đã được gỡ bỏ (xóa mềm). Món này đã được sử dụng trong {count} đơn hàng đã hoàn thành.",
+    "menu_item_hard_deleted": "Món ăn đã được xóa vĩnh viễn."
   },
 
   "status": {
@@ -385,7 +391,7 @@
     "availability": "Tình trạng"
   },
 
-  "menu": {
+  "menu_management": {
     "items": "Món ăn",
     "option_groups": "Nhóm lựa chọn",
     "search": "Tìm kiếm",
@@ -669,7 +675,25 @@
     "no_button": "Không",
     "cancel_order_success": "Đơn hàng {orderNumber} đã bị hủy",
     "cancel_order_error": "Lỗi khi hủy đơn hàng: {error}",
-    "unknown_customer": "Không rõ"
+    "unknown_customer": "Không rõ",
+    "order_details_title": "Chi tiết đơn hàng",
+    "order_information": "Thông tin đơn hàng",
+    "customer_information": "Thông tin khách hàng",
+    "order_items": "Món trong đơn",
+    "order_notes": "Ghi chú đơn hàng",
+    "order_total": "Tổng đơn hàng",
+    "order_time": "Thời gian đặt",
+    "table_number": "Số bàn",
+    "platform": "Nền tảng",
+    "customer_name": "Tên khách hàng",
+    "phone_number": "Số điện thoại",
+    "address": "Địa chỉ",
+    "base_price": "Giá gốc: {price}đ",
+    "subtotal": "Tạm tính",
+    "discount": "Giảm giá",
+    "tax": "Thuế",
+    "total": "Tổng cộng",
+    "close_button": "Đóng"
   },
 
   "option_groups_editor": {

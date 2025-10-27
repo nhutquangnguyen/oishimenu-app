@@ -240,7 +240,13 @@
 
   "errors": {
     "failed_google_signin": "Failed to sign in with Google",
-    "unexpected_error": "An unexpected error occurred"
+    "unexpected_error": "An unexpected error occurred",
+    "cannot_delete_menu_item": "Cannot delete menu item: This item has been used in orders. Set it as 'Unavailable' instead.",
+    "menu_item_in_use": "This menu item is used in {count} order(s) and cannot be deleted.",
+    "use_unavailable_instead": "To remove it from the menu, set it as 'Unavailable' instead of deleting it.",
+    "menu_item_in_active_orders": "Cannot delete menu item: This item is currently in {count} active order(s). Complete or cancel these orders first.",
+    "menu_item_soft_deleted": "Menu item has been removed (soft deleted). It was used in {count} completed orders.",
+    "menu_item_hard_deleted": "Menu item has been permanently deleted."
   },
 
   "status": {
@@ -376,15 +382,7 @@
     "unknown": "Unknown"
   },
 
-  "menu_details": {
-    "items": "Items",
-    "option_groups": "Option Groups",
-    "search": "Search",
-    "out_of_stock": "Out of Stock ({count})",
-    "availability": "Availability"
-  },
-
-  "menu": {
+  "menu_management": {
     "items": "Items",
     "option_groups": "Option Groups",
     "search": "Search",
@@ -675,7 +673,25 @@
     "no_button": "No",
     "cancel_order_success": "Order {orderNumber} cancelled",
     "cancel_order_error": "Error cancelling order: {error}",
-    "unknown_customer": "Unknown"
+    "unknown_customer": "Unknown",
+    "order_details_title": "Order Details",
+    "order_information": "Order Information",
+    "customer_information": "Customer Information",
+    "order_items": "Order Items",
+    "order_notes": "Order Notes",
+    "order_total": "Order Total",
+    "order_time": "Order Time",
+    "table_number": "Table Number",
+    "platform": "Platform",
+    "customer_name": "Customer Name",
+    "phone_number": "Phone Number",
+    "address": "Address",
+    "base_price": "Base: {price}đ",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "tax": "Tax",
+    "total": "Total",
+    "close_button": "Close"
   },
 
   "option_groups_editor": {
