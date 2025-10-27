@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../services/supabase_service.dart';
 
+// Enums for filtering
+enum DateRangeType { today, yesterday, thisWeek, lastWeek, thisMonth, lastMonth, custom }
+
 class FinancePage extends ConsumerStatefulWidget {
   const FinancePage({super.key});
 
@@ -10,28 +13,62 @@ class FinancePage extends ConsumerStatefulWidget {
   ConsumerState<FinancePage> createState() => _FinancePageState();
 }
 
-class _FinancePageState extends ConsumerState<FinancePage> {
+class _FinancePageState extends ConsumerState<FinancePage>
+    with SingleTickerProviderStateMixin {
+  // Tab controller
+  late TabController _tabController;
+
+  // Data loading state
   bool _isLoading = false;
-  double _todayIncome = 0.0;
-  double _todayExpenses = 0.0;
-  List<FinanceEntry> _todayEntries = [];
+
+  // Financial data
+  double _currentIncome = 0.0;
+  double _currentExpenses = 0.0;
+  List<FinanceEntry> _allEntries = [];
+  List<FinanceEntry> _filteredEntries = [];
+
+  // Filter state
+  DateRangeType _selectedDateRange = DateRangeType.today;
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
+  String _searchQuery = '';
+  String? _selectedType; // 'income', 'expense', or null for all
+  List<String> _selectedSources = [];
+  RangeValues _amountRange = const RangeValues(0, 1000000);
+  bool _showAdvancedFilters = false;
+
   final _financeService = SupabaseFinanceService();
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadTodayFinance();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadFinanceData();
   }
 
-  Future<void> _loadTodayFinance() async {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadFinanceData() async {
     setState(() => _isLoading = true);
 
     try {
-      // Load today's finance data from database
-      final todayEntries = await _financeService.getTodayFinanceEntries();
+      // Get date range based on selected filter
+      final dateRange = _getDateRange(_selectedDateRange);
+
+      // Load finance data from database
+      final entries = await _financeService.getFinanceEntries(
+        startDate: dateRange['start'],
+        endDate: dateRange['end'],
+      );
 
       // Convert database records to FinanceEntry objects
-      _todayEntries = todayEntries.map((entry) => FinanceEntry(
+      _allEntries = entries.map((entry) => FinanceEntry(
         id: entry['id'] as String,
         type: entry['type'] == 'income' ? FinanceEntryType.income : FinanceEntryType.expense,
         amount: (entry['amount'] as num).toDouble(),
@@ -40,14 +77,8 @@ class _FinancePageState extends ConsumerState<FinancePage> {
         createdAt: DateTime.parse(entry['created_at'] as String),
       )).toList();
 
-      // Calculate totals
-      _todayIncome = _todayEntries
-          .where((entry) => entry.type == FinanceEntryType.income)
-          .fold(0.0, (sum, entry) => sum + entry.amount);
-
-      _todayExpenses = _todayEntries
-          .where((entry) => entry.type == FinanceEntryType.expense)
-          .fold(0.0, (sum, entry) => sum + entry.amount);
+      // Apply current filters
+      _applyFilters();
 
     } catch (e) {
       print('Error loading finance data: $e');
@@ -65,44 +96,254 @@ class _FinancePageState extends ConsumerState<FinancePage> {
     setState(() => _isLoading = false);
   }
 
+  Map<String, DateTime> _getDateRange(DateRangeType type) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    switch (type) {
+      case DateRangeType.today:
+        return {
+          'start': today,
+          'end': DateTime(now.year, now.month, now.day, 23, 59, 59),
+        };
+      case DateRangeType.yesterday:
+        final yesterday = today.subtract(const Duration(days: 1));
+        return {
+          'start': yesterday,
+          'end': DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59),
+        };
+      case DateRangeType.thisWeek:
+        final startOfWeek = today.subtract(Duration(days: now.weekday - 1));
+        return {
+          'start': startOfWeek,
+          'end': DateTime(now.year, now.month, now.day, 23, 59, 59),
+        };
+      case DateRangeType.lastWeek:
+        final startOfLastWeek = today.subtract(Duration(days: now.weekday + 6));
+        final endOfLastWeek = startOfLastWeek.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+        return {
+          'start': startOfLastWeek,
+          'end': endOfLastWeek,
+        };
+      case DateRangeType.thisMonth:
+        return {
+          'start': DateTime(now.year, now.month, 1),
+          'end': DateTime(now.year, now.month + 1, 0, 23, 59, 59),
+        };
+      case DateRangeType.lastMonth:
+        final lastMonth = DateTime(now.year, now.month - 1, 1);
+        return {
+          'start': lastMonth,
+          'end': DateTime(now.year, now.month, 0, 23, 59, 59),
+        };
+      case DateRangeType.custom:
+        return {
+          'start': _customStartDate ?? today,
+          'end': _customEndDate ?? DateTime(now.year, now.month, now.day, 23, 59, 59),
+        };
+    }
+  }
+
+  void _applyFilters() {
+    _filteredEntries = _allEntries.where((entry) {
+      // Search filter
+      if (_searchQuery.isNotEmpty) {
+        if (!entry.description.toLowerCase().contains(_searchQuery.toLowerCase()) &&
+            !entry.category.toLowerCase().contains(_searchQuery.toLowerCase()) &&
+            !entry.amount.toString().contains(_searchQuery)) {
+          return false;
+        }
+      }
+
+      // Type filter
+      if (_selectedType != null) {
+        final entryType = entry.type == FinanceEntryType.income ? 'income' : 'expense';
+        if (entryType != _selectedType) return false;
+      }
+
+      // Amount range filter
+      if (entry.amount < _amountRange.start || entry.amount > _amountRange.end) {
+        return false;
+      }
+
+      // Source filter (check category contains source name)
+      if (_selectedSources.isNotEmpty) {
+        bool matchesSource = false;
+        for (final source in _selectedSources) {
+          if (entry.category.toLowerCase().contains(source.toLowerCase())) {
+            matchesSource = true;
+            break;
+          }
+        }
+        if (!matchesSource) return false;
+      }
+
+      return true;
+    }).toList();
+
+    // Calculate totals for filtered entries
+    _currentIncome = _filteredEntries
+        .where((entry) => entry.type == FinanceEntryType.income)
+        .fold(0.0, (sum, entry) => sum + entry.amount);
+
+    _currentExpenses = _filteredEntries
+        .where((entry) => entry.type == FinanceEntryType.expense)
+        .fold(0.0, (sum, entry) => sum + entry.amount);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('finance_page.title'.tr()),
+        elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.dashboard_outlined),
+              text: 'finance_page.summary_tab'.tr(),
+            ),
+            Tab(
+              icon: const Icon(Icons.receipt_long_outlined),
+              text: 'finance_page.transactions_tab'.tr(),
+            ),
+          ],
+          indicatorColor: Theme.of(context).primaryColor,
+          labelColor: Theme.of(context).primaryColor,
+          unselectedLabelColor: Colors.grey[600],
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadTodayFinance,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Today's Summary
-                    _buildTodaySummary(),
-                    const SizedBox(height: 20),
-
-                    // Finance Entries
-                    _buildFinanceEntries(),
-                  ],
-                ),
-              ),
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                // Summary Tab
+                _buildSummaryTab(),
+                // Transactions Tab
+                _buildTransactionsTab(),
+              ],
             ),
-
-      // 🆕 Floating Action Button with 2 options (like menu page)
       floatingActionButton: _buildFinanceActionButton(),
     );
   }
 
-  Widget _buildTodaySummary() {
-    final profit = _todayIncome - _todayExpenses;
+  // ========================= TAB BUILDERS =========================
+
+  Widget _buildSummaryTab() {
+    return RefreshIndicator(
+      onRefresh: _loadFinanceData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date Range Picker
+            _buildDateRangePicker(),
+            const SizedBox(height: 20),
+
+            // KPI Cards
+            _buildKPICards(),
+            const SizedBox(height: 20),
+
+            // Quick Insights
+            _buildQuickInsights(),
+            const SizedBox(height: 20),
+
+            // Recent Transactions Preview
+            _buildRecentTransactionsPreview(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionsTab() {
+    return Column(
+      children: [
+        // Filter Bar
+        _buildFilterBar(),
+
+        // Filtered Results Summary
+        if (_filteredEntries.isNotEmpty) _buildFilteredSummary(),
+
+        // Transaction List
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadFinanceData,
+            child: _buildTransactionList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ========================= SUMMARY TAB COMPONENTS =========================
+
+  Widget _buildDateRangePicker() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<DateRangeType>(
+          value: _selectedDateRange,
+          icon: Icon(Icons.keyboard_arrow_down, color: Colors.blue[700]),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.blue[800],
+          ),
+          items: [
+            DropdownMenuItem(value: DateRangeType.today, child: Text('finance_page.today'.tr())),
+            DropdownMenuItem(value: DateRangeType.yesterday, child: Text('finance_page.yesterday'.tr())),
+            DropdownMenuItem(value: DateRangeType.thisWeek, child: Text('finance_page.this_week'.tr())),
+            DropdownMenuItem(value: DateRangeType.lastWeek, child: Text('finance_page.last_week'.tr())),
+            DropdownMenuItem(value: DateRangeType.thisMonth, child: Text('finance_page.this_month'.tr())),
+            DropdownMenuItem(value: DateRangeType.lastMonth, child: Text('finance_page.last_month'.tr())),
+            DropdownMenuItem(
+              value: DateRangeType.custom,
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: Colors.blue[700]),
+                  const SizedBox(width: 8),
+                  Text('finance_page.custom_range'.tr()),
+                ],
+              ),
+            ),
+          ],
+          onChanged: (DateRangeType? value) {
+            if (value != null) {
+              if (value == DateRangeType.custom) {
+                _showCustomDateRangePicker();
+              } else {
+                setState(() {
+                  _selectedDateRange = value;
+                });
+                _loadFinanceData();
+              }
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKPICards() {
+    final profit = _currentIncome - _currentExpenses;
     final isProfit = profit >= 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'finance_page.today_summary'.tr(),
+          'finance_page.financial_overview'.tr(),
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
@@ -113,7 +354,7 @@ class _FinancePageState extends ConsumerState<FinancePage> {
             Expanded(
               child: _buildSummaryCard(
                 title: 'finance_page.income'.tr(),
-                amount: _todayIncome,
+                amount: _currentIncome,
                 color: Colors.green,
                 icon: Icons.trending_up,
               ),
@@ -124,7 +365,7 @@ class _FinancePageState extends ConsumerState<FinancePage> {
             Expanded(
               child: _buildSummaryCard(
                 title: 'finance_page.expenses'.tr(),
-                amount: _todayExpenses,
+                amount: _currentExpenses,
                 color: Colors.red,
                 icon: Icons.trending_down,
               ),
@@ -179,6 +420,140 @@ class _FinancePageState extends ConsumerState<FinancePage> {
     );
   }
 
+  Widget _buildQuickInsights() {
+    final totalTransactions = _filteredEntries.length;
+    final avgPerDay = _currentIncome / (_selectedDateRange == DateRangeType.thisMonth ? 30 : 1);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.purple[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.purple[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.insights, color: Colors.purple[700], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'finance_page.quick_insights'.tr(),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildInsightItem(
+                  'finance_page.transactions'.tr(),
+                  totalTransactions.toString(),
+                  Icons.receipt_long,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildInsightItem(
+                  'finance_page.avg_daily'.tr(),
+                  '${avgPerDay.toStringAsFixed(0)}đ',
+                  Icons.trending_up,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightItem(String label, String value, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: Colors.purple[600]),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(fontSize: 11, color: Colors.purple[600]),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.purple[800],
+          ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentTransactionsPreview() {
+    final recentEntries = _filteredEntries.take(5).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'finance_page.recent_transactions'.tr(),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: () => _tabController.animateTo(1),
+              child: Text('finance_page.view_all'.tr()),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        if (recentEntries.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.receipt_long, size: 32, color: Colors.grey[400]),
+                const SizedBox(height: 8),
+                Text(
+                  'finance_page.no_entries'.tr(),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          )
+        else
+          ...recentEntries.map((entry) => _buildFinanceEntryCard(entry)),
+      ],
+    );
+  }
+
   Widget _buildSummaryCard({
     required String title,
     required double amount,
@@ -225,45 +600,358 @@ class _FinancePageState extends ConsumerState<FinancePage> {
     );
   }
 
-  Widget _buildFinanceEntries() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'finance_page.today_entries'.tr(),
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
+  // ========================= TRANSACTIONS TAB COMPONENTS =========================
 
-        if (_todayEntries.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.receipt_long, size: 48, color: Colors.grey[400]),
-                const SizedBox(height: 12),
-                Text(
-                  'finance_page.no_entries'.tr(),
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+  Widget _buildFilterBar() {
+    final hasActiveFilters = _searchQuery.isNotEmpty ||
+                           _selectedType != null ||
+                           _selectedSources.isNotEmpty ||
+                           _amountRange.start > 0 ||
+                           _amountRange.end < 1000000;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Date picker (compact for transactions tab)
+              SizedBox(
+                width: 120,
+                child: _buildCompactDatePicker(),
+              ),
+              const SizedBox(width: 8),
+
+              // Search bar with expandable filters
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'finance_page.search_transactions'.tr(),
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: hasActiveFilters
+                        ? Badge(
+                            label: Text('${_getActiveFilterCount()}'),
+                            child: IconButton(
+                              icon: Icon(Icons.tune, color: Colors.blue[600], size: 20),
+                              onPressed: _toggleAdvancedFilters,
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.tune, size: 20),
+                            onPressed: _toggleAdvancedFilters,
+                          ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    isDense: true,
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                  onChanged: (query) {
+                    setState(() {
+                      _searchQuery = query;
+                    });
+                    _applyFilters();
+                  },
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'finance_page.add_first_entry'.tr(),
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+
+          // Expandable advanced filters
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: _showAdvancedFilters ? null : 0,
+            child: _showAdvancedFilters ? _buildAdvancedFilters() : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactDatePicker() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<DateRangeType>(
+          value: _selectedDateRange,
+          isDense: true,
+          style: TextStyle(fontSize: 11, color: Colors.blue[800]),
+          icon: Icon(Icons.arrow_drop_down, size: 16, color: Colors.blue[600]),
+          items: [
+            DropdownMenuItem(
+              value: DateRangeType.today,
+              child: Text('finance_page.today'.tr(), style: const TextStyle(fontSize: 11))
+            ),
+            DropdownMenuItem(
+              value: DateRangeType.thisWeek,
+              child: Text('finance_page.this_week'.tr(), style: const TextStyle(fontSize: 11))
+            ),
+            DropdownMenuItem(
+              value: DateRangeType.thisMonth,
+              child: Text('finance_page.this_month'.tr(), style: const TextStyle(fontSize: 11))
+            ),
+            DropdownMenuItem(
+              value: DateRangeType.custom,
+              child: Text('finance_page.custom'.tr(), style: const TextStyle(fontSize: 11))
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              if (value == DateRangeType.custom) {
+                _showCustomDateRangePicker();
+              } else {
+                setState(() {
+                  _selectedDateRange = value;
+                });
+                _loadFinanceData();
+              }
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdvancedFilters() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Filter chips row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                FilterChip(
+                  label: Text('finance_page.income'.tr()),
+                  selected: _selectedType == 'income',
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedType = selected ? 'income' : null;
+                    });
+                    _applyFilters();
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: Text('finance_page.expenses'.tr()),
+                  selected: _selectedType == 'expense',
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedType = selected ? 'expense' : null;
+                    });
+                    _applyFilters();
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: Text('finance_page.direct_sales'.tr()),
+                  selected: _selectedSources.contains('Direct'),
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedSources.add('Direct');
+                      } else {
+                        _selectedSources.remove('Direct');
+                      }
+                    });
+                    _applyFilters();
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: Text('finance_page.delivery'.tr()),
+                  selected: _selectedSources.contains('Grab') || _selectedSources.contains('Shopee'),
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedSources.addAll(['Grab', 'Shopee']);
+                      } else {
+                        _selectedSources.removeWhere((source) => ['Grab', 'Shopee'].contains(source));
+                      }
+                    });
+                    _applyFilters();
+                  },
                 ),
               ],
             ),
-          )
-        else
-          ..._todayEntries.map((entry) => _buildFinanceEntryCard(entry)),
-      ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Amount range slider
+          Text(
+            'finance_page.amount_range'.tr(),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          RangeSlider(
+            values: _amountRange,
+            min: 0,
+            max: 1000000,
+            divisions: 20,
+            labels: RangeLabels(
+              '${_amountRange.start.round()}đ',
+              '${_amountRange.end.round()}đ',
+            ),
+            onChanged: (range) {
+              setState(() {
+                _amountRange = range;
+              });
+            },
+            onChangeEnd: (range) {
+              _applyFilters();
+            },
+          ),
+
+          // Action buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: _clearAllFilters,
+                child: Text('finance_page.clear_all'.tr()),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => setState(() => _showAdvancedFilters = false),
+                child: Text('finance_page.done'.tr()),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildFilteredSummary() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        border: Border(bottom: BorderSide(color: Colors.blue[200]!)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'finance_page.filtered_results'.tr(namedArgs: {'count': _filteredEntries.length.toString()}),
+            style: TextStyle(fontSize: 14, color: Colors.blue[800]),
+          ),
+          Text(
+            'finance_page.net_amount'.tr(namedArgs: {'amount': (_currentIncome - _currentExpenses).toStringAsFixed(0)}),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionList() {
+    if (_filteredEntries.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'finance_page.no_transactions'.tr(),
+              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'finance_page.try_different_filters'.tr(),
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _filteredEntries.length,
+      itemBuilder: (context, index) {
+        final entry = _filteredEntries[index];
+        return _buildFinanceEntryCard(entry);
+      },
+    );
+  }
+
+  // ========================= HELPER METHODS =========================
+
+  void _showCustomDateRangePicker() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(
+        start: _customStartDate ?? DateTime.now().subtract(const Duration(days: 7)),
+        end: _customEndDate ?? DateTime.now(),
+      ),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDateRange = DateRangeType.custom;
+        _customStartDate = picked.start;
+        _customEndDate = picked.end;
+      });
+      _loadFinanceData();
+    }
+  }
+
+  int _getActiveFilterCount() {
+    int count = 0;
+    if (_selectedType != null) count++;
+    if (_selectedSources.isNotEmpty) count++;
+    if (_amountRange.start > 0 || _amountRange.end < 1000000) count++;
+    return count;
+  }
+
+  void _toggleAdvancedFilters() {
+    setState(() {
+      _showAdvancedFilters = !_showAdvancedFilters;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedType = null;
+      _selectedSources.clear();
+      _amountRange = const RangeValues(0, 1000000);
+      _searchQuery = '';
+      _searchController.clear();
+    });
+    _applyFilters();
   }
 
   Widget _buildFinanceEntryCard(FinanceEntry entry) {
@@ -646,17 +1334,10 @@ class _FinancePageState extends ConsumerState<FinancePage> {
       );
 
       setState(() {
-        _todayEntries.add(newEntry);
+        _allEntries.add(newEntry);
 
-        // Update totals
-        if (type == FinanceEntryType.income) {
-          _todayIncome += amount;
-        } else {
-          _todayExpenses += amount;
-        }
-
-        // Sort entries by time (newest first)
-        _todayEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        // Re-apply filters to include the new entry if it matches current filters
+        _applyFilters();
       });
 
       // Show success message
