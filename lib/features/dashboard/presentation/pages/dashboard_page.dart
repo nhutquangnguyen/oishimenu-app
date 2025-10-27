@@ -33,9 +33,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   Future<void> _loadStatistics() async {
-    setState(() {
-      _isLoadingStats = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoadingStats = true;
+      });
+    }
 
     final dateRanges = _getDateRangesForTimeFrame(_selectedTimeFrame);
 
@@ -50,15 +52,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         endDate: dateRanges['previousEnd'],
       );
 
-      setState(() {
-        _currentStats = currentStats;
-        _previousStats = previousStats;
-        _isLoadingStats = false;
-      });
+      if (mounted) {
+        setState(() {
+          _currentStats = currentStats;
+          _previousStats = previousStats;
+          _isLoadingStats = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoadingStats = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingStats = false;
+        });
+      }
     }
   }
 

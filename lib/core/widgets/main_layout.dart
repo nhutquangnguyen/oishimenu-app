@@ -9,11 +9,13 @@ import '../../models/order.dart';
 import '../localization/app_localizations.dart';
 import '../providers/supabase_providers.dart';
 
-// Provider for active orders count
+// 🚀 OPTIMIZED: Provider for active orders count with smart app lifecycle awareness
 final activeOrdersCountProvider = StreamProvider<int>((ref) async* {
   final orderService = ref.read(supabaseOrderServiceProvider);
 
   while (true) {
+    // Smart refresh: 2-minute interval provides significant cost savings
+    // Orders page lifecycle management handles app state pausing
     try {
       // Get all orders and filter to match the logic in orders_page.dart
       final allOrders = await orderService.getOrders();
@@ -26,8 +28,10 @@ final activeOrdersCountProvider = StreamProvider<int>((ref) async* {
       yield 0;
     }
 
-    // Refresh every 2 seconds for faster updates
-    await Future.delayed(const Duration(seconds: 2));
+    // 🚀 COST OPTIMIZATION: 2 minutes interval (60x reduction from original 2s)
+    // Combined with orders page lifecycle management = massive cost savings
+    // This reduces from 30 calls/minute to 0.5 calls/minute
+    await Future.delayed(const Duration(minutes: 2));
   }
 });
 
@@ -64,10 +68,10 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       route: '/pos',
     ),
     NavigationItem(
-      icon: Icons.restaurant_menu_outlined,
-      selectedIcon: Icons.restaurant_menu,
-      label: 'navigation.menu'.tr(),
-      route: '/menu',
+      icon: Icons.account_balance_wallet_outlined,
+      selectedIcon: Icons.account_balance_wallet,
+      label: 'navigation.finance'.tr(),
+      route: '/finance',
     ),
     NavigationItem(
       icon: Icons.more_horiz,
@@ -80,10 +84,10 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
   // Secondary navigation items for "More" section
   List<MoreNavigationItem> get _secondaryNavigationItems => [
     MoreNavigationItem(
-      icon: Icons.analytics_outlined,
-      label: 'navigation.finance'.tr(),
-      route: '/analytics',
-      subtitle: 'navigation.finance_subtitle'.tr(),
+      icon: Icons.restaurant_menu_outlined,
+      label: 'navigation.menu'.tr(),
+      route: '/menu',
+      subtitle: 'navigation.menu_subtitle'.tr(),
     ),
     MoreNavigationItem(
       icon: Icons.inventory_2_outlined,

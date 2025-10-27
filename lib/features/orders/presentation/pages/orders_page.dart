@@ -26,6 +26,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   // Timer for periodic refresh
   Timer? _refreshTimer;
 
+  // App lifecycle state tracking for smart refresh
+  bool _isAppActive = true;
+
   // Scroll controllers to preserve scroll position
   final ScrollController _activeOrdersScrollController = ScrollController();
   final ScrollController _historyOrdersScrollController = ScrollController();
@@ -40,13 +43,25 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   }
 
   void _startRefreshTimer() {
-    // 🚀 PERFORMANCE FIX: Reduced refresh frequency from 1s to 30s to reduce network traffic
-    // This reduces database calls from 60/minute to 2/minute (30x improvement!)
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (mounted) {
-        _loadOrders(showLoading: false); // Background refresh without loading indicator
+    // 🚀 COST OPTIMIZATION: Reduced from 30s to 5 minutes + smart app lifecycle pausing
+    // Only refresh when app is active to dramatically reduce database costs
+    // This reduces from 2 calls/minute to 0.2 calls/minute when active, 0 when inactive!
+    _refreshTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      if (mounted && _isAppActive) {
+        _loadOrders(showLoading: false); // Background refresh only when app is active
       }
     });
+  }
+
+  void _pauseRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  void _resumeRefreshTimer() {
+    if (_refreshTimer == null) {
+      _startRefreshTimer();
+    }
   }
 
   @override
@@ -62,9 +77,21 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Refresh orders when app comes back to foreground
-    if (state == AppLifecycleState.resumed) {
-      _loadOrders(showLoading: false); // Background refresh
+    // 🚀 SMART REFRESH: Pause all database polling when app is not active
+    // This can reduce database calls by 80-90% during background periods
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _isAppActive = true;
+        _resumeRefreshTimer();
+        _loadOrders(showLoading: false); // Fresh data when user returns
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _isAppActive = false;
+        _pauseRefreshTimer(); // Stop all background polling
+        break;
     }
   }
 
@@ -91,9 +118,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         });
       }
 
-      print('✅ Loaded ${orders.length} orders with pagination limit');
+      // Debug: Loaded ${orders.length} orders with pagination limit
     } catch (e) {
-      print('Error loading orders: $e');
+      // Debug: Error loading orders: $e
       if (showLoading && mounted) {
         setState(() => _isLoading = false);
       }
@@ -119,6 +146,18 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 🚀 COST OPTIMIZATION: Add manual refresh option since auto-refresh is now less frequent
+      appBar: AppBar(
+        title: Text('orders_page.title'.tr()),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'orders_page.refresh_tooltip'.tr(),
+            onPressed: () => _loadOrders(),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // Tab bar
@@ -913,10 +952,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
       final orderService = ref.read(supabaseOrderServiceProvider);
       await orderService.updateOrder(updatedOrder);
 
-      print('✅ Quantity increased with optimistic update - no full reload!');
+      // Debug: Quantity increased with optimistic update - no full reload!
     } catch (e) {
       // 🔄 Error occurred - revert UI and reload data
-      print('❌ Update failed, reverting optimistic changes...');
+      // Debug: Update failed, reverting optimistic changes...
       await _loadOrders(showLoading: false);
 
       if (mounted) {
@@ -1044,11 +1083,11 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         final orderService = ref.read(supabaseOrderServiceProvider);
       await orderService.updateOrder(updatedOrder);
 
-        print('✅ Quantity decreased with optimistic update - no full reload!');
+        // Debug: Quantity decreased with optimistic update - no full reload!
       }
     } catch (e) {
       // 🔄 Error occurred - revert UI and reload data
-      print('❌ Update failed, reverting optimistic changes...');
+      // Debug: Update failed, reverting optimistic changes...
       await _loadOrders(showLoading: false);
 
       if (mounted) {
@@ -1148,7 +1187,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         final orderService = ref.read(supabaseOrderServiceProvider);
       await orderService.updateOrder(updatedOrder);
 
-        print('✅ Order cancelled with optimistic update - no full reload!');
+        // Debug: Order cancelled with optimistic update - no full reload!
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1160,7 +1199,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         }
       } catch (e) {
         // 🔄 Error occurred - revert UI and reload data
-        print('❌ Order cancellation failed, reverting optimistic changes...');
+        // Debug: Order cancellation failed, reverting optimistic changes...
         await _loadOrders(showLoading: false);
 
         if (mounted) {

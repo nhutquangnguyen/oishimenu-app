@@ -40,9 +40,11 @@ class _BestSellersState extends State<BestSellers> {
   }
 
   Future<void> _loadBestSellers() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       final dateRanges = _getDateRangesForTimeFrame(widget.timeFrame);
@@ -85,15 +87,19 @@ class _BestSellersState extends State<BestSellers> {
         items.sort((a, b) => b.quantity.compareTo(a.quantity));
       }
 
-      setState(() {
-        _bestSellerItems = items;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _bestSellerItems = items;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('Error loading best sellers: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

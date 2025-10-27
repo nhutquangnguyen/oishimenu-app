@@ -1228,6 +1228,34 @@ class AutomatedTestService {
     );
 
     await _runTest(
+      'DEBUG_001',
+      '🐛 DEBUG: Menu Item Deletion Investigation',
+      'Debug why menu item deletion shows active orders but UI shows none',
+      () async {
+        final menuService = ref.read(supabaseMenuServiceProvider);
+
+        try {
+          // Get all menu items to find one to test deletion with
+          final menuItems = await menuService.getMenuItems();
+          if (menuItems.isEmpty) {
+            return TestResult.failed('DEBUG_001', 'No menu items available to debug deletion with');
+          }
+
+          // Try the first menu item for debugging
+          final testMenuItem = menuItems.first;
+          print('🔍 Starting debug investigation for menu item: ${testMenuItem.name} (ID: ${testMenuItem.id})');
+
+          // Call our debugging method
+          await menuService.debugMenuItemDeletion(testMenuItem.id);
+
+          return TestResult.passed('DEBUG_001', 'Debug investigation completed for menu item: ${testMenuItem.name}. Check console output for detailed debugging information.');
+        } catch (e) {
+          return TestResult.failed('DEBUG_001', 'Debug investigation failed: $e');
+        }
+      }
+    );
+
+    await _runTest(
       'DATA_008',
       'Order Creation to Completion Workflow',
       'Test complete workflow from creating order to final completion',
