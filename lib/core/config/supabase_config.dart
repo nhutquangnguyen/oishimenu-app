@@ -9,14 +9,21 @@ class SupabaseConfig {
   static SupabaseClient get client => Supabase.instance.client;
 
   static Future<void> initialize() async {
-    await Supabase.initialize(
-      url: url,
-      anonKey: anonKey,
-      debug: true, // Set to false in production
-      authOptions: const FlutterAuthClientOptions(
-        authFlowType: AuthFlowType.pkce,
-        autoRefreshToken: true,
-      ),
-    );
+    try {
+      await Supabase.initialize(
+        url: url,
+        anonKey: anonKey,
+        debug: false, // Disabled in production to prevent verbose logging
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+          autoRefreshToken: true,
+        ),
+      );
+      print('✅ Supabase initialized successfully');
+    } catch (e) {
+      print('⚠️ Supabase initialization failed: $e');
+      // Continue app launch even if Supabase fails - allow offline usage
+      // The app can still function with local data until connection is restored
+    }
   }
 }

@@ -21,11 +21,19 @@ void main() async {
   // Initialize Hive for local storage
   await Hive.initFlutter();
 
-  // Initialize Supabase
-  await SupabaseConfig.initialize();
+  // Initialize Supabase with error handling
+  try {
+    await SupabaseConfig.initialize();
+  } catch (e) {
+    print('⚠️ Supabase initialization failed, continuing with offline mode: $e');
+  }
 
-  // Initialize Deep Link Service for email confirmations
-  await DeepLinkService.initialize();
+  // Initialize Deep Link Service with error handling
+  try {
+    await DeepLinkService.initialize();
+  } catch (e) {
+    print('⚠️ Deep Link Service initialization failed, continuing without deep links: $e');
+  }
 
   // Supabase auth is automatically initialized through SupabaseConfig.initialize()
 
