@@ -25,11 +25,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   Map<String, dynamic>? _currentStats;
   Map<String, dynamic>? _previousStats;
   bool _isLoadingStats = true;
+  List<Map<String, dynamic>> _salesChartData = [];
+  bool _isLoadingChart = true;
 
   @override
   void initState() {
     super.initState();
     _loadStatistics();
+    _loadSalesChartData();
   }
 
   Future<void> _loadStatistics() async {
@@ -63,6 +66,54 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       if (mounted) {
         setState(() {
           _isLoadingStats = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadSalesChartData() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingChart = true;
+      });
+    }
+
+    final dateRanges = _getDateRangesForTimeFrame(_selectedTimeFrame);
+
+    try {
+      // Convert groupBy from UI format to service format
+      String serviceGroupBy;
+      switch (_selectedGroupBy) {
+        case 'Hour':
+          serviceGroupBy = 'hour';
+          break;
+        case 'Week day':
+          serviceGroupBy = 'day'; // Group by day then we'll aggregate by weekday
+          break;
+        case 'Day':
+        default:
+          serviceGroupBy = 'day';
+          break;
+      }
+
+      final chartData = await _orderService.getSalesChartData(
+        startDate: dateRanges['currentStart'],
+        endDate: dateRanges['currentEnd'],
+        groupBy: serviceGroupBy,
+      );
+
+      if (mounted) {
+        setState(() {
+          _salesChartData = chartData;
+          _isLoadingChart = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading sales chart data: $e');
+      if (mounted) {
+        setState(() {
+          _salesChartData = [];
+          _isLoadingChart = false;
         });
       }
     }
@@ -121,7 +172,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       body: RefreshIndicator(
         onRefresh: () async {
-          await _loadStatistics();
+          await Future.wait([
+            _loadStatistics(),
+            _loadSalesChartData(),
+          ]);
         },
         child: CustomScrollView(
           slivers: [
@@ -237,6 +291,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                                     setState(() {
                                       _selectedGroupBy = newValue;
                                     });
+                                    _loadSalesChartData(); // Reload chart data for new grouping
                                   }
                                 },
                               ),
@@ -245,10 +300,25 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        SalesChart(
-                          timeFrame: _selectedTimeFrame,
-                          groupBy: _selectedGroupBy,
-                        ),
+                        _isLoadingChart
+                            ? Card(
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Container(
+                                  height: 232, // Match SalesChart height + padding
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                              )
+                            : SalesChart(
+                                timeFrame: _selectedTimeFrame,
+                                groupBy: _selectedGroupBy,
+                                salesData: _salesChartData,
+                              ),
                         const SizedBox(height: 32),
 
                         // Best Sellers
@@ -498,6 +568,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   _selectedTimeFrame = value!;
                 });
                 _loadStatistics();
+                _loadSalesChartData(); // Reload chart data for new time frame
               },
             ),
           ),

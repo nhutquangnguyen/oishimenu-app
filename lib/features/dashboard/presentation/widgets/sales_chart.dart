@@ -4,11 +4,13 @@ import 'package:fl_chart/fl_chart.dart';
 class SalesChart extends StatelessWidget {
   final String timeFrame;
   final String groupBy;
+  final List<Map<String, dynamic>> salesData;
 
   const SalesChart({
     super.key,
     required this.timeFrame,
     required this.groupBy,
+    required this.salesData,
   });
 
   @override
@@ -147,77 +149,123 @@ class SalesChart extends StatelessWidget {
   }
 
   List<FlSpot> _getChartData() {
-    final baseMultiplier = _getTimeFrameMultiplier();
+    if (salesData.isEmpty) {
+      return const [FlSpot(0, 0)];
+    }
 
     switch (groupBy) {
       case 'Hour':
-        // 24 hours - showing key hours
-        return [
-          FlSpot(0, 50000 * baseMultiplier),    // 6 AM
-          FlSpot(1, 120000 * baseMultiplier),   // 8 AM
-          FlSpot(2, 280000 * baseMultiplier),   // 10 AM
-          FlSpot(3, 450000 * baseMultiplier),   // 12 PM
-          FlSpot(4, 380000 * baseMultiplier),   // 2 PM
-          FlSpot(5, 520000 * baseMultiplier),   // 4 PM
-          FlSpot(6, 680000 * baseMultiplier),   // 6 PM
-          FlSpot(7, 750000 * baseMultiplier),   // 8 PM
-          FlSpot(8, 920000 * baseMultiplier),   // 10 PM
-        ];
+        return _getHourlyChartData();
       case 'Day':
-        // 30 days - showing key days
-        return [
-          FlSpot(0, 1200000 * baseMultiplier),  // Day 1
-          FlSpot(1, 1500000 * baseMultiplier),  // Day 4
-          FlSpot(2, 1800000 * baseMultiplier),  // Day 7
-          FlSpot(3, 2100000 * baseMultiplier),  // Day 10
-          FlSpot(4, 1950000 * baseMultiplier),  // Day 13
-          FlSpot(5, 2400000 * baseMultiplier),  // Day 16
-          FlSpot(6, 2200000 * baseMultiplier),  // Day 19
-          FlSpot(7, 2600000 * baseMultiplier),  // Day 22
-          FlSpot(8, 2300000 * baseMultiplier),  // Day 25
-          FlSpot(9, 2800000 * baseMultiplier),  // Day 28
-        ];
+        return _getDailyChartData();
       case 'Week day':
-        // Weekly pattern
-        return [
-          FlSpot(0, 1800000 * baseMultiplier),  // Monday
-          FlSpot(1, 2100000 * baseMultiplier),  // Tuesday
-          FlSpot(2, 1650000 * baseMultiplier),  // Wednesday
-          FlSpot(3, 2400000 * baseMultiplier),  // Thursday
-          FlSpot(4, 2800000 * baseMultiplier),  // Friday
-          FlSpot(5, 2200000 * baseMultiplier),  // Saturday
-          FlSpot(6, 2450000 * baseMultiplier),  // Sunday
-        ];
+        return _getWeeklyChartData();
       default:
-        return const [FlSpot(0, 0)];
+        return _getDailyChartData();
     }
   }
 
-  double _getTimeFrameMultiplier() {
-    switch (timeFrame) {
-      case 'Today':
-        return 0.4;  // Smaller scale for today
-      case 'This Week':
-        return 1.0;  // Base scale
-      case 'This Month':
-        return 3.2;  // Larger scale for month
-      case 'Last 30 Days':
-        return 2.8;  // Similar to month
-      default:
-        return 1.0;
+  List<FlSpot> _getHourlyChartData() {
+    // Create a map to hold hourly data
+    final Map<int, double> hourlyData = {};
+
+    // Initialize with 0 for all hours
+    for (int i = 0; i < 24; i++) {
+      hourlyData[i] = 0;
     }
+
+    // Process the sales data
+    for (final item in salesData) {
+      final period = item['period'] as String;
+      final sales = (item['sales'] as num?)?.toDouble() ?? 0.0;
+
+      try {
+        // Parse hour from period (format: '2024-10-28 14:00')
+        final dateTime = DateTime.parse(period.replaceAll(' ', 'T'));
+        hourlyData[dateTime.hour] = (hourlyData[dateTime.hour] ?? 0) + sales;
+      } catch (e) {
+        print('Error parsing hour data: $e');
+      }
+    }
+
+    // Convert to FlSpot list, sampling key hours for better chart readability
+    final List<FlSpot> spots = [];
+    final keyHours = [6, 8, 10, 12, 14, 16, 18, 20, 22]; // Key business hours
+
+    for (int i = 0; i < keyHours.length; i++) {
+      final hour = keyHours[i];
+      spots.add(FlSpot(i.toDouble(), hourlyData[hour] ?? 0));
+    }
+
+    return spots;
   }
+
+  List<FlSpot> _getDailyChartData() {
+    // Sort data by period and take up to 10 most recent points for chart readability
+    final sortedData = List<Map<String, dynamic>>.from(salesData);
+    sortedData.sort((a, b) => (a['period'] as String).compareTo(b['period'] as String));
+
+    // Take last 10 days or available data
+    final recentData = sortedData.length > 10
+        ? sortedData.sublist(sortedData.length - 10)
+        : sortedData;
+
+    final List<FlSpot> spots = [];
+    for (int i = 0; i < recentData.length; i++) {
+      final sales = (recentData[i]['sales'] as num?)?.toDouble() ?? 0.0;
+      spots.add(FlSpot(i.toDouble(), sales));
+    }
+
+    return spots.isEmpty ? [const FlSpot(0, 0)] : spots;
+  }
+
+  List<FlSpot> _getWeeklyChartData() {
+    // Create a map to hold weekly data (0 = Monday, 6 = Sunday)
+    final Map<int, double> weeklyData = {};
+
+    // Initialize with 0 for all days
+    for (int i = 0; i < 7; i++) {
+      weeklyData[i] = 0;
+    }
+
+    // Process the sales data
+    for (final item in salesData) {
+      final period = item['period'] as String;
+      final sales = (item['sales'] as num?)?.toDouble() ?? 0.0;
+
+      try {
+        final dateTime = DateTime.parse(period);
+        // Convert to 0-based weekday (0 = Monday, 6 = Sunday)
+        final weekday = dateTime.weekday - 1;
+        weeklyData[weekday] = (weeklyData[weekday] ?? 0) + sales;
+      } catch (e) {
+        print('Error parsing weekly data: $e');
+      }
+    }
+
+    // Convert to FlSpot list
+    final List<FlSpot> spots = [];
+    for (int i = 0; i < 7; i++) {
+      spots.add(FlSpot(i.toDouble(), weeklyData[i] ?? 0));
+    }
+
+    return spots;
+  }
+
 
   double _getMaxX() {
+    final data = _getChartData();
+    if (data.isEmpty) return 6;
+
     switch (groupBy) {
       case 'Hour':
-        return 8; // 9 data points (0-8)
+        return 8; // 9 key hours (0-8)
       case 'Day':
-        return 9; // 10 data points (0-9)
+        return (data.length - 1).toDouble(); // Dynamic based on data points
       case 'Week day':
         return 6; // 7 days (0-6)
       default:
-        return 6;
+        return (data.length - 1).toDouble();
     }
   }
 
@@ -254,7 +302,7 @@ class SalesChart extends StatelessWidget {
   String _getBottomTitle(int value) {
     switch (groupBy) {
       case 'Hour':
-        // Hour labels
+        // Hour labels for key business hours
         switch (value) {
           case 0: return '6AM';
           case 1: return '8AM';
@@ -268,22 +316,28 @@ class SalesChart extends StatelessWidget {
           default: return '';
         }
       case 'Day':
-        // Day labels
-        switch (value) {
-          case 0: return '1';
-          case 1: return '4';
-          case 2: return '7';
-          case 3: return '10';
-          case 4: return '13';
-          case 5: return '16';
-          case 6: return '19';
-          case 7: return '22';
-          case 8: return '25';
-          case 9: return '28';
-          default: return '';
+        // Dynamic day labels based on real data
+        if (salesData.isEmpty) return '';
+
+        final sortedData = List<Map<String, dynamic>>.from(salesData);
+        sortedData.sort((a, b) => (a['period'] as String).compareTo(b['period'] as String));
+
+        final recentData = sortedData.length > 10
+            ? sortedData.sublist(sortedData.length - 10)
+            : sortedData;
+
+        if (value >= 0 && value < recentData.length) {
+          try {
+            final period = recentData[value]['period'] as String;
+            final date = DateTime.parse(period);
+            return '${date.day}/${date.month}';
+          } catch (e) {
+            return '${value + 1}';
+          }
         }
+        return '';
       case 'Week day':
-        // Day labels
+        // Weekday labels
         switch (value) {
           case 0: return 'Mon';
           case 1: return 'Tue';
