@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
@@ -10,29 +10,63 @@ import '../localization/app_localizations.dart';
 import '../providers/supabase_providers.dart';
 
 // 🚀 OPTIMIZED: Provider for active orders count with smart app lifecycle awareness
-final activeOrdersCountProvider = StreamProvider<int>((ref) async* {
-  final orderService = ref.read(supabaseOrderServiceProvider);
+// StateNotifier for active orders count with immediate updates
+class ActiveOrdersCountNotifier extends StateNotifier<AsyncValue<int>> {
+  ActiveOrdersCountNotifier(this.ref) : super(const AsyncValue.loading()) {
+    _initialize();
+  }
 
-  while (true) {
-    // Smart refresh: 2-minute interval provides significant cost savings
-    // Orders page lifecycle management handles app state pausing
+  final Ref ref;
+  Timer? _timer;
+
+  Future<void> _initialize() async {
+    await refresh();
+    _startPeriodicRefresh();
+  }
+
+  void _startPeriodicRefresh() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(minutes: 2), (_) => refresh());
+  }
+
+  Future<void> refresh() async {
     try {
-      // Get all orders and filter to match the logic in orders_page.dart
+      final orderService = ref.read(supabaseOrderServiceProvider);
       final allOrders = await orderService.getOrders();
       final activeOrders = allOrders.where((order) =>
         order.status != OrderStatus.delivered &&
         order.status != OrderStatus.cancelled
       ).toList();
-      yield activeOrders.length;
+      state = AsyncValue.data(activeOrders.length);
     } catch (e) {
-      yield 0;
+      state = AsyncValue.error(e, StackTrace.current);
     }
-
-    // 🚀 COST OPTIMIZATION: 2 minutes interval (60x reduction from original 2s)
-    // Combined with orders page lifecycle management = massive cost savings
-    // This reduces from 30 calls/minute to 0.5 calls/minute
-    await Future.delayed(const Duration(minutes: 2));
   }
+
+  // Immediate updates for order operations
+  void incrementCount() {
+    final currentValue = state.valueOrNull ?? 0;
+    final newValue = currentValue + 1;
+    state = AsyncValue.data(newValue);
+  }
+
+  void decrementCount() {
+    final currentValue = state.valueOrNull ?? 0;
+    if (currentValue > 0) {
+      final newValue = currentValue - 1;
+      state = AsyncValue.data(newValue);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+}
+
+final activeOrdersCountProvider = StateNotifierProvider<ActiveOrdersCountNotifier, AsyncValue<int>>((ref) {
+  return ActiveOrdersCountNotifier(ref);
 });
 
 class MainLayout extends ConsumerStatefulWidget {
@@ -386,27 +420,42 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
           // Orders tab with active orders count badge (index 1)
           if (index == 1) {
-            final activeOrdersCount = ref.watch(activeOrdersCountProvider);
-            final count = activeOrdersCount.when(
-              data: (count) => count,
-              loading: () => 0,
-              error: (_, __) => 0,
-            );
-
             return NavigationDestination(
-              icon: Badge(
-                isLabelVisible: count > 0,
-                label: Text('$count'),
-                backgroundColor: Colors.red,
-                textColor: Colors.white,
-                child: Icon(item.icon),
+              icon: Consumer(
+                builder: (context, ref, child) {
+                  final activeOrdersCount = ref.watch(activeOrdersCountProvider);
+                  final count = activeOrdersCount.when(
+                    data: (count) => count,
+                    loading: () => 0,
+                    error: (_, __) => 0,
+                  );
+
+                  return Badge(
+                    isLabelVisible: count > 0,
+                    label: Text('$count'),
+                    backgroundColor: Colors.red,
+                    textColor: Colors.white,
+                    child: Icon(item.icon),
+                  );
+                },
               ),
-              selectedIcon: Badge(
-                isLabelVisible: count > 0,
-                label: Text('$count'),
-                backgroundColor: Colors.red,
-                textColor: Colors.white,
-                child: Icon(item.selectedIcon),
+              selectedIcon: Consumer(
+                builder: (context, ref, child) {
+                  final activeOrdersCount = ref.watch(activeOrdersCountProvider);
+                  final count = activeOrdersCount.when(
+                    data: (count) => count,
+                    loading: () => 0,
+                    error: (_, __) => 0,
+                  );
+
+                  return Badge(
+                    isLabelVisible: count > 0,
+                    label: Text('$count'),
+                    backgroundColor: Colors.red,
+                    textColor: Colors.white,
+                    child: Icon(item.selectedIcon),
+                  );
+                },
               ),
               label: item.label,
             );

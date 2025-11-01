@@ -1,5 +1,5 @@
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
@@ -2155,9 +2155,7 @@ class SupabaseOrderService extends SupabaseService {
         ordersQuery = ordersQuery.limit(limit);
       }
 
-      print('🚀 Executing optimized single query for orders + items...');
       final response = await ordersQuery;
-      print('✅ Single query completed! Processing ${response.length} orders...');
 
       // Transform response to Order objects with items included
       final orders = response.map<Order>((json) {
@@ -2483,6 +2481,44 @@ class SupabaseOrderService extends SupabaseService {
     } catch (e) {
       print('❌ Error deleting order: $e');
       throw Exception('Failed to delete order: $e');
+    }
+  }
+
+  // ============= ORDER ITEM COMPLETION =============
+
+  /// Toggle completion status for a single order item
+  Future<bool> toggleItemCompletion({
+    required String orderId,
+    required String itemId,
+    String? completedBy,
+  }) async {
+    try {
+      // Get current completion status
+      final item = await SupabaseService.client
+          .from('order_items')
+          .select('is_completed')
+          .eq('id', itemId)
+          .eq('order_id', orderId)
+          .single();
+
+      final currentStatus = item['is_completed'] ?? false;
+      final newStatus = !currentStatus;
+
+      // Update the completion status directly
+      await SupabaseService.client
+          .from('order_items')
+          .update({
+            'is_completed': newStatus,
+            'completed_at': newStatus ? DateTime.now().toIso8601String() : null,
+            'completed_by': newStatus ? completedBy : null,
+          })
+          .eq('id', itemId)
+          .eq('order_id', orderId);
+
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error toggling item completion: $e');
+      return false;
     }
   }
 

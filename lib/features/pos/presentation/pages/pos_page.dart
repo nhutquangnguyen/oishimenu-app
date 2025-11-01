@@ -8,6 +8,7 @@ import '../../../../models/customer.dart';
 import '../../../../models/order.dart' as order_model;
 import '../../../auth/providers/auth_provider.dart';
 import '../../../../core/providers/supabase_providers.dart';
+import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
 import '../../../checkout/presentation/pages/checkout_page.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
@@ -1130,6 +1131,9 @@ class _PosPageState extends ConsumerState<PosPage> {
         );
 
         await orderService.createOrder(order);
+
+        // 🚀 INSTANT BADGE UPDATE: Increment active order count immediately
+        ref.read(activeOrdersCountProvider.notifier).incrementCount();
       }
 
       if (mounted) {

@@ -269,6 +269,9 @@ class OrderItem {
   final String? selectedSize;
   final double subtotal;
   final String? notes;
+  final bool isCompleted;
+  final DateTime? completedAt;
+  final String? completedBy;
 
   OrderItem({
     required this.id,
@@ -280,6 +283,9 @@ class OrderItem {
     this.selectedSize,
     required this.subtotal,
     this.notes,
+    this.isCompleted = false,
+    this.completedAt,
+    this.completedBy,
   });
 
   factory OrderItem.fromMap(Map<String, dynamic> map) {
@@ -293,6 +299,9 @@ class OrderItem {
       selectedSize: stringFromDynamic(map['selected_size']),
       subtotal: (map['subtotal'] ?? 0).toDouble(),
       notes: stringFromDynamic(map['notes']),
+      isCompleted: map['is_completed'] ?? false,
+      completedAt: map['completed_at'] != null ? DateTime.parse(map['completed_at']) : null,
+      completedBy: stringFromDynamic(map['completed_by']),
     );
   }
 
@@ -306,6 +315,9 @@ class OrderItem {
       'selected_size': selectedSize,
       'subtotal': subtotal,
       'notes': notes,
+      'is_completed': isCompleted,
+      'completed_at': completedAt?.toIso8601String(),
+      'completed_by': completedBy,
     };
   }
 

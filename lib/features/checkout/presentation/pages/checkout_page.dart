@@ -6,6 +6,7 @@ import '../../../../models/order.dart';
 import '../../../../models/order_source.dart';
 import '../../../../models/customer.dart' as customer_model;
 import '../../../../core/providers/supabase_providers.dart';
+import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
 import '../../../../services/supabase_service.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
@@ -345,6 +346,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         await orderService.createOrder(updatedOrder);
         // Update the order number in success message with the new ID
         // (keep using the original orderNumber for display)
+
+        // 🚀 INSTANT BADGE UPDATE: Increment active order count immediately
+        ref.read(activeOrdersCountProvider.notifier).incrementCount();
       } else {
         // Update existing order
         await orderService.updateOrder(updatedOrder);
@@ -513,6 +517,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (widget.order.id.isEmpty) {
         // Create new order
         await orderService.createOrder(updatedOrder);
+
+        // 🚀 INSTANT BADGE UPDATE: Increment active order count immediately
+        ref.read(activeOrdersCountProvider.notifier).incrementCount();
       } else {
         // Update existing order
         await orderService.updateOrder(updatedOrder);
@@ -589,9 +596,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         );
       }
 
-      print('✅ Finance entries created for order ${order.orderNumber}: Income: ${netAmount}đ, Commission: ${_commissionAmount}đ');
+      debugPrint('✅ Finance entries created for order ${order.orderNumber}: Income: ${netAmount}đ, Commission: $_commissionAmountđ');
     } catch (e) {
-      print('❌ Error creating finance entry for order ${order.orderNumber}: $e');
+      debugPrint('❌ Error creating finance entry for order ${order.orderNumber}: $e');
       // Don't throw the error - we don't want to fail the checkout if finance entry creation fails
       // The order completion is more important than the finance tracking
     }

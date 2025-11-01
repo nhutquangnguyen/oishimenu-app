@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order.dart';
 import '../../../../core/providers/supabase_providers.dart';
+import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
 import '../../../pos/presentation/pages/pos_page.dart';
 import '../../../checkout/presentation/pages/checkout_page.dart';
 
@@ -19,9 +20,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
 
   List<Order> _orders = [];
   bool _isLoading = true;
-
-  // Track completed items (orderId -> Set of item indices)
-  final Map<String, Set<int>> _completedItems = {};
 
   // Timer for periodic refresh
   Timer? _refreshTimer;
@@ -116,6 +114,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
             _isLoading = false;
           }
         });
+
+        // 🚀 BADGE SYNC: Refresh badge count to reflect actual database state
+        ref.read(activeOrdersCountProvider.notifier).refresh();
       }
 
       // Debug: Loaded ${orders.length} orders with pagination limit
@@ -481,7 +482,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   }
 
   Widget _buildActiveOrderItem(Order order, int index, OrderItem item) {
-    final isCompleted = _completedItems[order.id]?.contains(index) ?? false;
+    final isCompleted = item.isCompleted;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -515,14 +516,48 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                     const SizedBox(height: 4),
                     // Mark Done / Done button
                     InkWell(
-                      onTap: () {
+                      onTap: () async {
+                        final orderService = ref.read(supabaseOrderServiceProvider);
+                        final currentUser = ref.read(supabaseAuthServiceProvider).currentUser;
+
+                        // Optimistic UI update for instant feedback
                         setState(() {
-                          if (isCompleted) {
-                            _completedItems[order.id]?.remove(index);
-                          } else {
-                            _completedItems.putIfAbsent(order.id, () => {}).add(index);
-                          }
+                          // This will trigger a rebuild, but the real data comes from database
                         });
+
+                        try {
+                          final success = await orderService.toggleItemCompletion(
+                            orderId: order.id,
+                            itemId: item.id,
+                            completedBy: currentUser?.id,
+                          );
+
+                          if (success) {
+                            // Reload orders to get updated completion status from database
+                            _loadOrders();
+                          } else {
+                            // Show error message
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('orders_page.mark_complete_error'.tr()),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          // Log error for debugging
+                          debugPrint('Error toggling item completion: $e');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('orders_page.mark_complete_error'.tr()),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -906,12 +941,8 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
 
   Future<void> _increaseQuantity(Order order, int itemIndex) async {
     try {
-      // Uncheck mark done status when increasing quantity
-      if (mounted) {
-        setState(() {
-          _completedItems[order.id]?.remove(itemIndex);
-        });
-      }
+      // Note: When quantity changes, completion status is preserved since it's per item
+      // If needed, we could mark as incomplete here using OrderCompletionService
 
       // Update the item quantity
       final updatedItems = List<OrderItem>.from(order.items);
@@ -1029,6 +1060,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
             );
             final orderService = ref.read(supabaseOrderServiceProvider);
       await orderService.updateOrder(updatedOrder);
+
+            // 🚀 INSTANT BADGE UPDATE: Decrement active order count immediately
+            ref.read(activeOrdersCountProvider.notifier).decrementCount();
           }
           await _loadOrders(showLoading: false);
           return;
@@ -1186,6 +1220,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
 
         final orderService = ref.read(supabaseOrderServiceProvider);
       await orderService.updateOrder(updatedOrder);
+
+        // 🚀 INSTANT BADGE UPDATE: Decrement active order count immediately
+        ref.read(activeOrdersCountProvider.notifier).decrementCount();
 
         // Debug: Order cancelled with optimistic update - no full reload!
 
