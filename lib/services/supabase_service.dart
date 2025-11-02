@@ -2482,10 +2482,15 @@ class SupabaseOrderService extends SupabaseService {
 
   /// Create income entry if order is marked as delivered/completed
   Future<void> _createIncomeEntryIfCompleted(Order order) async {
+    print('🔍 DEBUG - Checking income entry creation for order: ${order.orderNumber}, Status: ${order.status}');
+
     // Only create income entry for delivered orders
     if (order.status != OrderStatus.delivered) {
+      print('⏭️ Skipping income entry - Order status is ${order.status}, not delivered');
       return;
     }
+
+    print('💰 Creating income entry for completed order: ${order.orderNumber} (${order.total}đ)');
 
     try {
       final financeService = SupabaseFinanceService();
@@ -2516,7 +2521,12 @@ class SupabaseOrderService extends SupabaseService {
       print('✅ Auto-created income entry: ${order.total}đ from order ${order.orderNumber}');
     } catch (financeError) {
       print('❌ ERROR creating income entry: $financeError');
-      // Don't throw - allow order operations to continue even if finance entry fails
+      print('🔍 DEBUG - Order details: ID=${order.id}, Status=${order.status}, Total=${order.total}');
+      print('🔍 DEBUG - Finance error details: $financeError');
+
+      // Log the error for monitoring but don't break order completion
+      // TODO: Consider showing a warning to user that income entry failed
+      // For now, we'll continue to allow order operations to complete
     }
   }
 
@@ -3097,9 +3107,14 @@ class SupabaseFinanceService extends SupabaseService {
     required String description,
     required String category,
   }) async {
+    print('🔍 DEBUG - Creating finance entry: type=$type, amount=$amount, description="$description", category="$category"');
+
     try {
       final currentUser = SupabaseService.client.auth.currentUser;
+      print('🔍 DEBUG - Current user: ${currentUser?.id}');
+
       if (currentUser == null) {
+        print('❌ ERROR - User not authenticated');
         throw Exception('User not authenticated');
       }
 
@@ -3123,11 +3138,15 @@ class SupabaseFinanceService extends SupabaseService {
         'updated_at': DateTime.now().toIso8601String(),
       };
 
+      print('🔍 DEBUG - Finance entry data to insert: $data');
+
       final response = await SupabaseService.client
           .from('finance_entries')
           .insert(data)
           .select('id')
           .single();
+
+      print('🔍 DEBUG - Finance entry insert response: $response');
 
       print('✅ Finance entry created successfully');
       return response['id'] as String;
