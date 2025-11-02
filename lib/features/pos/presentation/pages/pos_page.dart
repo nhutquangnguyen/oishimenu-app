@@ -9,7 +9,6 @@ import '../../../../models/order.dart' as order_model;
 import '../../../auth/providers/auth_provider.dart';
 import '../../../../core/providers/supabase_providers.dart';
 import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
-import '../../../checkout/presentation/pages/checkout_page.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
 
@@ -61,6 +60,12 @@ class _PosPageState extends ConsumerState<PosPage> {
 
   // Text controllers for persistent form fields
   late TextEditingController _orderNotesController;
+  late TextEditingController _customerNameController;
+  late TextEditingController _customerPhoneController;
+
+  // UI state
+  double _discountAmount = 0.0;
+  bool _isDiscountPercentage = false;
 
   // Track if we're editing an existing order
   String? _existingOrderId;
@@ -74,6 +79,8 @@ class _PosPageState extends ConsumerState<PosPage> {
   void initState() {
     super.initState();
     _orderNotesController = TextEditingController(text: _orderNotes);
+    _customerNameController = TextEditingController();
+    _customerPhoneController = TextEditingController();
     _loadMenuData();
   }
 
@@ -81,6 +88,8 @@ class _PosPageState extends ConsumerState<PosPage> {
   void dispose() {
     _searchController.dispose();
     _orderNotesController.dispose();
+    _customerNameController.dispose();
+    _customerPhoneController.dispose();
     super.dispose();
   }
 
@@ -103,6 +112,12 @@ class _PosPageState extends ConsumerState<PosPage> {
       // Load existing order if provided
       if (widget.existingOrder != null) {
         _loadExistingOrder(widget.existingOrder!);
+        // Automatically show cart when editing existing order
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _cartItems.isNotEmpty) {
+            _showCartBottomSheet();
+          }
+        });
       }
     } catch (e) {
       setState(() {
@@ -178,6 +193,11 @@ class _PosPageState extends ConsumerState<PosPage> {
       // Load existing notes
       _orderNotes = order.notes ?? '';
       _orderNotesController.text = _orderNotes;
+
+      // Load customer information into controllers
+      _customerNameController.text = order.customer.name;
+      _customerPhoneController.text = order.customer.phone ?? '';
+
 
       // Preserve original order details for saving
       _originalOrderType = order.orderType;
@@ -689,300 +709,569 @@ class _PosPageState extends ConsumerState<PosPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'pos_page.order_section'.tr(),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            // Order information section
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _existingOrderId != null ? Colors.orange[50] : Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-                border: _existingOrderId != null ? Border.all(color: Colors.orange[200]!, width: 1) : null,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (context) => StatefulBuilder(
+        builder: (context, modalSetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              // Header
+              Row(
                 children: [
-                  // Show indicator when editing existing order
-                  if (_existingOrderId != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[100],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.edit, size: 12, color: Colors.orange[700]),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Editing Order ${_existingOrderNumber ?? ''}',
-                            style: TextStyle(fontSize: 10, color: Colors.orange[700], fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                  ],
-                  // Order source label removed as per user request
-                  // Row(
-                  //   children: [
-                  //     Icon(Icons.table_restaurant, size: 16, color: Colors.grey[700]),
-                  //     const SizedBox(width: 8),
-                  //     Text(
-                  //       'pos_page.order_source_label'.tr(namedArgs: {'source': _selectedTable}),
-                  //       style: TextStyle(fontSize: 14, color: Colors.grey[800]),
-                  //     ),
-                  //   ],
-                  // ),
-                  // Show saved customer information (compact display)
-                  if (_selectedCustomer != null && _selectedCustomer!.name.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.blue[200]!, width: 1),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.person, size: 14, color: Colors.blue[700]),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              (_selectedCustomer!.phone?.isNotEmpty ?? false)
-                                ? '${_selectedCustomer!.name} • ${_selectedCustomer!.phone}'
-                                : _selectedCustomer!.name,
-                              style: TextStyle(fontSize: 12, color: Colors.blue[800], fontWeight: FontWeight.w500),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  Text(
+                    'pos_page.order_section'.tr(),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _cartItems.length,
-                itemBuilder: (context, index) {
-                  final cartItem = _cartItems[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Item header with name and controls
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  cartItem.menuItem.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
+
+              // Order information section
+              if (_existingOrderId != null)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange[200]!, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit, size: 16, color: Colors.orange[700]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Editing Order ${_existingOrderNumber ?? ''}',
+                        style: TextStyle(fontSize: 12, color: Colors.orange[700], fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Scrollable content area
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. ORDERED DISHES SECTION
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        child: Text(
+                          'Ordered Dishes',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                        ),
+                      ),
+
+                      // Dishes list
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _cartItems.length,
+                        itemBuilder: (context, index) {
+                          final cartItem = _cartItems[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _removeFromCart(index);
-                                      });
-                                      Navigator.pop(context);
-                                      if (_cartItems.isNotEmpty) {
-                                        _showCartBottomSheet();
-                                      }
-                                    },
-                                    icon: const Icon(Icons.remove_circle_outline),
+                                  // Item header with name and controls
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          cartItem.menuItem.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                _removeFromCart(index);
+                                              });
+                                              Navigator.pop(context);
+                                              if (_cartItems.isNotEmpty) {
+                                                _showCartBottomSheet();
+                                              }
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red[50],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Icon(Icons.remove, size: 16, color: Colors.red[600]),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                                            child: Text(
+                                              '${cartItem.quantity}',
+                                              style: const TextStyle(fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                cartItem.quantity++;
+                                              });
+                                              Navigator.pop(context);
+                                              _showCartBottomSheet();
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green[50],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Icon(Icons.add, size: 16, color: Colors.green[600]),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  Text('${cartItem.quantity}'),
-                                  IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        cartItem.quantity++;
-                                      });
-                                      Navigator.pop(context);
-                                      _showCartBottomSheet();
-                                    },
-                                    icon: const Icon(Icons.add_circle_outline),
+
+                                  // Price and options
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${cartItem.menuItem.price.toStringAsFixed(0)}đ per item',
+                                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                            ),
+                                            if (cartItem.selectedOptions.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              ...cartItem.selectedOptions.map((option) => Text(
+                                                '+ ${option.optionName}${option.optionPrice > 0 ? ' (+${option.optionPrice.toStringAsFixed(0)}đ)' : ''}',
+                                                style: TextStyle(
+                                                  color: Colors.orange[600],
+                                                  fontSize: 10,
+                                                  fontStyle: FontStyle.italic,
+                                                ),
+                                              )),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        '${cartItem.totalPrice.toStringAsFixed(0)}đ',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Colors.orange,
+                                        ),
+                                      ),
+                                    ],
                                   ),
+
+                                  // Individual item note
+                                  if (cartItem.notes != null && cartItem.notes!.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.yellow[50],
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: Colors.yellow[200]!),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.note, size: 12, color: Colors.orange[600]),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              cartItem.notes!,
+                                              style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-
-                          // Base price
-                          Text(
-                            'Base: ${cartItem.menuItem.price.toStringAsFixed(0)}đ',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                          ),
-
-                          // Selected options
-                          if (cartItem.selectedOptions.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            ...cartItem.selectedOptions.map((option) => Padding(
-                              padding: const EdgeInsets.only(top: 1),
-                              child: Text(
-                                '+ ${option.optionName}${option.optionPrice > 0 ? ' (+${option.optionPrice.toStringAsFixed(0)}đ)' : ''}',
-                                style: TextStyle(
-                                  color: Colors.orange[700],
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            )),
-                          ],
-
-                          // Total price per item
-                          const SizedBox(height: 2),
-                          Text(
-                            'Total per item: ${(cartItem.totalPrice / cartItem.quantity).toStringAsFixed(0)}đ',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
                             ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          // Item notes field
-                          TextField(
-                            maxLines: 2,
-                            decoration: InputDecoration(
-                              labelText: 'pos_page.item_note_label'.tr(),
-                              hintText: 'pos_page.item_note_placeholder'.tr(),
-                              prefixIcon: const Icon(Icons.edit_note, size: 20),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              isDense: true,
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                            ),
-                            style: const TextStyle(fontSize: 13),
-                            onChanged: (value) {
-                              setState(() {
-                                cartItem.notes = value;
-                              });
-                            },
-                            controller: TextEditingController(text: cartItem.notes ?? '')
-                              ..selection = TextSelection.fromPosition(
-                                TextPosition(offset: (cartItem.notes ?? '').length),
-                              ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const Divider(),
-            Row(
-              children: [
-                Text(
-                  'pos_page.total_label'.tr(),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                Text(
-                  '${_totalAmount.toStringAsFixed(0)}đ',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
 
-            // Order notes field
-            TextField(
-              maxLines: 2,
-              controller: _orderNotesController,
-              decoration: InputDecoration(
-                labelText: 'pos_page.order_note_label'.tr(),
-                hintText: 'pos_page.order_note_placeholder'.tr(),
-                prefixIcon: const Icon(Icons.note_alt_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _orderNotes = value;
-                });
-              },
-            ),
-            const SizedBox(height: 8),
+                      const SizedBox(height: 12),
 
-            Row(
-              children: [
-                // Save Order button
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _saveOrder,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.orange[700],
-                      side: BorderSide(color: Colors.orange[700]!),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: Text(
-                      'pos_page.save_order_button'.tr(),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                      // Add More Items button
+                      Container(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context); // Close the cart modal
+                            // The POS screen is already the current screen, so we're already there
+                          },
+                          icon: const Icon(Icons.add, size: 20),
+                          label: const Text('Add More Items'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[100],
+                            foregroundColor: Colors.grey[700],
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // 2. ORDER NOTE SECTION (Compact)
+                      _buildCompactNoteSection(),
+
+                      const SizedBox(height: 8),
+
+                      // 3. CUSTOMER INFORMATION SECTION (Compact)
+                      _buildCompactCustomerSection(),
+
+                      const SizedBox(height: 8),
+
+                      // 4. DISCOUNT SECTION (With percentage option)
+                      _buildCompactDiscountSection(modalSetState),
+
+                      const SizedBox(height: 8),
+
+                      // 5. TOTAL SECTION
+                      _buildTotalSection(),
+
+                      const SizedBox(height: 16),
+
+                      // 6. ACTION BUTTONS
+                      _buildActionButtons(),
+
+                      const SizedBox(height: 20), // Bottom padding for scroll
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                // Check Out button
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _processPayment,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: Text(
-                      'pos_page.checkout_button'.tr(),
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  // Helper methods for the new POS flow structure
+
+  Widget _buildCompactNoteSection() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: TextField(
+        controller: _orderNotesController,
+        maxLines: 2,
+        decoration: InputDecoration(
+          labelText: 'Order Note',
+          hintText: 'Add special instructions...',
+          prefixIcon: Icon(Icons.note_alt_outlined, size: 18, color: Colors.orange[600]),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          isDense: true,
+        ),
+        style: const TextStyle(fontSize: 13),
+        onChanged: (value) {
+          setState(() {
+            _orderNotes = value;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildCompactCustomerSection() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_outline, size: 18, color: Colors.blue[600]),
+              const SizedBox(width: 8),
+              Text(
+                'Customer Info (Optional)',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _customerNameController,
+                  decoration: InputDecoration(
+                    hintText: 'Name',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    isDense: true,
+                  ),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _customerPhoneController,
+                  decoration: InputDecoration(
+                    hintText: 'Phone',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    isDense: true,
+                  ),
+                  style: const TextStyle(fontSize: 12),
+                  keyboardType: TextInputType.phone,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactDiscountSection(StateSetter modalSetState) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.percent, color: Colors.green[600], size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Discount',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+              ),
+              const Spacer(),
+              // Toggle between amount and percentage
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        modalSetState(() {
+                          _isDiscountPercentage = false;
+                          _discountAmount = 0.0;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: !_isDiscountPercentage ? Colors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'đ',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: !_isDiscountPercentage ? FontWeight.bold : FontWeight.normal,
+                            color: !_isDiscountPercentage ? Colors.green[600] : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        modalSetState(() {
+                          _isDiscountPercentage = true;
+                          _discountAmount = 0.0;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _isDiscountPercentage ? Colors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: _isDiscountPercentage ? FontWeight.bold : FontWeight.normal,
+                            color: _isDiscountPercentage ? Colors.green[600] : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            decoration: InputDecoration(
+              hintText: _isDiscountPercentage ? '0' : '0',
+              suffix: Text(
+                _isDiscountPercentage ? '%' : 'đ',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              isDense: true,
+            ),
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              modalSetState(() {
+                _discountAmount = double.tryParse(value) ?? 0.0;
+              });
+            },
+            style: const TextStyle(fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTotalSection() {
+    final subtotal = _totalAmount;
+
+    // Calculate discount amount based on type
+    final discountAmountCalculated = _isDiscountPercentage
+        ? (subtotal * _discountAmount / 100)
+        : _discountAmount;
+
+    final finalTotal = subtotal - discountAmountCalculated;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        border: Border.all(color: Colors.orange[200]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          if (_discountAmount > 0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Subtotal',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                ),
+                Text(
+                  '${subtotal.toStringAsFixed(0)}đ',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Discount ${_isDiscountPercentage ? '(${_discountAmount.toStringAsFixed(0)}%)' : ''}',
+                  style: TextStyle(fontSize: 14, color: Colors.green[600]),
+                ),
+                Text(
+                  '-${discountAmountCalculated.toStringAsFixed(0)}đ',
+                  style: TextStyle(fontSize: 14, color: Colors.green[600]),
+                ),
+              ],
+            ),
+            const Divider(height: 12),
+          ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+              ),
+              Text(
+                '${finalTotal.toStringAsFixed(0)}đ',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        // Save Order button
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _saveOrder,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.orange[700],
+              side: BorderSide(color: Colors.orange[700]!),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(
+              'Save Order',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Complete button (renamed from Check Out)
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _processPayment,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text(
+              'Complete',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1051,23 +1340,16 @@ class _PosPageState extends ConsumerState<PosPage> {
         orderType = order_model.OrderType.dineIn;
       }
 
-      // Convert Customer to order model Customer
-      final orderCustomer = _selectedCustomer != null
-          ? order_model.Customer(
-              id: _selectedCustomer!.id,
-              name: _selectedCustomer!.name,
-              phone: _selectedCustomer!.phone,
-              email: _selectedCustomer!.email,
-              address: _selectedCustomer!.address,
-              createdAt: _selectedCustomer!.createdAt,
-              updatedAt: _selectedCustomer!.updatedAt,
-            )
-          : order_model.Customer(
-              id: '',
-              name: '', // Empty name instead of walk-in customer
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
+      // Convert Customer to order model Customer using the new controller values
+      final orderCustomer = order_model.Customer(
+        id: _selectedCustomer?.id ?? '',
+        name: _customerNameController.text.trim(),
+        phone: _customerPhoneController.text.trim().isEmpty ? null : _customerPhoneController.text.trim(),
+        email: _selectedCustomer?.email,
+        address: _selectedCustomer?.address,
+        createdAt: _selectedCustomer?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
       // Check if we're updating an existing order or creating a new one
       String displayOrderNumber;
@@ -1076,9 +1358,11 @@ class _PosPageState extends ConsumerState<PosPage> {
         // Update existing order - preserve ALL original information
         displayOrderNumber = _existingOrderNumber!;
 
-        // Calculate total considering original discount and fees
+        // Calculate total considering current discount and original fees
         final orderSubtotal = _totalAmount;
-        final orderDiscount = _originalDiscount ?? 0.0;
+        final orderDiscount = _isDiscountPercentage
+            ? (orderSubtotal * _discountAmount / 100)
+            : _discountAmount;
         final orderTax = _originalTax ?? 0.0;
         final orderServiceCharge = _originalServiceCharge ?? 0.0;
         final orderDeliveryFee = _originalDeliveryFee ?? 0.0;
@@ -1118,7 +1402,8 @@ class _PosPageState extends ConsumerState<PosPage> {
           customer: orderCustomer,
           items: orderItems,
           subtotal: _totalAmount,
-          total: _totalAmount,
+          discount: _isDiscountPercentage ? (_totalAmount * _discountAmount / 100) : _discountAmount,
+          total: _totalAmount - (_isDiscountPercentage ? (_totalAmount * _discountAmount / 100) : _discountAmount),
           orderType: orderType,
           status: order_model.OrderStatus.pending,
           paymentMethod: order_model.PaymentMethod.none,
@@ -1211,6 +1496,10 @@ class _PosPageState extends ConsumerState<PosPage> {
             _selectedTable = null;
             _orderNotes = '';
             _orderNotesController.text = '';
+            _customerNameController.text = '';
+            _customerPhoneController.text = '';
+            _discountAmount = 0.0;
+            _isDiscountPercentage = false;
             _existingOrderId = null;
             _existingOrderNumber = null;
             _existingOrderCreatedAt = null;
@@ -1237,6 +1526,8 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   Future<void> _processPayment() async {
+    final orderService = ref.read(supabaseOrderServiceProvider);
+
     // Ensure save order mode is disabled (enforce full validation)
     setState(() {
       _isInSaveOrderMode = false;
@@ -1257,10 +1548,9 @@ class _PosPageState extends ConsumerState<PosPage> {
       return;
     }
 
-    // Create a temporary order for checkout
+    // Complete the order directly
     try {
       final now = DateTime.now();
-      final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
 
       // Convert cart items to order items
       final orderItems = _cartItems.map((cartItem) {
@@ -1289,7 +1579,6 @@ class _PosPageState extends ConsumerState<PosPage> {
       // Determine order type
       order_model.OrderType orderType;
       if (_selectedTable == null) {
-        // No table selected - use takeaway as fallback but don't pre-select it in UI
         orderType = order_model.OrderType.takeaway;
       } else if (_selectedTable == 'pos_page.default_table'.tr()) {
         orderType = order_model.OrderType.takeaway;
@@ -1299,81 +1588,159 @@ class _PosPageState extends ConsumerState<PosPage> {
         orderType = order_model.OrderType.dineIn;
       }
 
-      // Convert Customer
-      final orderCustomer = _selectedCustomer != null
-          ? order_model.Customer(
-              id: _selectedCustomer!.id,
-              name: _selectedCustomer!.name,
-              phone: _selectedCustomer!.phone,
-              email: _selectedCustomer!.email,
-              address: _selectedCustomer!.address,
-              createdAt: _selectedCustomer!.createdAt,
-              updatedAt: _selectedCustomer!.updatedAt,
-            )
-          : order_model.Customer(
-              id: '',
-              name: '', // Empty name instead of walk-in customer
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
-
-      // Create temporary order for checkout
-      final order = order_model.Order(
-        id: '',
-        orderNumber: orderNumber,
-        customer: orderCustomer,
-        items: orderItems,
-        subtotal: _totalAmount,
-        total: _totalAmount,
-        orderType: orderType,
-        status: order_model.OrderStatus.pending,
-        paymentMethod: order_model.PaymentMethod.none,
-        paymentStatus: order_model.PaymentStatus.pending,
-        tableNumber: _selectedTable,
-        platform: 'POS',
-        notes: _orderNotes.isEmpty ? null : _orderNotes,
-        createdAt: now,
-        updatedAt: now,
+      // Convert Customer using the new controller values
+      final orderCustomer = order_model.Customer(
+        id: _selectedCustomer?.id ?? '',
+        name: _customerNameController.text.trim(),
+        phone: _customerPhoneController.text.trim().isEmpty ? null : _customerPhoneController.text.trim(),
+        email: _selectedCustomer?.email,
+        address: _selectedCustomer?.address,
+        createdAt: _selectedCustomer?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
-      // Navigate to checkout page
+      String displayOrderNumber;
+
+      // Check if we're updating an existing order or creating a new one
+      if (_existingOrderId != null && _existingOrderNumber != null) {
+        // Update existing order and mark as completed
+        displayOrderNumber = _existingOrderNumber!;
+
+        // Calculate total considering current discount and original fees
+        final orderSubtotal = _totalAmount;
+        final orderDiscount = _discountAmount;
+        final orderTax = _originalTax ?? 0.0;
+        final orderServiceCharge = _originalServiceCharge ?? 0.0;
+        final orderDeliveryFee = _originalDeliveryFee ?? 0.0;
+        final orderTotal = orderSubtotal - orderDiscount + orderTax + orderServiceCharge + orderDeliveryFee;
+
+        final order = order_model.Order(
+          id: _existingOrderId!,
+          orderNumber: _existingOrderNumber!,
+          customer: orderCustomer,
+          items: orderItems,
+          subtotal: orderSubtotal,
+          discount: orderDiscount,
+          tax: orderTax,
+          serviceCharge: orderServiceCharge,
+          deliveryFee: orderDeliveryFee,
+          total: orderTotal,
+          orderType: _originalOrderType ?? orderType,
+          status: order_model.OrderStatus.delivered, // Mark as completed
+          paymentMethod: order_model.PaymentMethod.cash, // Default to cash for completed orders
+          paymentStatus: order_model.PaymentStatus.paid, // Mark as paid
+          tableNumber: _selectedTable,
+          platform: _originalPlatform ?? 'POS',
+          notes: _orderNotes.isEmpty ? null : _orderNotes,
+          createdAt: _existingOrderCreatedAt ?? now,
+          updatedAt: now,
+        );
+
+        await orderService.updateOrder(order);
+      } else {
+        // Create new completed order
+        final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
+        displayOrderNumber = orderNumber;
+
+        final order = order_model.Order(
+          id: '',
+          orderNumber: orderNumber,
+          customer: orderCustomer,
+          items: orderItems,
+          subtotal: _totalAmount,
+          discount: _isDiscountPercentage ? (_totalAmount * _discountAmount / 100) : _discountAmount,
+          total: _totalAmount - (_isDiscountPercentage ? (_totalAmount * _discountAmount / 100) : _discountAmount),
+          orderType: orderType,
+          status: order_model.OrderStatus.delivered, // Mark as completed
+          paymentMethod: order_model.PaymentMethod.cash, // Default to cash for completed orders
+          paymentStatus: order_model.PaymentStatus.paid, // Mark as paid
+          tableNumber: _selectedTable,
+          platform: 'POS',
+          notes: _orderNotes.isEmpty ? null : _orderNotes,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await orderService.createOrder(order);
+      }
+
       if (mounted) {
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CheckoutPage(order: order),
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Order Completed Successfully!',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Order #$displayOrderNumber has been completed and paid.',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(
+              top: 80,
+              left: 10,
+              right: 10,
+            ),
+            action: SnackBarAction(
+              label: 'View Orders',
+              textColor: Colors.white,
+              onPressed: () {
+                context.go('/orders');
+              },
+            ),
           ),
         );
 
-        // If checkout was successful, clear cart
-        if (result == true && mounted) {
-          setState(() {
-            _cartItems.clear();
-            _selectedCustomer = null;
-            _orderNotes = '';
-            _orderNotesController.text = '';
-            _existingOrderId = null;
-            _existingOrderNumber = null;
-            _existingOrderCreatedAt = null;
-            // Clear preserved order details
-            _originalOrderType = null;
-            _originalPlatform = null;
-            _originalPaymentMethod = null;
-            _originalPaymentStatus = null;
-            _originalDiscount = null;
-            _originalTax = null;
-            _originalServiceCharge = null;
-            _originalDeliveryFee = null;
-            // Reset save order mode
-            _isInSaveOrderMode = false;
-          });
-        }
+        // Clear cart and reset all fields
+        setState(() {
+          _cartItems.clear();
+          _selectedCustomer = null;
+          _selectedTable = null;
+          _orderNotes = '';
+          _orderNotesController.text = '';
+          _customerNameController.text = '';
+          _customerPhoneController.text = '';
+          _discountAmount = 0.0;
+          _isDiscountPercentage = false;
+          _existingOrderId = null;
+          _existingOrderNumber = null;
+          _existingOrderCreatedAt = null;
+          // Clear preserved order details
+          _originalOrderType = null;
+          _originalPlatform = null;
+          _originalPaymentMethod = null;
+          _originalPaymentStatus = null;
+          _originalDiscount = null;
+          _originalTax = null;
+          _originalServiceCharge = null;
+          _originalDeliveryFee = null;
+          // Reset save order mode
+          _isInSaveOrderMode = false;
+        });
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('pos_page.generic_error'.tr(namedArgs: {'error': e.toString()})),
+            content: Text('Error completing order: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );

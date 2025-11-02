@@ -51,6 +51,7 @@
     "features": "Features",
     "account": "Account",
     "profile": "Profile",
+    "support": "Support",
     "help_support": "Help & Support",
     "sign_out": "Sign Out"
   },
@@ -649,8 +650,6 @@
     "add_items_button": "Add Items",
     "total_label": "Total: {amount}đ",
     "checkout_button": "Checkout",
-    "mark_complete": "Done",
-    "mark_complete_action": "Mark as done",
     "no_history": "No order history",
     "status_pending": "Pending",
     "status_confirmed": "Confirmed",
@@ -693,6 +692,8 @@
     "discount": "Discount",
     "tax": "Tax",
     "total": "Total",
+    "complete_order_success": "Order {orderNumber} completed successfully",
+    "complete_order_error": "Error completing order: {error}",
     "close_button": "Close"
   },
 
@@ -977,12 +978,6 @@
     "finance_subtitle": "Financial reports",
     "more": "More",
     "menu": "Menu",
-    "menu_subtitle": "Manage menu items",
-    "inventory": "Inventory",
-    "inventory_subtitle": "Stock management",
-    "employees": "Employees",
-    "employees_subtitle": "Staff management",
-    "feedback": "Feedback",
-    "feedback_subtitle": "Customer reviews"
+    "menu_subtitle": "Manage menu items"
   }
 }

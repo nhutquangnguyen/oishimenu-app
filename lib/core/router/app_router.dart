@@ -8,9 +8,6 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/menu/presentation/pages/menu_page.dart';
 import '../../features/orders/presentation/pages/orders_page.dart';
 import '../../features/pos/presentation/pages/pos_page.dart';
-import '../../features/inventory/presentation/pages/inventory_page.dart';
-import '../../features/employees/presentation/pages/employees_page.dart';
-import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/analytics/presentation/pages/analytics_page.dart';
 import '../../features/finance/presentation/pages/finance_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -121,18 +118,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const PosPage(),
           ),
           GoRoute(
-            path: '/inventory',
-            builder: (context, state) => const InventoryPage(),
-          ),
-          GoRoute(
-            path: '/employees',
-            builder: (context, state) => const EmployeesPage(),
-          ),
-          GoRoute(
-            path: '/feedback',
-            builder: (context, state) => const FeedbackPage(),
-          ),
-          GoRoute(
             path: '/analytics',
             builder: (context, state) => const AnalyticsPage(),
           ),
@@ -185,9 +170,6 @@ extension AppRoutes on GoRouter {
   void goToMenu() => go('/menu');
   void goToOrders() => go('/orders');
   void goToPos() => go('/pos');
-  void goToInventory() => go('/inventory');
-  void goToEmployees() => go('/employees');
-  void goToFeedback() => go('/feedback');
   void goToAnalytics() => go('/analytics');
   void goToFinance() => go('/finance');
   void goToSettings() => go('/settings');

@@ -23,13 +23,6 @@ class QuickActions extends StatelessWidget {
         onTap: () => context.go('/menu'),
       ),
       QuickActionItem(
-        icon: Icons.inventory_2_outlined,
-        title: AppLocalizations.inventory,
-        subtitle: AppLocalizations.checkStock,
-        color: Colors.orange[600]!,
-        onTap: () => context.go('/inventory'),
-      ),
-      QuickActionItem(
         icon: Icons.account_balance_outlined,
         title: AppLocalizations.tr('finance') != 'finance'
             ? AppLocalizations.tr('finance')
@@ -39,13 +32,6 @@ class QuickActions extends StatelessWidget {
             : 'Financial Reports',
         color: Colors.purple[600]!,
         onTap: () => context.go('/analytics'),
-      ),
-      QuickActionItem(
-        icon: Icons.group_outlined,
-        title: AppLocalizations.staffAction,
-        subtitle: AppLocalizations.manageTeam,
-        color: Colors.indigo[600]!,
-        onTap: () => context.go('/employees'),
       ),
       QuickActionItem(
         icon: Icons.settings_outlined,
@@ -83,7 +69,7 @@ class _QuickActionCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(6),
         side: BorderSide(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
           width: 1,
         ),
       ),
@@ -99,8 +85,8 @@ class _QuickActionCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  action.color.withOpacity(0.08),
-                  action.color.withOpacity(0.03),
+                  action.color.withValues(alpha: 0.08),
+                  action.color.withValues(alpha: 0.03),
                 ],
               ),
             ),

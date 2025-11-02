@@ -6,7 +6,6 @@ import '../../../../models/order.dart';
 import '../../../../core/providers/supabase_providers.dart';
 import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
 import '../../../pos/presentation/pages/pos_page.dart';
-import '../../../checkout/presentation/pages/checkout_page.dart';
 
 class OrdersPage extends ConsumerStatefulWidget {
   const OrdersPage({super.key});
@@ -250,228 +249,176 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     final Color borderColor = isEven ? Colors.blue[200]! : Colors.orange[200]!;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
       color: cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: borderColor, width: 2),
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: borderColor, width: 1),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Order header
-            Row(
+            // Compact header: Two-row layout to prevent overflow
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Clickable order number
-                      InkWell(
-                        onTap: () => _navigateToCheckoutWithOrder(order),
-                        borderRadius: BorderRadius.circular(4),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.blue[300]!, width: 1),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.receipt_long, size: 16, color: Colors.blue[700]),
-                              const SizedBox(width: 6),
-                              Text(
-                                order.orderNumber,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue[800],
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
+                // Row 1: Order number, time, and cancel button
+                Row(
+                  children: [
+                    // Order number (clickable)
+                    InkWell(
+                      onTap: () => _navigateToCheckoutWithOrder(order),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[100],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          order.orderNumber,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[800],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatTime(order.createdAt),
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          ),
-                        ],
+                    ),
+                    const SizedBox(width: 8),
+                    // Time
+                    Icon(Icons.access_time, size: 12, color: Colors.grey[600]),
+                    const SizedBox(width: 2),
+                    Text(
+                      _formatTime(order.createdAt),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    ),
+                    const Spacer(),
+                    // Cancel button (smaller)
+                    IconButton(
+                      onPressed: () => _showCancelOrderDialog(order),
+                      icon: Icon(Icons.close, color: Colors.red[400], size: 20),
+                      tooltip: 'orders_page.cancel_order_tooltip'.tr(),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // Row 2: Customer and table info
+                Row(
+                  children: [
+                    Icon(Icons.person, size: 12, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _formatCustomerInfo(order),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[700],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (order.tableNumber != null) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.table_restaurant, size: 12, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        order.tableNumber!,
+                        style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                       ),
                     ],
-                  ),
-                ),
-                // Cancel button
-                IconButton(
-                  onPressed: () => _showCancelOrderDialog(order),
-                  icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
-                  tooltip: 'orders_page.cancel_order_tooltip'.tr(),
+                  ],
                 ),
               ],
             ),
-            const Divider(height: 24),
 
-            // Customer info
-            Row(
-              children: [
-                Icon(Icons.person, size: 16, color: Colors.grey[700]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _formatCustomerInfo(order),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                if (order.tableNumber != null) ...[
-                  const SizedBox(width: 16),
-                  Icon(Icons.table_restaurant, size: 16, color: Colors.grey[700]),
-                  const SizedBox(width: 8),
-                  Text(order.tableNumber!),
-                ],
-                if (order.platform.isNotEmpty) ...[
-                  const SizedBox(width: 16),
-                  Icon(Icons.delivery_dining, size: 16, color: Colors.grey[700]),
-                  const SizedBox(width: 8),
-                  Text(order.platform),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-            // Order notes (if exists)
+            // Order notes (compact)
             if (order.notes != null && order.notes!.isNotEmpty) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.amber[50],
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: Colors.amber[200]!, width: 1),
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.note_alt_outlined, size: 16, color: Colors.amber[800]),
-                    const SizedBox(width: 8),
+                    Icon(Icons.note_alt_outlined, size: 12, color: Colors.amber[800]),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         order.notes!,
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[800],
+                          fontSize: 11,
+                          color: Colors.grey[700],
                           fontStyle: FontStyle.italic,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
 
-            // Order items
-            ...order.items.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              return _buildActiveOrderItem(order, index, item);
-            }),
+            // Compact order items
+            ...order.items.map((item) => _buildCompactOrderItem(item)),
 
             const SizedBox(height: 8),
 
-            // Add Menu Item button
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue[600]!, Colors.blue[700]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _navigateToPosWithOrder(order),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.restaurant_menu,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'orders_page.add_items_button'.tr(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            const Divider(height: 24),
-
-            // Total and actions
+            // Total and compact action buttons
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    'orders_page.total_label'.tr(namedArgs: {'amount': order.total.toStringAsFixed(0)}),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
+                Text(
+                  '${order.total.toStringAsFixed(0)}đ',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () => _markOrderDone(order),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
+                const Spacer(),
+                // Compact action buttons
+                SizedBox(
+                  height: 32,
+                  child: ElevatedButton(
+                    onPressed: () => _navigateToOrderDetail(order),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: const Text('Edit', style: TextStyle(fontSize: 12)),
                   ),
-                  icon: const Icon(Icons.payment),
-                  label: Text('orders_page.checkout_button'.tr()),
+                ),
+                const SizedBox(width: 6),
+                SizedBox(
+                  height: 32,
+                  child: ElevatedButton(
+                    onPressed: () => _markOrderDone(order),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: const Text('Complete', style: TextStyle(fontSize: 12)),
+                  ),
                 ),
               ],
             ),
@@ -481,204 +428,97 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     );
   }
 
-  Widget _buildActiveOrderItem(Order order, int index, OrderItem item) {
-    final isCompleted = item.isCompleted;
-
+  Widget _buildCompactOrderItem(OrderItem item) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: isCompleted ? Colors.green[50] : Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isCompleted ? Colors.green[300]! : Colors.grey[200]!,
-          width: isCompleted ? 2 : 1,
-        ),
+        color: Colors.white.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey[200]!, width: 0.5),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.menuItemName,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        decoration: isCompleted ? TextDecoration.lineThrough : null,
-                        color: isCompleted ? Colors.grey[600] : Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Mark Done / Done button
-                    InkWell(
-                      onTap: () async {
-                        final orderService = ref.read(supabaseOrderServiceProvider);
-                        final currentUser = ref.read(supabaseAuthServiceProvider).currentUser;
-
-                        // Optimistic UI update for instant feedback
-                        setState(() {
-                          // This will trigger a rebuild, but the real data comes from database
-                        });
-
-                        try {
-                          final success = await orderService.toggleItemCompletion(
-                            orderId: order.id,
-                            itemId: item.id,
-                            completedBy: currentUser?.id,
-                          );
-
-                          if (success) {
-                            // Reload orders to get updated completion status from database
-                            _loadOrders();
-                          } else {
-                            // Show error message
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('orders_page.mark_complete_error'.tr()),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        } catch (e) {
-                          // Log error for debugging
-                          debugPrint('Error toggling item completion: $e');
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('orders_page.mark_complete_error'.tr()),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isCompleted ? Colors.green : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isCompleted ? Icons.check_circle : Icons.circle_outlined,
-                              size: 16,
-                              color: isCompleted ? Colors.white : Colors.grey[700],
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              isCompleted ? 'orders_page.mark_complete'.tr() : 'orders_page.mark_complete_action'.tr(),
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isCompleted ? Colors.white : Colors.grey[700],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+          // Quantity badge
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: Colors.blue[600],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(
+                '${item.quantity}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => _decreaseQuantity(order, index),
-                    icon: const Icon(Icons.remove_circle_outline),
-                    iconSize: 20,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${item.quantity}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () => _increaseQuantity(order, index),
-                    icon: const Icon(Icons.add_circle_outline),
-                    iconSize: 20,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-          if (item.selectedOptions.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.only(left: 48),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: item.selectedOptions.map((option) => Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    '+ ${option.optionName}',
+          const SizedBox(width: 8),
+          // Item name and options
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.menuItemName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // Options (compact)
+                if (item.selectedOptions.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.selectedOptions.map((opt) => opt.optionName).join(', '),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       color: Colors.grey[600],
                       fontStyle: FontStyle.italic,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                )).toList(),
-              ),
-            ),
-          ],
-          if (item.notes != null && item.notes!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.only(left: 48),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.amber[50],
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.amber[200]!, width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.edit_note, size: 14, color: Colors.amber[800]),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        item.notes!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[800],
-                          fontStyle: FontStyle.italic,
+                ],
+                // Item notes (compact)
+                if (item.notes != null && item.notes!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.note, size: 10, color: Colors.amber[600]),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          item.notes!,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.amber[700],
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                ],
+              ],
             ),
-          ],
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.only(left: 48),
-            child: Text(
-              '${item.subtotal.toStringAsFixed(0)}đ',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.orange[700],
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          // Price
+          Text(
+            '${item.subtotal.toStringAsFixed(0)}đ',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[700],
             ),
           ),
         ],
@@ -754,7 +594,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('${order.customer.name} • ${order.items.length} món${order.platform.isNotEmpty ? " • ${order.platform}" : ""}'),
+            Text('${order.customer.name} • ${order.items.length} món'),
             Text(
               _formatDateTime(order.createdAt),
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -939,243 +779,72 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     }
   }
 
-  Future<void> _increaseQuantity(Order order, int itemIndex) async {
-    try {
-      // Note: When quantity changes, completion status is preserved since it's per item
-      // If needed, we could mark as incomplete here using OrderCompletionService
-
-      // Update the item quantity
-      final updatedItems = List<OrderItem>.from(order.items);
-      final item = updatedItems[itemIndex];
-      final newQuantity = item.quantity + 1;
-      final itemNewSubtotal = (item.basePrice + item.selectedOptions.fold(0.0, (sum, opt) => sum + opt.price)) * newQuantity;
-
-      updatedItems[itemIndex] = OrderItem(
-        id: item.id,
-        menuItemId: item.menuItemId,
-        menuItemName: item.menuItemName,
-        basePrice: item.basePrice,
-        quantity: newQuantity,
-        selectedOptions: item.selectedOptions,
-        subtotal: itemNewSubtotal,
-      );
-
-      // Calculate new order total
-      final orderNewTotal = updatedItems.fold(0.0, (sum, item) => sum + item.subtotal);
-
-      // Update the order
-      final updatedOrder = order.copyWith(
-        items: updatedItems,
-        subtotal: orderNewTotal,
-        total: orderNewTotal,
-        updatedAt: DateTime.now(),
-      );
-
-      // 🚀 PERFORMANCE FIX: Optimistic update - update UI immediately
-      final orderIndex = _orders.indexWhere((o) => o.id == order.id);
-      if (orderIndex != -1) {
-        setState(() {
-          _orders[orderIndex] = updatedOrder;
-        });
-      }
-
-      // Update database in background (no reload needed!)
-      final orderService = ref.read(supabaseOrderServiceProvider);
-      await orderService.updateOrder(updatedOrder);
-
-      // Debug: Quantity increased with optimistic update - no full reload!
-    } catch (e) {
-      // 🔄 Error occurred - revert UI and reload data
-      // Debug: Update failed, reverting optimistic changes...
-      await _loadOrders(showLoading: false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('orders_page.update_quantity_error'.tr(namedArgs: {'error': e.toString()})),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _decreaseQuantity(Order order, int itemIndex) async {
-    try {
-      final item = order.items[itemIndex];
-
-      // If quantity is 1, remove the item
-      if (item.quantity <= 1) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('orders_page.confirm_delete_title'.tr()),
-            content: Text('orders_page.confirm_delete_message'.tr(namedArgs: {'item': item.menuItemName})),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('orders_page.cancel_button'.tr()),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: Text('orders_page.delete_button'.tr()),
-              ),
-            ],
-          ),
-        );
-
-        if (confirmed != true) return;
-
-        // Remove the item
-        final updatedItems = List<OrderItem>.from(order.items)..removeAt(itemIndex);
-
-        // If no items left, delete or cancel the order
-        if (updatedItems.isEmpty) {
-          if (!mounted) return;
-
-          final deleteOrder = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text('orders_page.empty_order_title'.tr()),
-              content: Text('orders_page.empty_order_message'.tr()),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text('orders_page.keep_button'.tr()),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: Text('orders_page.cancel_order_button'.tr()),
-                ),
-              ],
-            ),
-          );
-
-          if (deleteOrder == true) {
-            final updatedOrder = order.copyWith(
-              status: OrderStatus.cancelled,
-              updatedAt: DateTime.now(),
-            );
-            final orderService = ref.read(supabaseOrderServiceProvider);
-      await orderService.updateOrder(updatedOrder);
-
-            // 🚀 INSTANT BADGE UPDATE: Decrement active order count immediately
-            ref.read(activeOrdersCountProvider.notifier).decrementCount();
-          }
-          await _loadOrders(showLoading: false);
-          return;
-        }
-
-        // Calculate new total
-        final newSubtotal = updatedItems.fold(0.0, (sum, item) => sum + item.subtotal);
-
-        final updatedOrder = order.copyWith(
-          items: updatedItems,
-          subtotal: newSubtotal,
-          total: newSubtotal,
-          updatedAt: DateTime.now(),
-        );
-
-        final orderService = ref.read(supabaseOrderServiceProvider);
-      await orderService.updateOrder(updatedOrder);
-      } else {
-        // Decrease quantity
-        final updatedItems = List<OrderItem>.from(order.items);
-        final newQuantity = item.quantity - 1;
-        final newSubtotal = (item.basePrice + item.selectedOptions.fold(0.0, (sum, opt) => sum + opt.price)) * newQuantity;
-
-        updatedItems[itemIndex] = OrderItem(
-          id: item.id,
-          menuItemId: item.menuItemId,
-          menuItemName: item.menuItemName,
-          basePrice: item.basePrice,
-          quantity: newQuantity,
-          selectedOptions: item.selectedOptions,
-          subtotal: newSubtotal,
-        );
-
-        // Calculate new order total
-        final newTotal = updatedItems.fold(0.0, (sum, item) => sum + item.subtotal);
-
-        final updatedOrder = order.copyWith(
-          items: updatedItems,
-          subtotal: newTotal,
-          total: newTotal,
-          updatedAt: DateTime.now(),
-        );
-
-        // 🚀 PERFORMANCE FIX: Optimistic update for decrease quantity
-        final orderIndex = _orders.indexWhere((o) => o.id == order.id);
-        if (orderIndex != -1) {
-          setState(() {
-            _orders[orderIndex] = updatedOrder;
-          });
-        }
-
-        final orderService = ref.read(supabaseOrderServiceProvider);
-      await orderService.updateOrder(updatedOrder);
-
-        // Debug: Quantity decreased with optimistic update - no full reload!
-      }
-    } catch (e) {
-      // 🔄 Error occurred - revert UI and reload data
-      // Debug: Update failed, reverting optimistic changes...
-      await _loadOrders(showLoading: false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('orders_page.update_quantity_error'.tr(namedArgs: {'error': e.toString()})),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _markOrderDone(Order order) async {
-    // Navigate to checkout page
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CheckoutPage(order: order),
-      ),
-    );
-
-    // Reload orders if checkout was successful
-    if (result == true && mounted) {
-      await _loadOrders(showLoading: false);
-    }
-  }
-
-  Future<void> _navigateToCheckoutWithOrder(Order order) async {
-    // Navigate to checkout page when order ID is clicked
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CheckoutPage(order: order),
-      ),
-    );
-
-    // Reload orders if checkout was successful
-    if (result == true && mounted) {
-      await _loadOrders(showLoading: false);
-    }
-  }
-
-  void _navigateToPosWithOrder(Order order) {
-    // Navigate to POS page with the existing order
+  void _navigateToOrderDetail(Order order) {
+    // Navigate to POS page for editing with existing order
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PosPage(existingOrder: order),
       ),
-    ).then((_) {
+    ).then((result) {
       // Reload orders when returning from POS
-      _loadOrders(showLoading: false);
+      if (result == true) {
+        _loadOrders(showLoading: false);
+      }
     });
   }
+
+  Future<void> _markOrderDone(Order order) async {
+    try {
+      // Update order status to delivered (completed)
+      final completedOrder = order.copyWith(
+        status: OrderStatus.delivered,
+        paymentStatus: PaymentStatus.paid,
+        paymentMethod: PaymentMethod.cash, // Default to cash for completed orders
+        updatedAt: DateTime.now(),
+      );
+
+      // 🚀 PERFORMANCE FIX: Optimistic update for order completion
+      final orderIndex = _orders.indexWhere((o) => o.id == order.id);
+      if (orderIndex != -1) {
+        setState(() {
+          _orders[orderIndex] = completedOrder;
+        });
+      }
+
+      final orderService = ref.read(supabaseOrderServiceProvider);
+      await orderService.updateOrder(completedOrder);
+
+      // 🚀 INSTANT BADGE UPDATE: Decrement active order count immediately
+      ref.read(activeOrdersCountProvider.notifier).decrementCount();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('orders_page.complete_order_success'.tr(namedArgs: {'orderNumber': order.orderNumber})),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // 🔄 Error occurred - revert UI and reload data
+      await _loadOrders(showLoading: false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('orders_page.complete_order_error'.tr(namedArgs: {'error': e.toString()})),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _navigateToCheckoutWithOrder(Order order) {
+    // Navigate to POS page for editing when order ID is clicked
+    _navigateToOrderDetail(order);
+  }
+
 
   Future<void> _showCancelOrderDialog(Order order) async {
     final confirmed = await showDialog<bool>(
@@ -1379,10 +1048,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
               const SizedBox(height: 8),
               if (order.tableNumber != null)
                 _buildInfoRow(Icons.table_restaurant, 'orders_page.table_number'.tr(), order.tableNumber!),
-              if (order.platform.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                _buildInfoRow(Icons.delivery_dining, 'orders_page.platform'.tr(), order.platform),
-              ],
             ],
           ),
         ),
