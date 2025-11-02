@@ -1,42 +1,27 @@
 import 'dart:async';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service to handle deep links for authentication callbacks
 class DeepLinkService {
-  static const MethodChannel _channel = MethodChannel('deep_link_service');
   static StreamController<String>? _linkStreamController;
+  static StreamSubscription<AuthState>? _linkSubscription;
 
   /// Initialize deep link handling
   static Future<void> initialize() async {
     _linkStreamController = StreamController<String>.broadcast();
 
     try {
-      // Handle initial deep link when app is opened from link
-      final String? initialLink = await _channel.invokeMethod('getInitialLink');
-      if (initialLink != null) {
-        _handleDeepLink(initialLink);
-      }
+      // Listen for auth state changes which can include deep link auth
+      _linkSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+        // Handle auth state changes which can include deep link auth
+        if (data.event == AuthChangeEvent.signedIn && data.session != null) {
+          print('🟢 User signed in via deep link');
+        }
+      });
 
-      // Handle deep links when app is already running
-      _channel.setMethodCallHandler(_handleMethodCall);
+      print('🟢 Deep link service initialized successfully');
     } catch (e) {
       print('🔴 Deep link service initialization failed: $e');
-    }
-  }
-
-  /// Handle incoming method calls from native platforms
-  static Future<dynamic> _handleMethodCall(MethodCall call) async {
-    switch (call.method) {
-      case 'onDeepLink':
-        final String link = call.arguments as String;
-        _handleDeepLink(link);
-        break;
-      default:
-        throw PlatformException(
-          code: 'UNIMPLEMENTED',
-          message: 'Method ${call.method} not implemented',
-        );
     }
   }
 
@@ -151,6 +136,8 @@ class DeepLinkService {
 
   /// Dispose resources
   static void dispose() {
+    _linkSubscription?.cancel();
+    _linkSubscription = null;
     _linkStreamController?.close();
     _linkStreamController = null;
   }

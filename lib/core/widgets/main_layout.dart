@@ -134,6 +134,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
   String _getPageTitle() {
     final location = GoRouterState.of(context).fullPath;
 
+    // Handle special routes first
+    if (location == '/settings') {
+      return 'Settings';
+    }
+
     // Check primary navigation
     final primaryItem = _primaryNavigationItems.firstWhere(
       (item) => item.route == location,
@@ -154,7 +159,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              context.push('/settings');
+              context.go('/settings');
             },
           ),
           const SizedBox(width: 8),

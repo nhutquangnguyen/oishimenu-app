@@ -262,7 +262,6 @@ class AppLocalizations {
   static String get welcomeBack => 'page_titles.welcome_back'.tr();
   static String get addItemTitle => 'page_titles.add_item'.tr();
   static String get editItemTitle => 'page_titles.edit_item'.tr();
-  static String get scanMenuTitle => 'page_titles.scan_menu'.tr();
   static String get inventoryTitle => 'page_titles.inventory'.tr();
 
   // Descriptions
@@ -271,10 +270,8 @@ class AppLocalizations {
   static String get joinOishimenu => 'descriptions.join_oishimenu'.tr();
   static String get orContinueWith => 'descriptions.or_continue_with'.tr();
   static String get chooseScanMethod => 'descriptions.choose_scan_method'.tr();
-  static String get scanMenuQr => 'descriptions.scan_menu_qr'.tr();
   static String get scanProductBarcodes => 'descriptions.scan_product_barcodes'.tr();
   static String get extractTextFromPhotos => 'descriptions.extract_text_from_photos'.tr();
-  static String get scanMenuDocuments => 'descriptions.scan_menu_documents'.tr();
 
   // Messages
   static String get dontHaveAccount => 'messages.dont_have_account'.tr();
@@ -473,46 +470,6 @@ class AppLocalizations {
   static String get menuDeleteTooltip => 'menu_details.delete_tooltip'.tr();
 
   // Scan Menu
-  static String get scanMenuPageTitle => 'scan_menu.title'.tr();
-  static String get scanMenuChooseMethod => 'scan_menu.choose_scan_method'.tr();
-  static String get scanMenuQrCodeType => 'scan_menu.qr_code'.tr();
-  static String get scanMenuQrCodeDescription => 'scan_menu.scan_menu_qr'.tr();
-  static String get scanMenuBarcodeType => 'scan_menu.barcode'.tr();
-  static String get scanMenuBarcodeDescription => 'scan_menu.scan_product_barcodes'.tr();
-  static String get scanMenuPhotoMenuType => 'scan_menu.photo_menu'.tr();
-  static String get scanMenuPhotoDescription => 'scan_menu.extract_text_from_photos'.tr();
-  static String get scanMenuDocumentType => 'scan_menu.document'.tr();
-  static String get scanMenuDocumentDescription => 'scan_menu.scan_menu_documents'.tr();
-  static String scanMenuScanned(String type) => 'scan_menu.scanned'.tr(namedArgs: {'type': type});
-  static String get scanMenuProcessData => 'scan_menu.process_data'.tr();
-  static String get scanMenuClear => 'scan_menu.clear'.tr();
-  static String get scanMenuExtractedItems => 'scan_menu.extracted_menu_items'.tr();
-  static String scanMenuItemsCount(int count) => 'scan_menu.items_count'.tr(namedArgs: {'count': count.toString()});
-  static String scanMenuImportAllItems(int count) => 'scan_menu.import_all_items'.tr(namedArgs: {'count': count.toString()});
-  static String scanMenuCategory(String category) => 'scan_menu.category'.tr(namedArgs: {'category': category});
-  static String get scanMenuImport => 'scan_menu.import'.tr();
-  static String get scanMenuManualInput => 'scan_menu.manual_input'.tr();
-  static String get scanMenuPasteMenuData => 'scan_menu.paste_menu_data'.tr();
-  static String get scanMenuManualInputPlaceholder => 'scan_menu.manual_input_placeholder'.tr();
-  static String get scanMenuProcessManualInput => 'scan_menu.process_manual_input'.tr();
-  static String scanMenuScanning(String type) => 'scan_menu.scanning'.tr(namedArgs: {'type': type});
-  static String get scanMenuPointCamera => 'scan_menu.point_camera'.tr();
-  static String get scanMenuEditComingSoon => 'scan_menu.edit_functionality_coming_soon'.tr();
-  static String scanMenuImportedSuccessfully(String name) => 'scan_menu.imported_successfully'.tr(namedArgs: {'name': name});
-  static String scanMenuFailedToImport(String name) => 'scan_menu.failed_to_import'.tr(namedArgs: {'name': name});
-  static String scanMenuErrorImporting(String name, String error) => 'scan_menu.error_importing'.tr(namedArgs: {'name': name, 'error': error});
-  static String scanMenuImportCompleted(int success, int error) => 'scan_menu.import_completed'.tr(namedArgs: {'success': success.toString(), 'error': error.toString()});
-  static String get scanMenuHelpTitle => 'scan_menu.help_title'.tr();
-  static String get scanMenuScanMethods => 'scan_menu.scan_methods'.tr();
-  static String get scanMenuQrCodeHelp => 'scan_menu.qr_code_help'.tr();
-  static String get scanMenuBarcodeHelp => 'scan_menu.barcode_help'.tr();
-  static String get scanMenuPhotoMenuHelp => 'scan_menu.photo_menu_help'.tr();
-  static String get scanMenuDocumentHelp => 'scan_menu.document_help'.tr();
-  static String get scanMenuManualInputFormat => 'scan_menu.manual_input_format'.tr();
-  static String get scanMenuItemNamePrice => 'scan_menu.item_name_price'.tr();
-  static String get scanMenuExample => 'scan_menu.example'.tr();
-  static String get scanMenuCategoriesWithColons => 'scan_menu.categories_with_colons'.tr();
-  static String get scanMenuCategoryExample => 'scan_menu.category_example'.tr();
 
   // Menu Item Editor
   static String get menuItemEditorAddItem => 'menu_item_editor.add_item'.tr();

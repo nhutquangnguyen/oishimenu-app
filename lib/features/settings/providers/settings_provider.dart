@@ -115,6 +115,7 @@ final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((r
 /// Settings notifier class
 class SettingsNotifier extends StateNotifier<AppSettings> {
   final SettingsService _service;
+  bool _isDisposed = false;
 
   SettingsNotifier(this._service) : super(const AppSettings(
     language: AppLanguage.vietnamese,
@@ -123,10 +124,19 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     _loadSettings();
   }
 
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
   Future<void> _loadSettings() async {
     try {
       final settings = await _service.loadSettings();
-      state = settings;
+      // Check if notifier is still active before updating state
+      if (!_isDisposed) {
+        state = settings;
+      }
     } catch (e) {
       // Keep default settings if loading fails
       print('Failed to load settings: $e');
@@ -135,9 +145,18 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   /// Initialize language on app startup
   Future<void> initializeLanguage(BuildContext context) async {
+    // Check if we're already disposed
+    if (_isDisposed) return;
+
     try {
       final settings = await _service.loadSettings();
+      // Check again after async operation
+      if (_isDisposed) return;
+
       state = settings;
+
+      // Check if context is still mounted before applying locale
+      if (!context.mounted) return;
 
       // Apply the saved language to EasyLocalization
       switch (settings.language) {
@@ -154,7 +173,13 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   Future<void> updateLanguage(AppLanguage language, BuildContext context) async {
+    // Check if we're already disposed
+    if (_isDisposed) return;
+
     try {
+      // Check if context is still mounted before updating locale
+      if (!context.mounted) return;
+
       // Update the app locale using easy_localization FIRST
       switch (language) {
         case AppLanguage.vietnamese:
@@ -165,6 +190,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
           break;
       }
 
+      // Check again after async operation
+      if (_isDisposed) return;
+
       // Then update and save the state
       state = state.copyWith(language: language);
       await _service.saveSettings(state);
@@ -174,6 +202,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   Future<void> updateThemeMode(ThemeMode themeMode) async {
+    // Check if we're already disposed
+    if (_isDisposed) return;
+
     try {
       state = state.copyWith(themeMode: themeMode);
       await _service.saveSettings(state);

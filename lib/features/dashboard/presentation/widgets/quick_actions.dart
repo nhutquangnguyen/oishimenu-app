@@ -19,7 +19,7 @@ class QuickActions extends StatelessWidget {
         icon: Icons.restaurant_menu_outlined,
         title: AppLocalizations.menu,
         subtitle: AppLocalizations.manageItems,
-        color: Colors.green[600]!,
+        color: Theme.of(context).colorScheme.secondary,
         onTap: () => context.go('/menu'),
       ),
       QuickActionItem(
@@ -30,14 +30,14 @@ class QuickActions extends StatelessWidget {
         subtitle: AppLocalizations.tr('financial_reports') != 'financial_reports'
             ? AppLocalizations.tr('financial_reports')
             : 'Financial Reports',
-        color: Colors.purple[600]!,
+        color: Theme.of(context).colorScheme.tertiary,
         onTap: () => context.go('/analytics'),
       ),
       QuickActionItem(
         icon: Icons.settings_outlined,
         title: AppLocalizations.settings,
         subtitle: AppLocalizations.appSettings,
-        color: Colors.blueGrey[600]!,
+        color: Theme.of(context).colorScheme.outline,
         onTap: () => context.go('/settings'),
       ),
     ];

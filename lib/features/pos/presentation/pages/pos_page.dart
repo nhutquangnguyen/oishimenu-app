@@ -9,6 +9,7 @@ import '../../../../models/order.dart' as order_model;
 import '../../../auth/providers/auth_provider.dart';
 import '../../../../core/providers/supabase_providers.dart';
 import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
+import '../../../../core/utils/error_messages.dart';
 
 // Vietnamese restaurant POS system - Fixed payment navigation v4
 
@@ -736,7 +737,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                   ),
                 ),
 
-              // Scrollable content area
+              // Scrollable middle content area
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
@@ -936,19 +937,35 @@ class _PosPageState extends ConsumerState<PosPage> {
                       // 4. DISCOUNT SECTION (With percentage option)
                       _buildCompactDiscountSection(modalSetState),
 
-                      const SizedBox(height: 8),
-
-                      // 5. TOTAL SECTION
-                      _buildTotalSection(),
-
-                      const SizedBox(height: 16),
-
-                      // 6. ACTION BUTTONS
-                      _buildActionButtons(),
-
-                      const SizedBox(height: 20), // Bottom padding for scroll
+                      const SizedBox(height: 20), // Extra bottom padding for scroll
                     ],
                   ),
+                ),
+              ),
+
+              // Sticky bottom section with total and actions
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(color: Colors.grey[300]!, width: 1),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 16),
+
+                    // 5. TOTAL SECTION (Now sticky)
+                    _buildTotalSection(),
+
+                    const SizedBox(height: 16),
+
+                    // 6. ACTION BUTTONS (Now sticky)
+                    _buildActionButtons(),
+
+                    const SizedBox(height: 8),
+                  ],
                 ),
               ),
             ],
@@ -1250,11 +1267,10 @@ class _PosPageState extends ConsumerState<PosPage> {
 
     // Save order validation: only check if cart has items, allow other fields to be empty
     if (_cartItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('pos_page.empty_cart_error'.tr()),
-          backgroundColor: Colors.red,
-        ),
+      ErrorMessages.showErrorSnackbar(
+        context,
+        'Empty cart',
+        customMessage: ErrorMessages.emptyCartError,
       );
       setState(() {
         _isInSaveOrderMode = false;
@@ -1403,7 +1419,6 @@ class _PosPageState extends ConsumerState<PosPage> {
           // Wait a moment for the snackbar to show, then navigate back
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
-              print('🔙 Closing POS editing mode for existing order: $displayOrderNumber');
               // Close the POS editing modal and return to orders page with target order
               Navigator.of(context).pop(displayOrderNumber);
             }
@@ -1468,11 +1483,10 @@ class _PosPageState extends ConsumerState<PosPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('pos_page.save_error'.tr(namedArgs: {'error': e.toString()})),
-            backgroundColor: Colors.red,
-          ),
+        ErrorMessages.showErrorSnackbar(
+          context,
+          e,
+          customMessage: ErrorMessages.savingOrderError,
         );
       }
     }

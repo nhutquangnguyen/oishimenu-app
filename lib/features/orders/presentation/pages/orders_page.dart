@@ -5,6 +5,9 @@ import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order.dart';
 import '../../../../core/providers/supabase_providers.dart';
 import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
+import '../../../../core/design_system/app_tokens.dart';
+import '../../../../core/design_system/app_components.dart';
+import '../../../../core/utils/error_messages.dart';
 import '../../../pos/presentation/pages/pos_page.dart';
 
 class OrdersPage extends ConsumerStatefulWidget {
@@ -47,15 +50,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   void didUpdateWidget(OrdersPage oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    print('🔄 didUpdateWidget called');
-    print('🔄 Old targetOrderNumber: ${oldWidget.targetOrderNumber}');
-    print('🔄 New targetOrderNumber: ${widget.targetOrderNumber}');
-
     // Check if targetOrderNumber changed (e.g., when navigating back from editing)
     if (widget.targetOrderNumber != oldWidget.targetOrderNumber &&
         widget.targetOrderNumber != null) {
-      print('✅ Target order number changed, triggering scroll to: ${widget.targetOrderNumber}');
-
       // Set highlight for the target order
       setState(() {
         _highlightedOrderNumber = widget.targetOrderNumber;
@@ -76,8 +73,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           });
         }
       });
-    } else {
-      print('❌ No target order change detected');
     }
   }
 
@@ -160,12 +155,23 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         ref.read(activeOrdersCountProvider.notifier).refresh();
 
         // Auto-scroll to target order if specified
-        if (widget.targetOrderNumber != null) {
-          // Set highlight for the target order
+        if (widget.targetOrderNumber != null && _highlightedOrderNumber == null) {
+          // Set highlight for the target order (only if not already set)
           setState(() {
             _highlightedOrderNumber = widget.targetOrderNumber;
           });
 
+          _scrollToTargetOrder();
+
+          // Remove highlight after 3 seconds
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted) {
+              setState(() {
+                _highlightedOrderNumber = null;
+              });
+            }
+          });
+        } else if (_highlightedOrderNumber != null) {
           _scrollToTargetOrder();
 
           // Remove highlight after 3 seconds
@@ -248,93 +254,50 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     // Add ListView top padding
     totalHeight += listViewPadding;
 
-    print('📐 Calculating height for target index: $targetIndex');
-    print('📐 Starting with ListView padding: ${listViewPadding}px');
-
     // Calculate cumulative height of all orders before the target
     for (int i = 0; i < targetIndex; i++) {
       final orderHeight = _calculateOrderCardHeight(_activeOrders[i]);
       totalHeight += orderHeight;
-      print('📐 Order $i (${_activeOrders[i].orderNumber}): ${orderHeight}px (total: ${totalHeight}px)');
     }
 
-    print('📐 Final cumulative height: ${totalHeight}px');
     return totalHeight;
   }
 
   void _scrollToTargetOrder() {
-    // Use highlighted order number if available, otherwise use widget parameter
     final targetOrderNumber = _highlightedOrderNumber ?? widget.targetOrderNumber;
-    print('🎯 _scrollToTargetOrder called with: $targetOrderNumber');
 
     if (targetOrderNumber == null) {
-      print('❌ targetOrderNumber is null, aborting scroll');
       return;
     }
 
-    // Find the target order in active orders
     final targetIndex = _activeOrders.indexWhere(
       (order) => order.orderNumber == targetOrderNumber
     );
 
-    print('🔍 Found target order at index: $targetIndex (total orders: ${_activeOrders.length})');
-
     if (targetIndex != -1) {
-      print('📍 Current tab index: ${_tabController.index}');
-
       // Switch to active orders tab (index 0) if not already there
       if (_tabController.index != 0) {
-        print('🔄 Switching to active orders tab');
         _tabController.animateTo(0);
       }
 
       // Use multiple delays to ensure everything is rendered
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted && _activeOrdersScrollController.hasClients) {
-          print('✅ Scroll controller is ready, starting scroll process');
-
           // Try using ensureVisible for more reliable scrolling
           final keyString = 'order_$targetOrderNumber';
           final targetKey = _orderKeys[keyString];
           final targetContext = targetKey?.currentContext;
 
-          print('🔑 Looking for key: $keyString');
-          print('🎯 Target context found: ${targetContext != null}');
-
           if (targetContext != null && mounted) {
-            print('🎪 Using ensureVisible method');
-
-            // Get current scroll position before scrolling
-            final currentPosition = _activeOrdersScrollController.offset;
-            print('📏 Current scroll position: ${currentPosition}px');
-
             Scrollable.ensureVisible(
               targetContext,
               duration: const Duration(milliseconds: 800),
               curve: Curves.easeOutCubic,
               alignment: 0.1, // Position near top of viewport (10% from top)
-            ).then((_) {
-              // Check scroll position after scrolling
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) {
-                  final newPosition = _activeOrdersScrollController.offset;
-                  print('📏 Final scroll position: ${newPosition}px');
-                  print('📏 Scroll distance: ${(newPosition - currentPosition).abs()}px');
-
-                  if ((newPosition - currentPosition).abs() < 10) {
-                    print('⚠️ WARNING: Minimal scroll movement detected - order might already be visible');
-                  } else {
-                    print('✅ Scroll completed successfully');
-                  }
-                }
-              });
-            });
+            );
           } else {
-            print('📐 Using fallback dynamic height calculation');
-
             // Fallback to dynamic height calculation
             final targetPosition = _calculateCumulativeHeight(targetIndex);
-            print('📏 Calculated target position: ${targetPosition}px');
 
             // Add top padding to ensure the card is well within view
             const topPadding = 100.0;
@@ -343,41 +306,24 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
               _activeOrdersScrollController.position.maxScrollExtent
             );
 
-            print('📱 Final scroll position: ${scrollPosition}px (max: ${_activeOrdersScrollController.position.maxScrollExtent}px)');
-
             _activeOrdersScrollController.animateTo(
               scrollPosition,
               duration: const Duration(milliseconds: 800),
               curve: Curves.easeOutCubic,
             );
           }
-        } else {
-          print('❌ Scroll controller not ready: mounted=$mounted, hasClients=${_activeOrdersScrollController.hasClients}');
         }
       });
-    } else {
-      print('❌ Target order not found in active orders list');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // 🚀 COST OPTIMIZATION: Add manual refresh option since auto-refresh is now less frequent
-      appBar: AppBar(
-        title: Text('orders_page.title'.tr()),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'orders_page.refresh_tooltip'.tr(),
-            onPressed: () => _loadOrders(),
-          ),
-        ],
-      ),
-      body: Column(
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor, // Add proper background
+      child: Column(
         children: [
-          // Tab bar
+          // Tab bar only (no duplicate header since MainLayout provides AppBar)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -391,9 +337,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
             ),
             child: TabBar(
               controller: _tabController,
-              labelColor: Colors.blue[700],
-              unselectedLabelColor: Colors.grey[600],
-              indicatorColor: Colors.blue[700],
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              indicatorColor: Theme.of(context).colorScheme.primary,
               indicatorWeight: 3,
               tabs: [
                 Tab(text: 'orders_page.processing_tab'.tr()),
@@ -431,7 +377,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
             const SizedBox(height: 16),
             Text(
               'orders_page.no_orders'.tr(),
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -529,20 +475,19 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                     ),
                     const SizedBox(width: 8),
                     // Time
-                    Icon(Icons.access_time, size: 12, color: Colors.grey[600]),
+                    Icon(Icons.access_time, size: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(width: 2),
                     Text(
                       _formatTime(order.createdAt),
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                     const Spacer(),
-                    // Cancel button (smaller)
-                    IconButton(
+                    // Cancel button (using design system)
+                    AppIconButton(
+                      icon: Icons.close,
                       onPressed: () => _showCancelOrderDialog(order),
-                      icon: Icon(Icons.close, color: Colors.red[400], size: 20),
+                      color: Theme.of(context).colorScheme.error,
                       tooltip: 'orders_page.cancel_order_tooltip'.tr(),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
@@ -550,7 +495,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                 // Row 2: Customer info only (person icon + name + phone)
                 Row(
                   children: [
-                    Icon(Icons.person, size: 12, color: Colors.grey[600]),
+                    Icon(Icons.person, size: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -710,7 +655,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                     item.selectedOptions.map((opt) => opt.optionName).join(', '),
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontStyle: FontStyle.italic,
                     ),
                     maxLines: 1,
@@ -770,7 +715,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
             const SizedBox(height: 16),
             Text(
               'orders_page.no_history'.tr(),
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -827,7 +772,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
             Text('${order.customer.name} • ${order.items.length} món'),
             Text(
               _formatDateTime(order.createdAt),
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -1018,11 +963,11 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     ).then((result) {
       // Handle return from POS editing
       if (result != null) {
-        print('🔙 Returned from POS editing with order: $result');
+        final orderNumber = result.toString();
 
         // Set the target order for highlighting and scrolling
         setState(() {
-          _highlightedOrderNumber = result.toString();
+          _highlightedOrderNumber = orderNumber;
         });
 
         // Reload orders and then scroll to the target
@@ -1084,11 +1029,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
       await _loadOrders(showLoading: false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('orders_page.complete_order_error'.tr(namedArgs: {'error': e.toString()})),
-            backgroundColor: Colors.red,
-          ),
+        ErrorMessages.showErrorSnackbar(
+          context,
+          e,
+          customMessage: ErrorMessages.completeOrderError,
         );
       }
     }
@@ -1163,11 +1107,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         await _loadOrders(showLoading: false);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('orders_page.cancel_order_error'.tr(namedArgs: {'error': e.toString()})),
-              backgroundColor: Colors.red,
-            ),
+          ErrorMessages.showErrorSnackbar(
+            context,
+            e,
+            customMessage: ErrorMessages.cancelOrderError,
           );
         }
       }
@@ -1394,14 +1337,14 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                   padding: const EdgeInsets.only(left: 16, top: 2),
                   child: Row(
                     children: [
-                      Icon(Icons.add, size: 12, color: Colors.grey[600]),
+                      Icon(Icons.add, size: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           option.optionName,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -1411,7 +1354,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                           '+${option.price.toStringAsFixed(0)}đ',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                     ],
@@ -1453,7 +1396,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                     'orders_page.base_price'.tr(namedArgs: {'price': item.basePrice.toStringAsFixed(0)}),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   Text(
@@ -1603,14 +1546,14 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey[600]),
+        Icon(icon, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),

@@ -41,9 +41,6 @@ class MenuItem {
         ? rawAvailableStatus
         : (rawAvailableStatus ?? 1) == 1;
 
-    print('🔍 MenuItem.fromMap boolean conversion for "${map['name']}":');
-    print('   raw available_status: $rawAvailableStatus (${rawAvailableStatus.runtimeType})');
-    print('   final boolean: $convertedBool');
 
     return MenuItem(
   id: map['id']?.toString() ?? '',

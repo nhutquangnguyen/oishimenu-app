@@ -785,14 +785,14 @@ class _CompactMetricCard extends StatelessWidget {
                       children: [
                         Icon(
                           isPositive ? Icons.trending_up : Icons.trending_down,
-                          color: isPositive ? Colors.green[700] : Colors.red[700],
+                          color: isPositive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.error,
                           size: 12,
                         ),
                         const SizedBox(width: 2),
                         Text(
                           change,
                           style: TextStyle(
-                            color: isPositive ? Colors.green[700] : Colors.red[700],
+                            color: isPositive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.error,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),

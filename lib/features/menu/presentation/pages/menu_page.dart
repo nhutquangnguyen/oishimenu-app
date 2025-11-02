@@ -91,13 +91,8 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       final categories = await menuService.getCategories();
       final optionGroups = await optionGroupService.getAllOptionGroups(includeUnavailableOptions: true);
 
-      print('🔄 _loadMenuData: Received ${categories.length} categories from service');
-      print('📝 Category order in _loadMenuData: ${categories.map((c) => '${c.name}(${c.displayOrder})').join(', ')}');
-      print('📋 _loadMenuData: Received ${menuItems.length} menu items: ${menuItems.map((item) => '${item.name}(${item.availableStatus ? "available" : "unavailable"})').join(', ')}');
-
       // Client-side filter as backup: only show available items
       final availableMenuItems = menuItems.where((item) => item.availableStatus).toList();
-      print('📋 After client-side filtering: ${availableMenuItems.length} available items out of ${menuItems.length} total');
 
       setState(() {
         _menuItems = availableMenuItems;
@@ -107,7 +102,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         _isLoading = false;
       });
 
-      print('✅ State updated in _loadMenuData, _orderedCategories has ${_orderedCategories.length} items');
 
       // Restore the original tab index
       if (_tabController.index != currentTabIndex) {

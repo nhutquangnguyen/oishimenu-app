@@ -31,11 +31,9 @@ class SupabaseMenuService extends SupabaseService {
           ''');
 
       try {
-        query = query.is_('deleted_at', null); // Filter out soft-deleted items (IS NULL)
-        print('✅ Using deleted_at IS NULL filter for soft delete');
+        query = query.isFilter('deleted_at', null); // Filter out soft-deleted items (IS NULL)
       } catch (e) {
         // Column doesn't exist yet, fallback to filtering by available_status
-        print('⚠️ deleted_at column not found, using available_status filter instead');
         query = query.eq('available_status', 1); // Only show available items
       }
 
@@ -66,22 +64,11 @@ class SupabaseMenuService extends SupabaseService {
         transformedJson['created_at'] = DateTime.parse(json['created_at']).millisecondsSinceEpoch;
         transformedJson['updated_at'] = DateTime.parse(json['updated_at']).millisecondsSinceEpoch;
 
-        // Debug the raw database values before conversion
-        print('📥 Raw DB data for "${json['name']}":');
-        print('   available_status from DB: ${json['available_status']} (${json['available_status'].runtimeType})');
-        print('   transformed available_status: ${transformedJson['available_status']} (${transformedJson['available_status'].runtimeType})');
-
         final menuItem = MenuItem.fromMap(transformedJson);
-
-        // Debug the final converted values
-        print('✅ Final MenuItem values:');
-        print('   menuItem.availableStatus: ${menuItem.availableStatus} (${menuItem.availableStatus.runtimeType})');
-        print('---');
 
         return menuItem;
       }).toList();
 
-      print('📊 getMenuItems() returning ${menuItems.length} items: ${menuItems.map((item) => '${item.name}(${item.availableStatus ? "available" : "unavailable"})').join(', ')}');
       return menuItems;
     } catch (e) {
       throw Exception('Failed to fetch menu items: $e');
@@ -181,7 +168,6 @@ class SupabaseMenuService extends SupabaseService {
         query = query.isFilter('deleted_at', null); // Filter out soft-deleted items
       } catch (e) {
         // Column doesn't exist yet, continue without filter
-        print('⚠️ deleted_at column not found, skipping soft delete filter');
       }
 
       final response = await query.maybeSingle();
@@ -221,11 +207,9 @@ class SupabaseMenuService extends SupabaseService {
       if (totalOrderItemsCount > 0) {
         // Soft delete: item has been used in completed orders but not in active ones
         await _softDeleteMenuItem(id);
-        print('✅ Menu item $id soft deleted (used in $totalOrderItemsCount completed orders)');
       } else {
         // Hard delete: item has never been used in any orders
         await SupabaseService.client.from('menu_items').delete().eq('id', id);
-        print('✅ Menu item $id hard deleted (never used in orders)');
       }
     } catch (e) {
       if (e.toString().contains('Cannot delete menu item:')) {
@@ -271,17 +255,14 @@ class SupabaseMenuService extends SupabaseService {
   Future<void> _softDeleteMenuItem(String id) async {
     try {
       final now = DateTime.now().toIso8601String();
-      print('🔧 Setting deleted_at timestamp: $now for item $id');
       await SupabaseService.client.from('menu_items').update({
         'deleted_at': now,
         'available_status': 0, // Also mark as unavailable
         'updated_at': now,
       }).eq('id', id);
-      print('✅ Soft delete update completed for item $id');
     } catch (e) {
       if (e.toString().contains('column') && e.toString().contains('deleted_at') && e.toString().contains('does not exist')) {
         // Column doesn't exist, fallback to marking as unavailable only
-        print('⚠️ deleted_at column not found, fallback to marking as unavailable');
         await SupabaseService.client.from('menu_items').update({
           'available_status': 0,
           'updated_at': DateTime.now().toIso8601String(),
@@ -292,7 +273,7 @@ class SupabaseMenuService extends SupabaseService {
     }
   }
 
-  /// Get soft-deleted menu items (for potential restoration)
+  /// Get unavailable menu items (for potential restoration)
   Future<List<MenuItem>> getSoftDeletedMenuItems() async {
     try {
       final response = await SupabaseService.client
@@ -301,8 +282,8 @@ class SupabaseMenuService extends SupabaseService {
             *,
             menu_categories!inner(name, display_order)
           ''')
-          .not('deleted_at', 'is', null) // Only soft-deleted items
-          .order('deleted_at', ascending: false);
+          .eq('available_status', 0) // Only unavailable items
+          .order('updated_at', ascending: false);
 
       final items = response.map<MenuItem>((json) {
         final transformedJson = Map<String, dynamic>.from(json);
@@ -313,12 +294,7 @@ class SupabaseMenuService extends SupabaseService {
 
       return items;
     } catch (e) {
-      if (e.toString().contains('column') && e.toString().contains('deleted_at') && e.toString().contains('does not exist')) {
-        // Column doesn't exist yet, return empty list
-        print('⚠️ deleted_at column not found, returning empty list for soft-deleted items');
-        return [];
-      }
-      throw Exception('Failed to get soft deleted menu items: $e');
+      throw Exception('Failed to get unavailable menu items: $e');
     }
   }
 
@@ -373,14 +349,11 @@ class SupabaseMenuService extends SupabaseService {
 
   Future<List<MenuCategory>> getCategories() async {
     try {
-      print('🔍 Fetching categories from database...');
       final response = await SupabaseService.client
           .from('menu_categories')
           .select()
           .eq('is_active', true)
           .order('display_order', ascending: true);
-
-      print('📋 Raw categories from DB: ${response.map((r) => '${r['name']}(${r['display_order']})').join(', ')}');
 
       final categories = response.map<MenuCategory>((json) {
         // Transform timestamps for compatibility
@@ -392,7 +365,6 @@ class SupabaseMenuService extends SupabaseService {
         return MenuCategory.fromMap(transformedJson);
       }).toList();
 
-      print('📊 Mapped categories: ${categories.map((c) => '${c.name}(order: ${c.displayOrder})').join(', ')}');
 
       return categories;
     } catch (e) {
@@ -2482,15 +2454,10 @@ class SupabaseOrderService extends SupabaseService {
 
   /// Create income entry if order is marked as delivered/completed
   Future<void> _createIncomeEntryIfCompleted(Order order) async {
-    print('🔍 DEBUG - Checking income entry creation for order: ${order.orderNumber}, Status: ${order.status}');
-
     // Only create income entry for delivered orders
     if (order.status != OrderStatus.delivered) {
-      print('⏭️ Skipping income entry - Order status is ${order.status}, not delivered');
       return;
     }
-
-    print('💰 Creating income entry for completed order: ${order.orderNumber} (${order.total}đ)');
 
     try {
       final financeService = SupabaseFinanceService();
@@ -2521,12 +2488,7 @@ class SupabaseOrderService extends SupabaseService {
       print('✅ Auto-created income entry: ${order.total}đ from order ${order.orderNumber}');
     } catch (financeError) {
       print('❌ ERROR creating income entry: $financeError');
-      print('🔍 DEBUG - Order details: ID=${order.id}, Status=${order.status}, Total=${order.total}');
-      print('🔍 DEBUG - Finance error details: $financeError');
-
-      // Log the error for monitoring but don't break order completion
-      // TODO: Consider showing a warning to user that income entry failed
-      // For now, we'll continue to allow order operations to complete
+      // Don't throw - allow order operations to continue even if finance entry fails
     }
   }
 
@@ -3107,14 +3069,9 @@ class SupabaseFinanceService extends SupabaseService {
     required String description,
     required String category,
   }) async {
-    print('🔍 DEBUG - Creating finance entry: type=$type, amount=$amount, description="$description", category="$category"');
-
     try {
       final currentUser = SupabaseService.client.auth.currentUser;
-      print('🔍 DEBUG - Current user: ${currentUser?.id}');
-
       if (currentUser == null) {
-        print('❌ ERROR - User not authenticated');
         throw Exception('User not authenticated');
       }
 
@@ -3122,9 +3079,7 @@ class SupabaseFinanceService extends SupabaseService {
       String? userIdToUse;
       try {
         userIdToUse = await _getValidUserId(currentUser);
-        print('Using user ID for finance entry: $userIdToUse');
       } catch (e) {
-        print('Could not resolve user ID: $e');
         throw Exception('User authentication failed');
       }
 
@@ -3138,20 +3093,14 @@ class SupabaseFinanceService extends SupabaseService {
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      print('🔍 DEBUG - Finance entry data to insert: $data');
-
       final response = await SupabaseService.client
           .from('finance_entries')
           .insert(data)
           .select('id')
           .single();
 
-      print('🔍 DEBUG - Finance entry insert response: $response');
-
-      print('✅ Finance entry created successfully');
       return response['id'] as String;
     } catch (e) {
-      print('❌ Error creating finance entry: $e');
       throw Exception('Failed to create finance entry: $e');
     }
   }

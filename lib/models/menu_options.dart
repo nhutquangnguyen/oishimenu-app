@@ -25,22 +25,16 @@ class MenuOption {
   });
 
   factory MenuOption.fromMap(Map<String, dynamic> map) {
-    // Debug logging to see what we're getting from database
-    print('🔍 MenuOption.fromMap received for "${stringFromDynamic(map['name'])}":');
-    print('   is_available raw value: ${map['is_available']} (${map['is_available'].runtimeType})');
 
     // Handle both boolean and integer values from database
     bool isAvailableValue;
     final rawIsAvailable = map['is_available'];
     if (rawIsAvailable is bool) {
       isAvailableValue = rawIsAvailable;
-      print('   is_available as bool: $isAvailableValue');
     } else if (rawIsAvailable is int) {
       isAvailableValue = rawIsAvailable == 1;
-      print('   is_available as int->bool: $isAvailableValue (from $rawIsAvailable)');
     } else {
       isAvailableValue = true; // Default to available if unexpected type
-      print('   is_available defaulted to true (unexpected type: ${rawIsAvailable.runtimeType})');
     }
 
     return MenuOption(
@@ -155,22 +149,16 @@ class OptionGroup {
   });
 
   factory OptionGroup.fromMap(Map<String, dynamic> map) {
-    // Debug logging to see what we're getting from database
-    print('🔍 OptionGroup.fromMap received:');
-    print('   is_required raw value: ${map['is_required']} (${map['is_required'].runtimeType})');
 
     // Handle both boolean and integer values from database
     bool isRequiredValue;
     final rawIsRequired = map['is_required'];
     if (rawIsRequired is bool) {
       isRequiredValue = rawIsRequired;
-      print('   is_required as bool: $isRequiredValue');
     } else if (rawIsRequired is int) {
       isRequiredValue = rawIsRequired == 1;
-      print('   is_required as int->bool: $isRequiredValue (from $rawIsRequired)');
     } else {
       isRequiredValue = false;
-      print('   is_required defaulted to false (unexpected type: ${rawIsRequired.runtimeType})');
     }
 
     return OptionGroup(

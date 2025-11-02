@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../services/supabase_service.dart';
+import '../../../../core/utils/error_messages.dart';
 
 // Enums for filtering
 enum DateRangeType { today, yesterday, thisWeek, lastWeek, thisMonth, lastMonth, custom }
@@ -37,6 +38,9 @@ class _FinancePageState extends ConsumerState<FinancePage>
   RangeValues _amountRange = const RangeValues(0, 1000000);
   bool _showAdvancedFilters = false;
 
+  // Track recently added entries to show them regardless of filters
+  Set<String> _recentlyAddedEntries = {};
+
   final _financeService = SupabaseFinanceService();
   final _searchController = TextEditingController();
 
@@ -44,7 +48,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadFinanceData();
+    _loadFinanceData(clearRecentlyAdded: false); // Don't clear on initial load
   }
 
   @override
@@ -54,41 +58,65 @@ class _FinancePageState extends ConsumerState<FinancePage>
     super.dispose();
   }
 
-  Future<void> _loadFinanceData() async {
+  Future<void> _loadFinanceData({bool clearRecentlyAdded = false}) async {
     setState(() => _isLoading = true);
 
-    try {
-      // Get date range based on selected filter
-      final dateRange = _getDateRange(_selectedDateRange);
+    // Only clear recently added entries when explicitly requested
+    // Default to false to preserve user experience - newly added entries should stay visible
+    if (clearRecentlyAdded) {
+      _recentlyAddedEntries.clear();
+    }
 
-      // Load finance data from database
-      final entries = await _financeService.getFinanceEntries(
-        startDate: dateRange['start'],
-        endDate: dateRange['end'],
-      );
+    try {
+      // Load ALL finance data from database (without date filtering)
+      // We'll handle date filtering in _applyFilters for more control
+      final entries = await _financeService.getFinanceEntries();
 
       // Convert database records to FinanceEntry objects
-      _allEntries = entries.map((entry) => FinanceEntry(
-        id: entry['id'] as String,
-        type: entry['type'] == 'income' ? FinanceEntryType.income : FinanceEntryType.expense,
-        amount: (entry['amount'] as num).toDouble(),
-        description: entry['description'] as String,
-        category: entry['category'] as String,
-        createdAt: DateTime.parse(entry['created_at'] as String),
-      )).toList();
+      final dbEntries = entries.map((entry) {
+        final dbTimestamp = DateTime.parse(entry['created_at'] as String);
+        final localTimestamp = dbTimestamp.toLocal(); // Convert to local time
+
+        return FinanceEntry(
+          id: entry['id'] as String,
+          type: entry['type'] == 'income' ? FinanceEntryType.income : FinanceEntryType.expense,
+          amount: (entry['amount'] as num).toDouble(),
+          description: entry['description'] as String,
+          category: entry['category'] as String,
+          createdAt: localTimestamp, // Use local time for consistency
+        );
+      }).toList();
+
+      // Merge database entries with existing local entries intelligently
+      final entryMap = <String, FinanceEntry>{};
+
+      // First, preserve all existing local entries (especially recently added ones)
+      for (final entry in _allEntries) {
+        entryMap[entry.id] = entry;
+      }
+
+      // Then add database entries, but don't overwrite existing local entries
+      // This preserves recently added entries that might have slight timestamp differences
+      for (final dbEntry in dbEntries) {
+        if (!entryMap.containsKey(dbEntry.id)) {
+          entryMap[dbEntry.id] = dbEntry;
+        }
+      }
+
+      // Convert back to list and sort by creation time (newest first)
+      _allEntries = entryMap.values.toList();
+      _allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       // Apply current filters
       _applyFilters();
 
     } catch (e) {
-      print('Error loading finance data: $e');
-      // Show error message to user
+      // Show user-friendly error message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading finance data: $e'),
-            backgroundColor: Colors.red,
-          ),
+        ErrorMessages.showErrorSnackbar(
+          context,
+          e,
+          customMessage: ErrorMessages.loadingFinanceError,
         );
       }
     }
@@ -104,7 +132,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
       case DateRangeType.today:
         return {
           'start': today,
-          'end': DateTime(now.year, now.month, now.day, 23, 59, 59),
+          'end': DateTime(now.year, now.month, now.day, 23, 59, 59, 999),
         };
       case DateRangeType.yesterday:
         final yesterday = today.subtract(const Duration(days: 1));
@@ -145,7 +173,45 @@ class _FinancePageState extends ConsumerState<FinancePage>
   }
 
   void _applyFilters() {
+    // Get current date range for filtering
+    final dateRange = _getDateRange(_selectedDateRange);
+    final startDate = dateRange['start']!;
+    final endDate = dateRange['end']!;
+
     _filteredEntries = _allEntries.where((entry) {
+      // Always include recently added entries regardless of filters
+      if (_recentlyAddedEntries.contains(entry.id)) {
+        return true;
+      }
+
+      // Date range filter - this is crucial for proper filtering
+      // Use more robust date comparison that handles timezone issues
+      final entryDate = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+      final filterStartDate = DateTime(startDate.year, startDate.month, startDate.day);
+      final filterEndDate = DateTime(endDate.year, endDate.month, endDate.day);
+
+      // Special handling for auto-created income entries from orders
+      // These should be visible even if there are minor timezone discrepancies
+      final isAutoCreatedIncome = entry.type == FinanceEntryType.income &&
+                                 entry.description.contains('Order ') &&
+                                 entry.description.contains('ORD-');
+
+      if (entryDate.isBefore(filterStartDate) || entryDate.isAfter(filterEndDate)) {
+        // For auto-created income entries, be more lenient with today's date
+        if (isAutoCreatedIncome && _selectedDateRange == DateRangeType.today) {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final entryIsToday = entryDate.isAtSameMomentAs(today) ||
+                              entryDate.isAfter(today.subtract(const Duration(hours: 6))); // Allow 6 hours buffer
+
+          if (entryIsToday) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
       // Search filter
       if (_searchQuery.isNotEmpty) {
         if (!entry.description.toLowerCase().contains(_searchQuery.toLowerCase()) &&
@@ -181,6 +247,20 @@ class _FinancePageState extends ConsumerState<FinancePage>
       return true;
     }).toList();
 
+    // Sort filtered entries with recently added entries at the top
+    _filteredEntries.sort((a, b) {
+      // Recently added entries always come first
+      final aIsRecent = _recentlyAddedEntries.contains(a.id);
+      final bIsRecent = _recentlyAddedEntries.contains(b.id);
+
+      if (aIsRecent && !bIsRecent) return -1; // a comes first
+      if (!aIsRecent && bIsRecent) return 1;  // b comes first
+
+      // If both or neither are recent, sort by creation time (newest first)
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+
     // Calculate totals for filtered entries
     _currentIncome = _filteredEntries
         .where((entry) => entry.type == FinanceEntryType.income)
@@ -194,37 +274,52 @@ class _FinancePageState extends ConsumerState<FinancePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('finance_page.title'.tr()),
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(
-              icon: const Icon(Icons.dashboard_outlined),
-              text: 'finance_page.summary_tab'.tr(),
-            ),
-            Tab(
-              icon: const Icon(Icons.receipt_long_outlined),
-              text: 'finance_page.transactions_tab'.tr(),
-            ),
-          ],
-          indicatorColor: Theme.of(context).primaryColor,
-          labelColor: Theme.of(context).primaryColor,
-          unselectedLabelColor: Colors.grey[600],
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                // Summary Tab
-                _buildSummaryTab(),
-                // Transactions Tab
-                _buildTransactionsTab(),
+      body: Column(
+        children: [
+          // Tab bar only (no duplicate header since MainLayout provides AppBar)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
+            child: TabBar(
+              controller: _tabController,
+              tabs: [
+                Tab(
+                  text: 'finance_page.summary_tab'.tr(),
+                ),
+                Tab(
+                  text: 'finance_page.transactions_tab'.tr(),
+                ),
+              ],
+              indicatorColor: Theme.of(context).primaryColor,
+              labelColor: Theme.of(context).primaryColor,
+              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+
+          // Tab views
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // Summary Tab
+                      _buildSummaryTab(),
+                      // Transactions Tab
+                      _buildTransactionsTab(),
+                    ],
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: _buildFinanceActionButton(),
     );
   }
@@ -233,7 +328,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
 
   Widget _buildSummaryTab() {
     return RefreshIndicator(
-      onRefresh: _loadFinanceData,
+      onRefresh: () => _loadFinanceData(clearRecentlyAdded: false),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
@@ -262,6 +357,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
 
   Widget _buildTransactionsTab() {
     return Column(
+      key: ValueKey('transactions_tab_${_filteredEntries.length}'),
       children: [
         // Filter Bar
         _buildFilterBar(),
@@ -272,7 +368,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
         // Transaction List
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _loadFinanceData,
+            onRefresh: () => _loadFinanceData(clearRecentlyAdded: false),
             child: _buildTransactionList(),
           ),
         ),
@@ -326,7 +422,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
                 setState(() {
                   _selectedDateRange = value;
                 });
-                _loadFinanceData();
+                _applyFilters(); // Just re-apply filters instead of reloading data
               }
             }
           },
@@ -543,7 +639,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
                 const SizedBox(height: 8),
                 Text(
                   'finance_page.no_entries'.tr(),
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -720,7 +816,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
                 setState(() {
                   _selectedDateRange = value;
                 });
-                _loadFinanceData();
+                _applyFilters(); // Just re-apply filters instead of reloading data
               }
             }
           },
@@ -875,6 +971,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
   }
 
   Widget _buildTransactionList() {
+
     if (_filteredEntries.isEmpty) {
       return Center(
         child: Column(
@@ -884,7 +981,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
             const SizedBox(height: 16),
             Text(
               'finance_page.no_transactions'.tr(),
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
@@ -897,6 +994,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
     }
 
     return ListView.builder(
+      key: ValueKey('transaction_list_${_filteredEntries.length}'), // Force rebuild when count changes
       padding: const EdgeInsets.all(16),
       itemCount: _filteredEntries.length,
       itemBuilder: (context, index) {
@@ -925,7 +1023,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
         _customStartDate = picked.start;
         _customEndDate = picked.end;
       });
-      _loadFinanceData();
+      _applyFilters(); // Just re-apply filters instead of reloading data
     }
   }
 
@@ -957,9 +1055,17 @@ class _FinancePageState extends ConsumerState<FinancePage>
   Widget _buildFinanceEntryCard(FinanceEntry entry) {
     final isIncome = entry.type == FinanceEntryType.income;
     final color = isIncome ? Colors.green : Colors.red;
+    final isRecentlyAdded = _recentlyAddedEntries.contains(entry.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: isRecentlyAdded ? 4 : 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: isRecentlyAdded
+            ? BorderSide(color: Colors.blue.shade300, width: 2)
+            : BorderSide.none,
+      ),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withValues(alpha: 0.1),
@@ -968,13 +1074,35 @@ class _FinancePageState extends ConsumerState<FinancePage>
             color: color.shade700,
           ),
         ),
-        title: Text(
-          entry.description,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                entry.description,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (isRecentlyAdded)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'NEW',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ),
+          ],
         ),
         subtitle: Text(
           _formatTime(entry.createdAt),
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         trailing: Text(
           '${isIncome ? '+' : '-'}${entry.amount.toStringAsFixed(0)}đ',
@@ -1148,6 +1276,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
             onPressed: () async {
               final amount = double.tryParse(amountController.text);
               final description = descriptionController.text.trim();
+              final navigator = Navigator.of(context);
 
               if (amount == null || amount <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1178,7 +1307,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
               );
 
               if (mounted) {
-                Navigator.pop(context);
+                navigator.pop();
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -1267,6 +1396,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
             onPressed: () async {
               final amount = double.tryParse(amountController.text);
               final description = descriptionController.text.trim();
+              final navigator = Navigator.of(context);
 
               if (amount == null || amount <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1297,7 +1427,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
               );
 
               if (mounted) {
-                Navigator.pop(context);
+                navigator.pop();
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -1315,7 +1445,8 @@ class _FinancePageState extends ConsumerState<FinancePage>
     required String category,
   }) async {
     try {
-      // Save to database
+
+      // Save to database first
       final entryId = await _financeService.createFinanceEntry(
         type: type == FinanceEntryType.income ? 'income' : 'expense',
         amount: amount,
@@ -1324,20 +1455,45 @@ class _FinancePageState extends ConsumerState<FinancePage>
       );
 
       // Create local entry with the database ID
+      // Use current local time to ensure it matches current date filter
+      final currentTime = DateTime.now();
       final newEntry = FinanceEntry(
         id: entryId,
         type: type,
         amount: amount,
         description: description,
         category: category,
-        createdAt: DateTime.now(),
+        createdAt: currentTime,
       );
 
       setState(() {
-        _allEntries.add(newEntry);
+        // Add new entry to the beginning of the list so it appears first
+        _allEntries.insert(0, newEntry);
 
-        // Re-apply filters to include the new entry if it matches current filters
+        // Sort all entries by creation time (newest first) to ensure proper ordering
+        _allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        // Mark this entry as recently added so it appears regardless of filters
+        _recentlyAddedEntries.add(newEntry.id);
+
+        // Re-apply filters with the new entry included
         _applyFilters();
+      });
+
+      // Switch to transactions tab to show the new entry
+      if (_tabController.index == 0) {
+        _tabController.animateTo(1);
+      }
+
+      // Clear the recently added flag after 5 minutes so normal filtering resumes
+      // This gives users plenty of time to see their new entry before it gets filtered
+      Future.delayed(const Duration(minutes: 5), () {
+        if (mounted) {
+          setState(() {
+            _recentlyAddedEntries.remove(entryId);
+            _applyFilters(); // Re-apply filters to respect normal filter rules
+          });
+        }
       });
 
       // Show success message
@@ -1355,15 +1511,13 @@ class _FinancePageState extends ConsumerState<FinancePage>
         );
       }
     } catch (e) {
-      print('Error saving finance entry: $e');
-      // Show error message
+
+      // Show user-friendly error message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving entry: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
+        ErrorMessages.showErrorSnackbar(
+          context,
+          e,
+          customMessage: ErrorMessages.savingFinanceEntryError,
         );
       }
     }

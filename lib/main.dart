@@ -71,7 +71,10 @@ class _OishiMenuAppState extends ConsumerState<OishiMenuApp> {
     super.initState();
     // Initialize language settings after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(settingsProvider.notifier).initializeLanguage(context);
+      // Check if widget is still mounted before initializing language
+      if (mounted) {
+        ref.read(settingsProvider.notifier).initializeLanguage(context);
+      }
     });
   }
 

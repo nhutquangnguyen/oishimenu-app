@@ -13,9 +13,7 @@ import '../../features/finance/presentation/pages/finance_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/option_groups/pages/option_group_editor_page.dart';
 import '../../features/menu/presentation/pages/menu_item_editor_page.dart';
-import '../../features/menu/presentation/pages/scan_menu_page.dart';
 import '../../test_menu_editor.dart';
-import '../../test_scan_menu.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../widgets/main_layout.dart';
 
@@ -34,7 +32,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       );
 
       final isOnAuthPage = state.fullPath == '/login' || state.fullPath == '/signup';
-      final isOnTestPage = state.fullPath == '/test' || state.fullPath == '/test-scan';
+      final isOnTestPage = state.fullPath == '/test';
 
       // Redirect to login if not authenticated and not on auth or test pages
       if (!isLoggedIn && !isOnAuthPage && !isOnTestPage) {
@@ -53,10 +51,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/test',
         builder: (context, state) => const MenuEditorTestPage(),
-      ),
-      GoRoute(
-        path: '/test-scan',
-        builder: (context, state) => const ScanMenuTestPage(),
       ),
 
       // Authentication routes
@@ -81,10 +75,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/menu',
             builder: (context, state) => const MenuPage(),
             routes: [
-              GoRoute(
-                path: 'scan',
-                builder: (context, state) => const ScanMenuPage(),
-              ),
               GoRoute(
                 path: 'option-groups/new',
                 builder: (context, state) => const OptionGroupEditorPage(),
@@ -113,7 +103,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/orders',
             builder: (context, state) {
               final targetOrderNumber = state.uri.queryParameters['orderNumber'];
-              print('🏗️ Building OrdersPage with targetOrderNumber: $targetOrderNumber');
               return OrdersPage(
                 key: ValueKey('orders_${targetOrderNumber ?? 'default'}'),
                 targetOrderNumber: targetOrderNumber,
@@ -183,8 +172,6 @@ extension AppRoutes on GoRouter {
   void goToLogin() => go('/login');
   void goToSignup() => go('/signup');
 
-  // Scan menu route
-  void goToScanMenu() => go('/menu/scan');
 
   // Option group routes
   void goToNewOptionGroup() => go('/menu/option-groups/new');

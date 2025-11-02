@@ -17,17 +17,6 @@ class SettingsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-      appBar: AppBar(
-        title: Text(AppLocalizations.settings),
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -315,7 +304,7 @@ class SettingsPage extends ConsumerWidget {
   }) {
     return InkWell(
       onTap: () async {
-        if (!isSelected) {
+        if (!isSelected && context.mounted) {
           await ref.read(settingsProvider.notifier).updateLanguage(language, context);
         }
       },
