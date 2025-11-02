@@ -111,7 +111,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/orders',
-            builder: (context, state) => const OrdersPage(),
+            builder: (context, state) {
+              final targetOrderNumber = state.uri.queryParameters['orderNumber'];
+              print('🏗️ Building OrdersPage with targetOrderNumber: $targetOrderNumber');
+              return OrdersPage(
+                key: ValueKey('orders_${targetOrderNumber ?? 'default'}'),
+                targetOrderNumber: targetOrderNumber,
+              );
+            },
           ),
           GoRoute(
             path: '/pos',

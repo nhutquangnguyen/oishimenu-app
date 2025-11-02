@@ -1403,11 +1403,13 @@ class _PosPageState extends ConsumerState<PosPage> {
           // Wait a moment for the snackbar to show, then navigate back
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
-              Navigator.of(context).pop(true); // Return true to trigger orders page refresh
+              print('🔙 Closing POS editing mode for existing order: $displayOrderNumber');
+              // Close the POS editing modal and return to orders page with target order
+              Navigator.of(context).pop(displayOrderNumber);
             }
           });
         } else {
-          // New order created - show informative notification and clear cart
+          // New order created - show brief notification and auto-navigate to orders
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
@@ -1415,39 +1417,20 @@ class _PosPageState extends ConsumerState<PosPage> {
                   const Icon(Icons.check_circle, color: Colors.white),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'pos_page.order_saved'.tr(namedArgs: {'orderNumber': displayOrderNumber}),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'pos_page.order_added_to_queue'.tr(),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ],
+                    child: Text(
+                      'pos_page.order_saved'.tr(namedArgs: {'orderNumber': displayOrderNumber}),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
               ),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
+              duration: const Duration(seconds: 1),
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.only(
                 top: 80,
                 left: 10,
                 right: 10,
-              ),
-              action: SnackBarAction(
-                label: 'Xem',
-                textColor: Colors.white,
-                onPressed: () {
-                  // Navigate to Orders page
-                  context.go('/orders');
-                },
               ),
             ),
           );
@@ -1468,6 +1451,13 @@ class _PosPageState extends ConsumerState<PosPage> {
             _existingOrderCreatedAt = null;
             // Reset save order mode
             _isInSaveOrderMode = false;
+          });
+
+          // Auto-navigate to orders page with target order after brief delay
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted) {
+              context.go('/orders?orderNumber=${Uri.encodeComponent(displayOrderNumber)}');
+            }
           });
         }
       }
