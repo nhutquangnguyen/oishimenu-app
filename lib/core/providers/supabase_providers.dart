@@ -221,6 +221,11 @@ final supabaseImportExportServiceProvider = Provider<SupabaseImportExportService
   return SupabaseImportExportService();
 });
 
+// Finance Service Provider
+final supabaseFinanceServiceProvider = Provider<SupabaseFinanceService>((ref) {
+  return SupabaseFinanceService();
+});
+
 // Auth Service Provider - compatible with existing AuthService interface
 final supabaseAuthServiceProvider = Provider<AuthService>((ref) {
   return SupabaseAuthServiceAdapter();

@@ -114,6 +114,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           }
         });
 
+
         // 🚀 BADGE SYNC: Refresh badge count to reflect actual database state
         ref.read(activeOrdersCountProvider.notifier).refresh();
       }
@@ -308,7 +309,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                   ],
                 ),
                 const SizedBox(height: 4),
-                // Row 2: Customer and table info
+                // Row 2: Customer info only (person icon + name + phone)
                 Row(
                   children: [
                     Icon(Icons.person, size: 12, color: Colors.grey[600]),
@@ -323,15 +324,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (order.tableNumber != null) ...[
-                      const SizedBox(width: 8),
-                      Icon(Icons.table_restaurant, size: 12, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text(
-                        order.tableNumber!,
-                        style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-                      ),
-                    ],
                   ],
                 ),
               ],

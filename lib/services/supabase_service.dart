@@ -2291,6 +2291,9 @@ class SupabaseOrderService extends SupabaseService {
             .insert(itemData);
       }
 
+      // 💰 AUTO FINANCE: Create income entry if order is delivered/completed
+      await _createIncomeEntryIfCompleted(order);
+
       return orderId;
     } catch (e) {
       print('❌ Error creating order: $e');
@@ -2326,10 +2329,108 @@ class SupabaseOrderService extends SupabaseService {
       // Convert timestamp to ISO string for Supabase
       data['updated_at'] = DateTime.now().toIso8601String();
 
+      // Update the main order record
       await SupabaseService.client
           .from('orders')
           .update(data)
           .eq('id', _convertToSupabaseId(order.id));
+
+      // 🔄 CUSTOMER UPDATE FIX: Update customer information when order is updated
+      print('🔍 DEBUG - Customer ID: "${order.customer.id}", Name: "${order.customer.name}", Phone: "${order.customer.phone}"');
+
+      if (order.customer.id.isNotEmpty) {
+        final customerData = {
+          'name': order.customer.name,
+          'phone': order.customer.phone,
+          'email': order.customer.email,
+          'address': order.customer.address,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        print('🔍 DEBUG - About to update customer with data: $customerData');
+        print('🔍 DEBUG - Customer ID for query: ${_convertToSupabaseId(order.customer.id)}');
+
+        try {
+          // First check if customer exists
+          final existingCustomer = await SupabaseService.client
+              .from('customers')
+              .select('id')
+              .eq('id', _convertToSupabaseId(order.customer.id))
+              .maybeSingle();
+
+          if (existingCustomer != null) {
+            // Customer exists, update it
+            final result = await SupabaseService.client
+                .from('customers')
+                .update(customerData)
+                .eq('id', _convertToSupabaseId(order.customer.id));
+
+            print('✅ Customer updated successfully: ${order.customer.name} (${order.customer.phone})');
+            print('🔍 DEBUG - Update result: $result');
+          } else {
+            print('⚠️ WARNING - Customer ID ${order.customer.id} not found in database');
+            print('🔍 INFO - This might be a guest customer or data consistency issue');
+            // Could create a new customer here if needed, but for now just log the issue
+          }
+        } catch (customerError) {
+          print('❌ ERROR with customer operation: $customerError');
+          print('🔍 DEBUG - Customer data that failed: $customerData');
+          print('🔍 DEBUG - Customer ID that failed: ${_convertToSupabaseId(order.customer.id)}');
+          // Don't rethrow - allow order update to continue even if customer update fails
+        }
+      } else {
+        print('⚠️ WARNING - Customer ID is empty, need to create customer record');
+        print('🔍 INFO - Creating new customer record for: ${order.customer.name} (${order.customer.phone})');
+
+        try {
+          // Create new customer record
+          final response = await SupabaseService.client.from('customers').insert({
+            'name': order.customer.name,
+            'phone': order.customer.phone,
+            'email': order.customer.email,
+            'address': order.customer.address,
+          }).select().single();
+
+          final newCustomerId = response['id'];
+          print('✅ New customer created with ID: $newCustomerId');
+
+          // Update the order to reference the new customer
+          await SupabaseService.client
+              .from('orders')
+              .update({'customer_id': newCustomerId})
+              .eq('id', _convertToSupabaseId(order.id));
+
+          print('✅ Order updated with new customer ID: $newCustomerId');
+        } catch (customerCreateError) {
+          print('❌ ERROR creating customer: $customerCreateError');
+          print('🔍 DEBUG - Customer data: name="${order.customer.name}", phone="${order.customer.phone}"');
+        }
+      }
+
+      // Update order items: delete existing items and insert updated ones
+      final orderId = _convertToSupabaseId(order.id);
+
+      // First, delete existing order items
+      await SupabaseService.client
+          .from('order_items')
+          .delete()
+          .eq('order_id', orderId);
+
+      // Then, insert the updated order items
+      for (final item in order.items) {
+        final itemData = item.toMap();
+        itemData.remove('id'); // Let Supabase generate new IDs
+        itemData['order_id'] = orderId;
+
+        await SupabaseService.client
+            .from('order_items')
+            .insert(itemData);
+      }
+
+      print('✅ Order updated successfully: ${order.orderNumber} with ${order.items.length} items');
+
+      // 💰 AUTO FINANCE: Create income entry if order status is delivered/completed
+      await _createIncomeEntryIfCompleted(order);
     } catch (e) {
       print('❌ Error updating order: $e');
 
@@ -2376,6 +2477,46 @@ class SupabaseOrderService extends SupabaseService {
 
       // For database/technical errors, provide context
       throw Exception('Failed to update order status: $e');
+    }
+  }
+
+  /// Create income entry if order is marked as delivered/completed
+  Future<void> _createIncomeEntryIfCompleted(Order order) async {
+    // Only create income entry for delivered orders
+    if (order.status != OrderStatus.delivered) {
+      return;
+    }
+
+    try {
+      final financeService = SupabaseFinanceService();
+
+      // Determine income category based on order platform/source
+      String category = 'Sales'; // Default category
+      switch (order.platform.toLowerCase()) {
+        case 'grab':
+        case 'shopee':
+        case 'gojek':
+          category = 'Delivery Platform';
+          break;
+        case 'direct':
+        case 'pos':
+        default:
+          category = 'Direct Sales';
+          break;
+      }
+
+      // Create income entry for the completed order
+      await financeService.createFinanceEntry(
+        type: 'income',
+        amount: order.total,
+        description: 'Order ${order.orderNumber} - ${order.customer.name}',
+        category: category,
+      );
+
+      print('✅ Auto-created income entry: ${order.total}đ from order ${order.orderNumber}');
+    } catch (financeError) {
+      print('❌ ERROR creating income entry: $financeError');
+      // Don't throw - allow order operations to continue even if finance entry fails
     }
   }
 

@@ -112,12 +112,8 @@ class _PosPageState extends ConsumerState<PosPage> {
       // Load existing order if provided
       if (widget.existingOrder != null) {
         _loadExistingOrder(widget.existingOrder!);
-        // Automatically show cart when editing existing order
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _cartItems.isNotEmpty) {
-            _showCartBottomSheet();
-          }
-        });
+        // Show editing indicator and smoothly transition to cart
+        _showEditingTransition();
       }
     } catch (e) {
       setState(() {
@@ -211,6 +207,15 @@ class _PosPageState extends ConsumerState<PosPage> {
     });
   }
 
+  void _showEditingTransition() {
+    // Open cart immediately after order loads with minimal delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _cartItems.isNotEmpty) {
+        _showCartBottomSheet();
+      }
+    });
+  }
+
   // Get list of available categories (non-empty)
   List<String> get _availableCategories {
     final categories = <String>{};
@@ -245,15 +250,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   Map<String, List<MenuItem>> get _itemsByCategory {
     final Map<String, List<MenuItem>> grouped = {};
 
-    // Get hot items to exclude from category sections (only when no category is selected)
-    final hotItemIds = _selectedCategory == null ? _hotItems.map((item) => item.id).toSet() : <String>{};
-
     for (var item in _filteredMenuItems) {
-      // Skip items that are already shown in hot items section (only when viewing all categories)
-      if (hotItemIds.contains(item.id)) {
-        continue;
-      }
-
       if (!grouped.containsKey(item.categoryName)) {
         grouped[item.categoryName] = [];
       }
@@ -263,12 +260,6 @@ class _PosPageState extends ConsumerState<PosPage> {
     return grouped;
   }
 
-  // Get top 5 ordered items (simplified - using cart frequency as proxy)
-  List<MenuItem> get _hotItems {
-    // For now, return first 5 items as hot items
-    // In a real app, this would query order history
-    return _filteredMenuItems.take(5).toList();
-  }
 
   Future<void> _addToCart(MenuItem item) async {
     // Check if this menu item has linked option groups
@@ -319,44 +310,9 @@ class _PosPageState extends ConsumerState<PosPage> {
 
   Widget _buildCategorizedItemsList() {
     final itemsByCategory = _itemsByCategory;
-    final hotItems = _searchQuery.isEmpty ? _hotItems : <MenuItem>[];
 
     return CustomScrollView(
       slivers: [
-        // Hot Items Section (only show when not searching)
-        if (hotItems.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Row(
-                children: [
-                  Icon(Icons.local_fire_department, color: Colors.orange[700], size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'pos_page.hot_items'.tr(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildCompactMenuItem(hotItems[index]),
-                ),
-                childCount: hotItems.length,
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
 
         // Category Sections
         ...itemsByCategory.entries.map((entry) {
@@ -512,6 +468,33 @@ class _PosPageState extends ConsumerState<PosPage> {
   Widget _buildMenuInterface() {
     return Column(
       children: [
+        // Editing indicator banner
+        if (_existingOrderId != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              border: Border(
+                bottom: BorderSide(color: Colors.orange[200]!, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.edit, size: 16, color: Colors.orange[700]),
+                const SizedBox(width: 8),
+                Text(
+                  'Editing Order ${_existingOrderNumber ?? ''}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         // Search bar
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -1237,41 +1220,21 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   Widget _buildActionButtons() {
-    return Row(
-      children: [
-        // Save Order button
-        Expanded(
-          child: OutlinedButton(
-            onPressed: _saveOrder,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.orange[700],
-              side: BorderSide(color: Colors.orange[700]!),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: Text(
-              'Save Order',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: _saveOrder,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.orange[700],
+          side: BorderSide(color: Colors.orange[700]!),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        const SizedBox(width: 12),
-        // Complete button (renamed from Check Out)
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _processPayment,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text(
-              'Complete',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
+        child: const Text(
+          'Save Order',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-      ],
+      ),
     );
   }
 
@@ -1385,7 +1348,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           paymentStatus: _originalPaymentStatus ?? order_model.PaymentStatus.pending, // Preserve original payment status
           tableNumber: _selectedTable,
           platform: _originalPlatform ?? 'POS', // Preserve original platform
-          notes: _orderNotes.isEmpty ? null : _orderNotes,
+          notes: _orderNotesController.text.trim().isEmpty ? null : _orderNotesController.text.trim(),
           createdAt: _existingOrderCreatedAt ?? now, // Preserve original creation time
           updatedAt: now,
         );
@@ -1440,7 +1403,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           // Wait a moment for the snackbar to show, then navigate back
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
-              Navigator.of(context).pop(); // Go back to Orders page
+              Navigator.of(context).pop(true); // Return true to trigger orders page refresh
             }
           });
         } else {
@@ -1525,228 +1488,6 @@ class _PosPageState extends ConsumerState<PosPage> {
     }
   }
 
-  Future<void> _processPayment() async {
-    final orderService = ref.read(supabaseOrderServiceProvider);
-
-    // Ensure save order mode is disabled (enforce full validation)
-    setState(() {
-      _isInSaveOrderMode = false;
-    });
-
-    // Navigate away from cart bottom sheet first
-    Navigator.pop(context);
-
-    if (_cartItems.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('pos_page.empty_cart_error'.tr()),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-
-    // Complete the order directly
-    try {
-      final now = DateTime.now();
-
-      // Convert cart items to order items
-      final orderItems = _cartItems.map((cartItem) {
-        final orderSelectedOptions = cartItem.selectedOptions.map((opt) {
-          return order_model.SelectedOption(
-            optionGroupId: opt.optionGroupId,
-            optionGroupName: opt.optionGroupName,
-            optionId: opt.optionId,
-            optionName: opt.optionName,
-            price: opt.optionPrice,
-          );
-        }).toList();
-
-        return order_model.OrderItem(
-          id: '',
-          menuItemId: cartItem.menuItem.id,
-          menuItemName: cartItem.menuItem.name,
-          basePrice: cartItem.menuItem.price,
-          quantity: cartItem.quantity,
-          selectedOptions: orderSelectedOptions,
-          subtotal: cartItem.totalPrice,
-          notes: (cartItem.notes == null || cartItem.notes!.isEmpty) ? null : cartItem.notes,
-        );
-      }).toList();
-
-      // Determine order type
-      order_model.OrderType orderType;
-      if (_selectedTable == null) {
-        orderType = order_model.OrderType.takeaway;
-      } else if (_selectedTable == 'pos_page.default_table'.tr()) {
-        orderType = order_model.OrderType.takeaway;
-      } else if (_selectedTable == 'Grab') {
-        orderType = order_model.OrderType.delivery;
-      } else {
-        orderType = order_model.OrderType.dineIn;
-      }
-
-      // Convert Customer using the new controller values
-      final orderCustomer = order_model.Customer(
-        id: _selectedCustomer?.id ?? '',
-        name: _customerNameController.text.trim(),
-        phone: _customerPhoneController.text.trim().isEmpty ? null : _customerPhoneController.text.trim(),
-        email: _selectedCustomer?.email,
-        address: _selectedCustomer?.address,
-        createdAt: _selectedCustomer?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      String displayOrderNumber;
-
-      // Check if we're updating an existing order or creating a new one
-      if (_existingOrderId != null && _existingOrderNumber != null) {
-        // Update existing order and mark as completed
-        displayOrderNumber = _existingOrderNumber!;
-
-        // Calculate total considering current discount and original fees
-        final orderSubtotal = _totalAmount;
-        final orderDiscount = _discountAmount;
-        final orderTax = _originalTax ?? 0.0;
-        final orderServiceCharge = _originalServiceCharge ?? 0.0;
-        final orderDeliveryFee = _originalDeliveryFee ?? 0.0;
-        final orderTotal = orderSubtotal - orderDiscount + orderTax + orderServiceCharge + orderDeliveryFee;
-
-        final order = order_model.Order(
-          id: _existingOrderId!,
-          orderNumber: _existingOrderNumber!,
-          customer: orderCustomer,
-          items: orderItems,
-          subtotal: orderSubtotal,
-          discount: orderDiscount,
-          tax: orderTax,
-          serviceCharge: orderServiceCharge,
-          deliveryFee: orderDeliveryFee,
-          total: orderTotal,
-          orderType: _originalOrderType ?? orderType,
-          status: order_model.OrderStatus.delivered, // Mark as completed
-          paymentMethod: order_model.PaymentMethod.cash, // Default to cash for completed orders
-          paymentStatus: order_model.PaymentStatus.paid, // Mark as paid
-          tableNumber: _selectedTable,
-          platform: _originalPlatform ?? 'POS',
-          notes: _orderNotes.isEmpty ? null : _orderNotes,
-          createdAt: _existingOrderCreatedAt ?? now,
-          updatedAt: now,
-        );
-
-        await orderService.updateOrder(order);
-      } else {
-        // Create new completed order
-        final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
-        displayOrderNumber = orderNumber;
-
-        final order = order_model.Order(
-          id: '',
-          orderNumber: orderNumber,
-          customer: orderCustomer,
-          items: orderItems,
-          subtotal: _totalAmount,
-          discount: _isDiscountPercentage ? (_totalAmount * _discountAmount / 100) : _discountAmount,
-          total: _totalAmount - (_isDiscountPercentage ? (_totalAmount * _discountAmount / 100) : _discountAmount),
-          orderType: orderType,
-          status: order_model.OrderStatus.delivered, // Mark as completed
-          paymentMethod: order_model.PaymentMethod.cash, // Default to cash for completed orders
-          paymentStatus: order_model.PaymentStatus.paid, // Mark as paid
-          tableNumber: _selectedTable,
-          platform: 'POS',
-          notes: _orderNotes.isEmpty ? null : _orderNotes,
-          createdAt: now,
-          updatedAt: now,
-        );
-
-        await orderService.createOrder(order);
-      }
-
-      if (mounted) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Order Completed Successfully!',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Order #$displayOrderNumber has been completed and paid.',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.only(
-              top: 80,
-              left: 10,
-              right: 10,
-            ),
-            action: SnackBarAction(
-              label: 'View Orders',
-              textColor: Colors.white,
-              onPressed: () {
-                context.go('/orders');
-              },
-            ),
-          ),
-        );
-
-        // Clear cart and reset all fields
-        setState(() {
-          _cartItems.clear();
-          _selectedCustomer = null;
-          _selectedTable = null;
-          _orderNotes = '';
-          _orderNotesController.text = '';
-          _customerNameController.text = '';
-          _customerPhoneController.text = '';
-          _discountAmount = 0.0;
-          _isDiscountPercentage = false;
-          _existingOrderId = null;
-          _existingOrderNumber = null;
-          _existingOrderCreatedAt = null;
-          // Clear preserved order details
-          _originalOrderType = null;
-          _originalPlatform = null;
-          _originalPaymentMethod = null;
-          _originalPaymentStatus = null;
-          _originalDiscount = null;
-          _originalTax = null;
-          _originalServiceCharge = null;
-          _originalDeliveryFee = null;
-          // Reset save order mode
-          _isInSaveOrderMode = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error completing order: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   void _showOptionSelectionModal(MenuItem menuItem, List<OptionGroup> optionGroups, {bool skipValidation = false}) {
     // Track selected options for each group
