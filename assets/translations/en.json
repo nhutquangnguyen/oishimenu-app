@@ -187,7 +187,6 @@
     "welcome_back": "Welcome Back",
     "add_item": "Add item",
     "edit_item": "Edit item",
-    "scan_menu": "Scan Menu",
     "inventory_title": "Inventory"
   },
 
@@ -195,12 +194,7 @@
     "restaurant_management_system": "Restaurant Management System",
     "sign_in_to_continue": "Sign in to your account to continue",
     "join_oishimenu": "Join OishiMenu to manage your restaurant",
-    "or_continue_with": "Or continue with",
-    "choose_scan_method": "Choose scan method",
-    "scan_menu_qr": "Scan menu QR codes",
-    "scan_product_barcodes": "Scan product barcodes",
-    "extract_text_from_photos": "Extract text from photos",
-    "scan_menu_documents": "Scan menu documents"
+    "or_continue_with": "Or continue with"
   },
 
   "messages": {
@@ -295,10 +289,7 @@
     "print": "Print",
     "print_receipts": "Print receipts",
     "print_options": "Print options",
-    "app_settings": "App settings"
-  },
-
-  "scan_methods": {
+    "app_settings": "App settings",
     "qr_code": "QR Code",
     "barcode": "Barcode",
     "photo_menu": "Photo Menu",
@@ -429,48 +420,6 @@
     "drag_to_reorder": "Drag to reorder"
   },
 
-  "scan_menu": {
-    "title": "Scan Menu",
-    "choose_scan_method": "Choose scan method",
-    "qr_code": "QR Code",
-    "scan_menu_qr": "Scan menu QR codes",
-    "barcode": "Barcode",
-    "scan_product_barcodes": "Scan product barcodes",
-    "photo_menu": "Photo Menu",
-    "extract_text_from_photos": "Extract text from photos",
-    "document": "Document",
-    "scan_menu_documents": "Scan menu documents",
-    "scanned": "Scanned {type}",
-    "process_data": "Process Data",
-    "clear": "Clear",
-    "extracted_menu_items": "Extracted Menu Items",
-    "items_count": "{count} items",
-    "import_all_items": "Import All Items ({count})",
-    "category": "Category: {category}",
-    "import": "Import",
-    "manual_input": "Manual Input",
-    "paste_menu_data": "Paste menu data or enter manually",
-    "manual_input_placeholder": "Paste menu data here or enter manually...\n\nExample:\nPhở Bò - 65000\nBún Chả - 55000\nBánh Mì - 25000",
-    "process_manual_input": "Process Manual Input",
-    "scanning": "Scanning {type}...",
-    "point_camera": "Point your camera at the target",
-    "edit_functionality_coming_soon": "Edit functionality - Coming soon!",
-    "imported_successfully": "Imported \"{name}\" successfully",
-    "failed_to_import": "Failed to import \"{name}\"",
-    "error_importing": "Error importing \"{name}\": {error}",
-    "import_completed": "Import completed: {success} successful, {error} failed",
-    "help_title": "Scan Menu Help",
-    "scan_methods": "Scan Methods:",
-    "qr_code_help": "• QR Code: Scan QR codes containing menu data",
-    "barcode_help": "• Barcode: Scan product barcodes for inventory",
-    "photo_menu_help": "• Photo Menu: Extract text from menu photos",
-    "document_help": "• Document: Scan printed menu documents",
-    "manual_input_format": "Manual Input Format:",
-    "item_name_price": "Item Name - Price",
-    "example": "Example: Phở Bò - 65000",
-    "categories_with_colons": "Categories can be specified with colons:",
-    "category_example": "Noodles:\nPhở Bò - 65000\nBún Chả - 55000"
-  },
 
   "dashboard": {
     "group_by": "Group by",

@@ -188,7 +188,6 @@
     "welcome_back": "Chào mừng trở lại",
     "add_item": "Thêm món",
     "edit_item": "Chỉnh sửa món",
-    "scan_menu": "Quét menu",
     "inventory_title": "Kho hàng"
   },
 
@@ -197,11 +196,7 @@
     "sign_in_to_continue": "Đăng nhập vào tài khoản để tiếp tục",
     "join_oishimenu": "Tham gia OishiMenu để quản lý nhà hàng của bạn",
     "or_continue_with": "Hoặc tiếp tục với",
-    "choose_scan_method": "Chọn phương thức quét",
-    "scan_menu_qr": "Quét mã QR menu",
-    "scan_product_barcodes": "Quét mã vạch sản phẩm",
-    "extract_text_from_photos": "Trích xuất văn bản từ ảnh",
-    "scan_menu_documents": "Quét tài liệu menu"
+    "extract_text_from_photos": "Trích xuất văn bản từ ảnh"
   },
 
   "messages": {
@@ -296,10 +291,7 @@
     "print": "In",
     "print_receipts": "In hóa đơn",
     "print_options": "Tùy chọn in",
-    "app_settings": "Cài đặt ứng dụng"
-  },
-
-  "scan_methods": {
+    "app_settings": "Cài đặt ứng dụng",
     "qr_code": "Mã QR",
     "barcode": "Mã vạch",
     "photo_menu": "Menu ảnh",
@@ -431,48 +423,6 @@
     "delete_tooltip": "Xóa"
   },
 
-  "scan_menu": {
-    "title": "Quét thực đơn",
-    "choose_scan_method": "Chọn phương thức quét",
-    "qr_code": "Mã QR",
-    "scan_menu_qr": "Quét mã QR thực đơn",
-    "barcode": "Mã vạch",
-    "scan_product_barcodes": "Quét mã vạch sản phẩm",
-    "photo_menu": "Ảnh thực đơn",
-    "extract_text_from_photos": "Trích xuất văn bản từ ảnh",
-    "document": "Tài liệu",
-    "scan_menu_documents": "Quét tài liệu thực đơn",
-    "scanned": "Đã quét {type}",
-    "process_data": "Xử lý dữ liệu",
-    "clear": "Xóa",
-    "extracted_menu_items": "Món ăn đã trích xuất",
-    "items_count": "{count} món",
-    "import_all_items": "Nhập tất cả ({count} món)",
-    "category": "Danh mục: {category}",
-    "import": "Nhập",
-    "manual_input": "Nhập thủ công",
-    "paste_menu_data": "Dán dữ liệu thực đơn hoặc nhập thủ công",
-    "manual_input_placeholder": "Dán dữ liệu thực đơn vào đây hoặc nhập thủ công...\n\nVí dụ:\nPhở Bò - 65000\nBún Chả - 55000\nBánh Mì - 25000",
-    "process_manual_input": "Xử lý nhập liệu thủ công",
-    "scanning": "Đang quét {type}...",
-    "point_camera": "Hướng camera vào mục tiêu",
-    "edit_functionality_coming_soon": "Tính năng chỉnh sửa - Sắp ra mắt!",
-    "imported_successfully": "Đã nhập \"{name}\" thành công",
-    "failed_to_import": "Không thể nhập \"{name}\"",
-    "error_importing": "Lỗi nhập \"{name}\": {error}",
-    "import_completed": "Hoàn thành nhập: {success} thành công, {error} thất bại",
-    "help_title": "Trợ giúp quét thực đơn",
-    "scan_methods": "Phương thức quét:",
-    "qr_code_help": "• Mã QR: Quét mã QR chứa dữ liệu thực đơn",
-    "barcode_help": "• Mã vạch: Quét mã vạch sản phẩm cho kho hàng",
-    "photo_menu_help": "• Ảnh thực đơn: Trích xuất văn bản từ ảnh thực đơn",
-    "document_help": "• Tài liệu: Quét tài liệu thực đơn in",
-    "manual_input_format": "Định dạng nhập thủ công:",
-    "item_name_price": "Tên món - Giá",
-    "example": "Ví dụ: Phở Bò - 65000",
-    "categories_with_colons": "Danh mục có thể được chỉ định bằng dấu hai chấm:",
-    "category_example": "Món nước:\nPhở Bò - 65000\nBún Chả - 55000"
-  },
 
   "dashboard": {
     "group_by": "Nhóm theo",
