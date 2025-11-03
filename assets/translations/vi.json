@@ -608,6 +608,7 @@
     "status_ready": "Sẵn sàng",
     "status_delivered": "Hoàn thành",
     "status_cancelled": "Đã hủy",
+    "time_just_now": "vừa xong",
     "time_minutes_ago": "{minutes} phút trước",
     "time_hours_ago": "{hours} giờ trước",
     "time_days_ago": "{days} ngày trước",

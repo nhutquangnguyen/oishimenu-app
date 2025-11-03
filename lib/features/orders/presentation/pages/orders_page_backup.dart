@@ -1059,9 +1059,25 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
 
   String _formatTime(DateTime dateTime) {
     final now = DateTime.now();
-    final diff = now.difference(dateTime);
 
-    if (diff.inMinutes < 60) {
+    // Ensure both timestamps are in local timezone for accurate comparison
+    final orderTimeLocal = dateTime.isUtc ? dateTime.toLocal() : dateTime;
+    final diff = now.difference(orderTimeLocal);
+
+    // Handle negative differences (future dates due to timezone issues)
+    if (diff.isNegative) {
+      return 'orders_page.time_just_now'.tr();
+    }
+
+    // Handle very old orders (show full date instead of relative time)
+    if (diff.inDays > 7) {
+      return _formatDateTime(orderTimeLocal);
+    }
+
+    // Relative time formatting
+    if (diff.inSeconds < 60) {
+      return 'orders_page.time_just_now'.tr();
+    } else if (diff.inMinutes < 60) {
       return 'orders_page.time_minutes_ago'.tr(namedArgs: {'minutes': diff.inMinutes.toString()});
     } else if (diff.inHours < 24) {
       return 'orders_page.time_hours_ago'.tr(namedArgs: {'hours': diff.inHours.toString()});

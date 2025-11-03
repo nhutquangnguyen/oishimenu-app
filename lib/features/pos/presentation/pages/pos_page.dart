@@ -1574,7 +1574,8 @@ class _PosPageState extends ConsumerState<PosPage> {
     }
 
     try {
-      final now = DateTime.now();
+      final now = DateTime.now().toUtc(); // Store in UTC to avoid timezone issues
+      print('🔍 DEBUG ORDER CREATION - DateTime.now().toUtc(): $now (${now.timeZoneName})');
 
       // Convert cart items to order items
       final orderItems = _cartItems.map((cartItem) {

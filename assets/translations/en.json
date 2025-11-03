@@ -605,6 +605,7 @@
     "status_ready": "Ready",
     "status_delivered": "Delivered",
     "status_cancelled": "Cancelled",
+    "time_just_now": "just now",
     "time_minutes_ago": "{minutes} minutes ago",
     "time_hours_ago": "{hours} hours ago",
     "time_days_ago": "{days} days ago",

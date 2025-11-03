@@ -227,12 +227,15 @@ class Order {
 
     if (value is String) {
       try {
-        return DateTime.parse(value).toLocal(); // Convert UTC to local time
+        // Parse ISO string - DateTime.parse() handles UTC correctly
+        final parsed = DateTime.parse(value);
+        return parsed.isUtc ? parsed.toLocal() : parsed;
       } catch (e) {
         return DateTime.now();
       }
     } else if (value is int) {
-      return DateTime.fromMillisecondsSinceEpoch(value);
+      // For integer timestamps, assume they are stored as UTC milliseconds
+      return DateTime.fromMillisecondsSinceEpoch(value, isUtc: true).toLocal();
     }
 
     return DateTime.now(); // Default fallback
@@ -256,8 +259,8 @@ class Order {
       'platform': platform,
       'assigned_staff_id': assignedStaff?.isEmpty == true ? null : _parseIdForDatabase(assignedStaff ?? ''),
       'notes': notes,
-      'created_at': createdAt.millisecondsSinceEpoch,
-      'updated_at': updatedAt.millisecondsSinceEpoch,
+      'created_at': createdAt.toUtc().millisecondsSinceEpoch, // Store UTC as milliseconds
+      'updated_at': updatedAt.toUtc().millisecondsSinceEpoch, // Store UTC as milliseconds
     };
   }
 

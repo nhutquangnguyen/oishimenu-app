@@ -925,14 +925,35 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
 
   String _formatTime(DateTime dateTime) {
     final now = DateTime.now();
-    final diff = now.difference(dateTime);
 
-    if (diff.inMinutes < 60) {
+    // TIMEZONE FIX: If the parsed timestamp appears to be in the future due to timezone issues,
+    // adjust it by subtracting 7 hours to match local timezone reality
+    var adjustedDateTime = dateTime;
+    var diff = now.difference(adjustedDateTime);
+
+    // If time difference is negative (future) and more than 1 minute, assume timezone issue
+    if (diff.isNegative && diff.inMinutes.abs() > 1) {
+      // Adjust by subtracting 7 hours (UTC+7 timezone offset)
+      adjustedDateTime = dateTime.subtract(const Duration(hours: 7));
+      diff = now.difference(adjustedDateTime);
+    }
+
+    // Show debugging for negative values (now should be rare)
+    if (diff.isNegative) {
+      return '${diff.inMinutes}min ago (STILL NEG)';
+    }
+
+    // Standard relative time formatting
+    if (diff.inSeconds < 60) {
+      return 'orders_page.time_just_now'.tr();
+    } else if (diff.inMinutes < 60) {
       return 'orders_page.time_minutes_ago'.tr(namedArgs: {'minutes': diff.inMinutes.toString()});
     } else if (diff.inHours < 24) {
       return 'orders_page.time_hours_ago'.tr(namedArgs: {'hours': diff.inHours.toString()});
-    } else {
+    } else if (diff.inDays < 7) {
       return 'orders_page.time_days_ago'.tr(namedArgs: {'days': diff.inDays.toString()});
+    } else {
+      return _formatDateTime(adjustedDateTime);
     }
   }
 
