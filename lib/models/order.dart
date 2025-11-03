@@ -227,7 +227,7 @@ class Order {
 
     if (value is String) {
       try {
-        return DateTime.parse(value);
+        return DateTime.parse(value).toLocal(); // Convert UTC to local time
       } catch (e) {
         return DateTime.now();
       }
