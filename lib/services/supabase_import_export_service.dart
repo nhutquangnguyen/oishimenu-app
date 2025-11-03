@@ -252,7 +252,7 @@ class SupabaseImportExportService extends SupabaseService {
         'total': order.total,
         'status': order.status.toString(),
         'payment_status': order.paymentStatus.toString(),
-        'payment_method': order.paymentMethod.toString(),
+        'payment_method': 'exported', // Note: Payment methods now stored in order_payments table
         'order_type': order.orderType.toString(),
         'platform': order.platform,
         'items': order.items.map((item) => {

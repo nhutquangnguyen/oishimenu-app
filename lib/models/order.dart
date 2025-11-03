@@ -41,8 +41,9 @@ enum PaymentMethod {
   none('none'),
   cash('cash'),
   card('card'),
-  digitalWallet('digital_wallet'),
-  bankTransfer('bank_transfer');
+  mobilePayment('mobile_payment'), // Updated from digitalWallet for consistency
+  bankTransfer('bank_transfer'),
+  other('other'); // Added other option
 
   const PaymentMethod(this.value);
   final String value;
@@ -58,13 +59,49 @@ enum PaymentMethod {
       orElse: () => PaymentMethod.none,
     );
   }
+
+  // Add display properties for consistency with new PaymentMethodType
+  String get displayName {
+    switch (this) {
+      case PaymentMethod.none:
+        return 'Not Set';
+      case PaymentMethod.cash:
+        return 'Cash';
+      case PaymentMethod.card:
+        return 'Card';
+      case PaymentMethod.mobilePayment:
+        return 'Mobile Payment';
+      case PaymentMethod.bankTransfer:
+        return 'Bank Transfer';
+      case PaymentMethod.other:
+        return 'Other';
+    }
+  }
+
+  String get icon {
+    switch (this) {
+      case PaymentMethod.none:
+        return '❓';
+      case PaymentMethod.cash:
+        return '💵';
+      case PaymentMethod.card:
+        return '💳';
+      case PaymentMethod.mobilePayment:
+        return '📱';
+      case PaymentMethod.bankTransfer:
+        return '🏦';
+      case PaymentMethod.other:
+        return '💰';
+    }
+  }
 }
 
 enum PaymentStatus {
   pending('PENDING'),
   paid('PAID'),
   failed('FAILED'),
-  refunded('REFUNDED');
+  refunded('REFUNDED'),
+  partiallyPaid('PARTIALLY_PAID'); // Added partial payment status
 
   const PaymentStatus(this.value);
   final String value;
@@ -74,6 +111,37 @@ enum PaymentStatus {
       (status) => status.value.toLowerCase() == value.toLowerCase(),
       orElse: () => PaymentStatus.pending,
     );
+  }
+
+  // Add display properties for UI consistency
+  String get displayName {
+    switch (this) {
+      case PaymentStatus.pending:
+        return 'Pending';
+      case PaymentStatus.paid:
+        return 'Paid';
+      case PaymentStatus.failed:
+        return 'Failed';
+      case PaymentStatus.refunded:
+        return 'Refunded';
+      case PaymentStatus.partiallyPaid:
+        return 'Partially Paid';
+    }
+  }
+
+  String get icon {
+    switch (this) {
+      case PaymentStatus.pending:
+        return '⏳';
+      case PaymentStatus.paid:
+        return '✅';
+      case PaymentStatus.failed:
+        return '❌';
+      case PaymentStatus.refunded:
+        return '↩️';
+      case PaymentStatus.partiallyPaid:
+        return '⏸️';
+    }
   }
 }
 
@@ -90,7 +158,6 @@ class Order {
   final double total;
   final OrderType orderType;
   final OrderStatus status;
-  final PaymentMethod paymentMethod;
   final PaymentStatus paymentStatus;
   final DeliveryInfo? deliveryInfo;
   final String? tableNumber;
@@ -113,7 +180,6 @@ class Order {
     required this.total,
     required this.orderType,
     required this.status,
-    required this.paymentMethod,
     required this.paymentStatus,
     this.deliveryInfo,
     this.tableNumber,
@@ -144,7 +210,6 @@ class Order {
       total: (map['total'] ?? 0).toDouble(),
       orderType: OrderType.fromString(map['order_type'] ?? 'DINE_IN'),
       status: OrderStatus.fromString(map['status'] ?? 'PENDING'),
-      paymentMethod: map['payment_method'] == null ? PaymentMethod.none : PaymentMethod.fromString(map['payment_method']),
       paymentStatus: PaymentStatus.fromString(map['payment_status'] ?? 'PENDING'),
       deliveryInfo: null, // Will be handled separately if needed
       tableNumber: stringFromDynamic(map['table_number']),
@@ -186,7 +251,6 @@ class Order {
       'total': total,
       'order_type': orderType.value,
       'status': status.value,
-      'payment_method': paymentMethod == PaymentMethod.none ? null : paymentMethod.value,
       'payment_status': paymentStatus.value,
       'table_number': tableNumber,
       'platform': platform,
@@ -223,7 +287,6 @@ class Order {
     double? total,
     OrderType? orderType,
     OrderStatus? status,
-    PaymentMethod? paymentMethod,
     PaymentStatus? paymentStatus,
     DeliveryInfo? deliveryInfo,
     String? tableNumber,
@@ -246,7 +309,6 @@ class Order {
       total: total ?? this.total,
       orderType: orderType ?? this.orderType,
       status: status ?? this.status,
-      paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       deliveryInfo: deliveryInfo ?? this.deliveryInfo,
       tableNumber: tableNumber ?? this.tableNumber,

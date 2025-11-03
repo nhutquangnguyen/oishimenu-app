@@ -1017,7 +1017,6 @@ class AutomatedTestService {
             total: testMenuItem.price,
             orderType: OrderType.dineIn,
             status: OrderStatus.pending,
-            paymentMethod: PaymentMethod.cash,
             paymentStatus: PaymentStatus.pending,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
@@ -1092,7 +1091,6 @@ class AutomatedTestService {
             total: testMenuItem.price,
             orderType: OrderType.dineIn,
             status: OrderStatus.preparing, // Set to PREPARING status
-            paymentMethod: PaymentMethod.cash,
             paymentStatus: PaymentStatus.pending,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
@@ -1191,7 +1189,6 @@ class AutomatedTestService {
             total: total,
             orderType: OrderType.dineIn,
             status: OrderStatus.pending, // PENDING status
-            paymentMethod: PaymentMethod.none, // No payment method selected yet
             paymentStatus: PaymentStatus.pending,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
@@ -1216,9 +1213,7 @@ class AutomatedTestService {
             return TestResult.failed('DATA_007', 'Order status mismatch: expected PENDING, got ${savedOrder.status.value}');
           }
 
-          if (savedOrder.paymentMethod != PaymentMethod.none) {
-            return TestResult.failed('DATA_007', 'Payment method should be none: got ${savedOrder.paymentMethod.value}');
-          }
+          // Note: Payment method validation removed as it's now handled via order_payments table
 
           return TestResult.passed('DATA_007', 'Order creation to save workflow completed successfully - Order ID: $orderId with ${orderItems.length} items');
         } catch (e) {
@@ -1314,7 +1309,6 @@ class AutomatedTestService {
             total: testMenuItem.price,
             orderType: OrderType.dineIn,
             status: OrderStatus.pending,
-            paymentMethod: PaymentMethod.none,
             paymentStatus: PaymentStatus.pending,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),

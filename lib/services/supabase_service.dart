@@ -2524,11 +2524,10 @@ class SupabaseOrderService extends SupabaseService {
   }
 
   /// Validate that payment method is set for an order object
+  /// Note: Payment method validation is now handled by the payment service
   void _validatePaymentMethodForOrder(Order order) {
-    // Check if payment method is missing or set to 'none'
-    if (order.paymentMethod == PaymentMethod.none) {
-      throw Exception('Payment method required');
-    }
+    // Payment method validation is now handled via order_payments table
+    // This method is kept for compatibility but does nothing
   }
 
   /// Update payment status

@@ -6,6 +6,9 @@ import '../../../../models/menu_item.dart';
 import '../../../../models/menu_options.dart';
 import '../../../../models/customer.dart';
 import '../../../../models/order.dart' as order_model;
+import '../../../../models/payment_method.dart';
+import '../../../../services/transaction_service.dart';
+import '../../../../services/order_payment_helper.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../../core/providers/supabase_providers.dart';
 import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
@@ -67,6 +70,8 @@ class _PosPageState extends ConsumerState<PosPage> {
   // UI state
   double _discountAmount = 0.0;
   bool _isDiscountPercentage = false;
+  order_model.PaymentMethod _selectedPaymentMethod = order_model.PaymentMethod.none;
+  bool _isPaymentEnabled = false;
 
   // Track if we're editing an existing order
   String? _existingOrderId;
@@ -82,7 +87,95 @@ class _PosPageState extends ConsumerState<PosPage> {
     _orderNotesController = TextEditingController(text: _orderNotes);
     _customerNameController = TextEditingController();
     _customerPhoneController = TextEditingController();
+
+    // Load existing order data if editing an order
+    if (widget.existingOrder != null) {
+      _loadExistingOrderData();
+    }
+
     _loadMenuData();
+  }
+
+  void _loadExistingOrderData() {
+    final order = widget.existingOrder!;
+
+    setState(() {
+      // Load basic order info
+      _existingOrderId = order.id;
+      _existingOrderNumber = order.orderNumber;
+      _existingOrderCreatedAt = order.createdAt;
+
+      // Load payment method from order_payments table
+      _loadPaymentMethodForOrder(order.id);
+
+      // Load order notes
+      _orderNotes = order.notes ?? '';
+      _orderNotesController.text = _orderNotes;
+
+      // Load customer information
+      if (order.customer.name.isNotEmpty) {
+        _customerNameController.text = order.customer.name;
+      }
+      if (order.customer.phone != null) {
+        _customerPhoneController.text = order.customer.phone!;
+      }
+
+      // Convert order.Customer to customer.Customer
+      _selectedCustomer = Customer(
+        id: order.customer.id,
+        name: order.customer.name,
+        phone: order.customer.phone,
+        email: order.customer.email,
+        address: order.customer.address,
+        createdAt: order.customer.createdAt ?? DateTime.now(),
+        updatedAt: order.customer.updatedAt ?? DateTime.now(),
+      );
+
+      // Load table information
+      _selectedTable = order.tableNumber;
+
+      // Load discount information
+      _discountAmount = order.discount;
+      // Note: We don't know if discount was percentage or fixed from the order data
+      // This could be enhanced by storing discount type in the order model
+
+      // Load order items into cart
+      _cartItems = order.items.map((orderItem) {
+        // Convert order item selected options back to menu options format
+        final selectedOptions = orderItem.selectedOptions.map((selectedOpt) {
+          return SelectedOption(
+            optionGroupId: selectedOpt.optionGroupId,
+            optionGroupName: selectedOpt.optionGroupName,
+            optionId: selectedOpt.optionId,
+            optionName: selectedOpt.optionName,
+            optionPrice: selectedOpt.price,
+          );
+        }).toList();
+
+        // Create a simplified MenuItem from the order item data
+        final menuItem = MenuItem(
+          id: orderItem.menuItemId,
+          name: orderItem.menuItemName,
+          price: orderItem.basePrice,
+          categoryName: '', // Default category name
+          description: '',
+          photos: const [],
+          availableStatus: true,
+          sizes: const [],
+          recipes: const [],
+          displayOrder: 0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        return CartItem(
+          menuItem: menuItem,
+          quantity: orderItem.quantity,
+          selectedOptions: selectedOptions,
+          notes: orderItem.notes,
+        );
+      }).toList();
+    });
   }
 
   @override
@@ -112,9 +205,9 @@ class _PosPageState extends ConsumerState<PosPage> {
 
       // Load existing order if provided
       if (widget.existingOrder != null) {
-        _loadExistingOrder(widget.existingOrder!);
+        await _loadExistingOrder(widget.existingOrder!);
         // Show editing indicator and smoothly transition to cart
-        _showEditingTransition();
+        await _showEditingTransition();
       }
     } catch (e) {
       setState(() {
@@ -127,14 +220,13 @@ class _PosPageState extends ConsumerState<PosPage> {
   // Store additional order details to preserve when saving
   order_model.OrderType? _originalOrderType;
   String? _originalPlatform;
-  order_model.PaymentMethod? _originalPaymentMethod;
   order_model.PaymentStatus? _originalPaymentStatus;
   double? _originalDiscount;
   double? _originalTax;
   double? _originalServiceCharge;
   double? _originalDeliveryFee;
 
-  void _loadExistingOrder(order_model.Order order) {
+  Future<void> _loadExistingOrder(order_model.Order order) async {
     // Convert order items to cart items
     final cartItems = <CartItem>[];
 
@@ -199,20 +291,72 @@ class _PosPageState extends ConsumerState<PosPage> {
       // Preserve original order details for saving
       _originalOrderType = order.orderType;
       _originalPlatform = order.platform;
-      _originalPaymentMethod = order.paymentMethod;
       _originalPaymentStatus = order.paymentStatus;
       _originalDiscount = order.discount;
       _originalTax = order.tax;
       _originalServiceCharge = order.serviceCharge;
       _originalDeliveryFee = order.deliveryFee;
     });
+
+    // Load payment method and status after setting up the order
+    await _loadPaymentMethodForOrder(order.id);
   }
 
-  void _showEditingTransition() {
-    // Open cart immediately after order loads with minimal delay
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  // Load payment method from order_payments table
+  Future<void> _loadPaymentMethodForOrder(String orderId) async {
+    try {
+      print('🔍 DEBUG POS - Looking for payments for order: $orderId');
+      final primaryPaymentMethod = await OrderPaymentHelper.getPrimaryPaymentMethod(orderId);
+      final hasPayments = await OrderPaymentHelper.hasPayments(orderId);
+      print('🔍 DEBUG POS - Primary payment method found: $primaryPaymentMethod');
+      print('🔍 DEBUG POS - Has successful payments: $hasPayments');
+
+      setState(() {
+        // Set payment enabled status based on whether there are successful payments
+        _isPaymentEnabled = hasPayments;
+        print('🔍 DEBUG POS - Setting _isPaymentEnabled = $hasPayments');
+
+        if (primaryPaymentMethod != null) {
+          // Convert PaymentMethodType to legacy PaymentMethod for UI compatibility
+          switch (primaryPaymentMethod) {
+            case PaymentMethodType.cash:
+              _selectedPaymentMethod = order_model.PaymentMethod.cash;
+              break;
+            case PaymentMethodType.card:
+              _selectedPaymentMethod = order_model.PaymentMethod.card;
+              break;
+            case PaymentMethodType.mobilePayment:
+              _selectedPaymentMethod = order_model.PaymentMethod.mobilePayment;
+              break;
+            case PaymentMethodType.bankTransfer:
+              _selectedPaymentMethod = order_model.PaymentMethod.bankTransfer;
+              break;
+            case PaymentMethodType.other:
+              _selectedPaymentMethod = order_model.PaymentMethod.other;
+              break;
+          }
+          print('🔍 DEBUG POS - Payment method set to: $_selectedPaymentMethod');
+        } else if (!hasPayments) {
+          // No payments found, reset to none so auto-selection can work
+          _selectedPaymentMethod = order_model.PaymentMethod.none;
+          print('🔍 DEBUG POS - No payment method found, setting to none');
+        }
+      });
+    } catch (e) {
+      print('🔍 DEBUG POS - Error loading payment method: $e');
+    }
+  }
+
+  Future<void> _showEditingTransition() async {
+    // Wait for payment loading to complete, then open cart
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted && _cartItems.isNotEmpty) {
-        _showCartBottomSheet();
+        // Add small delay to ensure payment status is fully loaded
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (mounted) {
+          print('🔍 DEBUG Transition - Opening cart with _isPaymentEnabled: $_isPaymentEnabled');
+          _showCartBottomSheet();
+        }
       }
     });
   }
@@ -694,7 +838,9 @@ class _PosPageState extends ConsumerState<PosPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, modalSetState) => Container(
+        builder: (context, modalSetState) {
+          print('🔍 DEBUG Modal - Opening cart with _isPaymentEnabled: $_isPaymentEnabled');
+          return Container(
           height: MediaQuery.of(context).size.height * 0.85,
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -934,7 +1080,12 @@ class _PosPageState extends ConsumerState<PosPage> {
 
                       const SizedBox(height: 8),
 
-                      // 4. DISCOUNT SECTION (With percentage option)
+                      // 4. PAYMENT METHOD SELECTION (Compact)
+                      _buildCompactPaymentMethodSection(modalSetState),
+
+                      const SizedBox(height: 8),
+
+                      // 5. DISCOUNT SECTION (With percentage option)
                       _buildCompactDiscountSection(modalSetState),
 
                       const SizedBox(height: 20), // Extra bottom padding for scroll
@@ -970,7 +1121,8 @@ class _PosPageState extends ConsumerState<PosPage> {
               ),
             ],
           ),
-        ),
+        );
+        },
       ),
     );
   }
@@ -1169,6 +1321,123 @@ class _PosPageState extends ConsumerState<PosPage> {
     );
   }
 
+  Widget _buildCompactPaymentMethodSection(StateSetter modalSetState) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.payment, color: Colors.green[600], size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Payment Method',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+              ),
+              const Spacer(),
+              // Toggle for enabling payment
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Mark as Paid',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(width: 4),
+                  Transform.scale(
+                    scale: 0.8,
+                    child: Switch(
+                      value: _isPaymentEnabled,
+                      onChanged: (value) {
+                        print('🔍 DEBUG Modal - Toggle changed from $_isPaymentEnabled to $value');
+                        modalSetState(() {
+                          _isPaymentEnabled = value;
+                        });
+                      },
+                      activeTrackColor: Colors.green[600],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Payment method selection (only show when payment is enabled)
+          if (_isPaymentEnabled)
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: order_model.PaymentMethod.values
+                  .where((method) => method != order_model.PaymentMethod.none)
+                  .map((method) {
+                final isSelected = _selectedPaymentMethod == method;
+                return InkWell(
+                  onTap: () {
+                    modalSetState(() {
+                      _selectedPaymentMethod = method;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.green[600]!
+                            : Colors.grey.shade300,
+                        width: isSelected ? 2 : 1,
+                      ),
+                      color: isSelected
+                          ? Colors.green[600]!.withValues(alpha: 0.1)
+                          : Colors.white,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          method.icon,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          method.displayName,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            color: isSelected
+                                ? Colors.green[600]
+                                : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          // Show hint when payment is enabled but no method selected
+          if (_isPaymentEnabled && _selectedPaymentMethod == order_model.PaymentMethod.none)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Please select a payment method',
+                style: TextStyle(
+                  color: Colors.red[600],
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTotalSection() {
     final subtotal = _totalAmount;
 
@@ -1256,15 +1525,6 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   Future<void> _saveOrder() async {
-    final orderService = ref.read(supabaseOrderServiceProvider);
-    // Enable save order mode (skip validations)
-    setState(() {
-      _isInSaveOrderMode = true;
-    });
-
-    // Close the cart bottom sheet
-    Navigator.pop(context);
-
     // Save order validation: only check if cart has items, allow other fields to be empty
     if (_cartItems.isEmpty) {
       ErrorMessages.showErrorSnackbar(
@@ -1272,10 +1532,45 @@ class _PosPageState extends ConsumerState<PosPage> {
         'Empty cart',
         customMessage: ErrorMessages.emptyCartError,
       );
-      setState(() {
-        _isInSaveOrderMode = false;
-      });
       return;
+    }
+
+    // Validate payment method selection when payment is enabled
+    if (_isPaymentEnabled && _selectedPaymentMethod == order_model.PaymentMethod.none) {
+      ErrorMessages.showErrorSnackbar(
+        context,
+        'Payment method required',
+        customMessage: 'Please select a payment method when marking order as paid',
+      );
+      return;
+    }
+
+    // Always save the selected payment method, but only mark as paid if payment is enabled
+    final selectedPaymentMethod = _selectedPaymentMethod;
+    final paidAmount = _isPaymentEnabled ? _totalAmount - (_isDiscountPercentage ? (_totalAmount * _discountAmount / 100) : _discountAmount) : null;
+
+    // Directly call the save order method with the selected payment info
+    await _performSaveOrder(
+      selectedPaymentMethod: selectedPaymentMethod,
+      paidAmount: paidAmount,
+    );
+  }
+
+
+  Future<void> _performSaveOrder({
+    order_model.PaymentMethod? selectedPaymentMethod,
+    double? paidAmount,
+  }) async {
+    final orderService = ref.read(supabaseOrderServiceProvider);
+
+    // Enable save order mode (skip validations)
+    setState(() {
+      _isInSaveOrderMode = true;
+    });
+
+    // Close the cart bottom sheet if it's still open
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
     }
 
     try {
@@ -1360,8 +1655,9 @@ class _PosPageState extends ConsumerState<PosPage> {
           total: orderTotal,
           orderType: _originalOrderType ?? orderType, // Preserve original order type
           status: order_model.OrderStatus.pending, // Keep as pending for active orders
-          paymentMethod: _originalPaymentMethod ?? order_model.PaymentMethod.none, // Preserve original payment method
-          paymentStatus: _originalPaymentStatus ?? order_model.PaymentStatus.pending, // Preserve original payment status
+          paymentStatus: (paidAmount != null && paidAmount > 0)
+              ? order_model.PaymentStatus.paid
+              : _originalPaymentStatus ?? order_model.PaymentStatus.pending,
           tableNumber: _selectedTable,
           platform: _originalPlatform ?? 'POS', // Preserve original platform
           notes: _orderNotesController.text.trim().isEmpty ? null : _orderNotesController.text.trim(),
@@ -1370,6 +1666,18 @@ class _PosPageState extends ConsumerState<PosPage> {
         );
 
         await orderService.updateOrder(order);
+
+        // Handle payment record creation/updating based on payment toggle
+        print('🔍 DEBUG Payment - paidAmount: $paidAmount, selectedPaymentMethod: $selectedPaymentMethod, isPaymentEnabled: $_isPaymentEnabled');
+        if (paidAmount != null && paidAmount > 0 && selectedPaymentMethod != null) {
+          print('🔍 DEBUG Payment - Creating payment record for existing order');
+          await _createPaymentRecord(_existingOrderId!, selectedPaymentMethod, paidAmount, order.total);
+        } else if (!_isPaymentEnabled) {
+          print('🔍 DEBUG Payment - Payment toggle is OFF, marking payments as pending');
+          await _handlePaymentToggleOff(_existingOrderId!);
+        } else {
+          print('🔍 DEBUG Payment - No payment record created for existing order (conditions not met)');
+        }
       } else {
         // Create new order
         final orderNumber = 'ORD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour}${now.minute}${now.second}';
@@ -1385,8 +1693,9 @@ class _PosPageState extends ConsumerState<PosPage> {
           total: _totalAmount - (_isDiscountPercentage ? (_totalAmount * _discountAmount / 100) : _discountAmount),
           orderType: orderType,
           status: order_model.OrderStatus.pending,
-          paymentMethod: order_model.PaymentMethod.none,
-          paymentStatus: order_model.PaymentStatus.pending,
+          paymentStatus: (paidAmount != null && paidAmount > 0)
+              ? order_model.PaymentStatus.paid
+              : order_model.PaymentStatus.pending,
           tableNumber: _selectedTable,
           platform: 'POS',
           notes: _orderNotes.isEmpty ? null : _orderNotes,
@@ -1394,7 +1703,16 @@ class _PosPageState extends ConsumerState<PosPage> {
           updatedAt: now,
         );
 
-        await orderService.createOrder(order);
+        final createdOrderId = await orderService.createOrder(order);
+
+        // Create payment record if payment was made
+        print('🔍 DEBUG Payment - paidAmount: $paidAmount, selectedPaymentMethod: $selectedPaymentMethod');
+        if (paidAmount != null && paidAmount > 0 && selectedPaymentMethod != null) {
+          print('🔍 DEBUG Payment - Creating payment record for new order');
+          await _createPaymentRecord(createdOrderId, selectedPaymentMethod, paidAmount, order.total);
+        } else {
+          print('🔍 DEBUG Payment - No payment record created for new order (conditions not met)');
+        }
 
         // 🚀 INSTANT BADGE UPDATE: Increment active order count immediately
         ref.read(activeOrdersCountProvider.notifier).incrementCount();
@@ -1492,6 +1810,122 @@ class _PosPageState extends ConsumerState<PosPage> {
     }
   }
 
+  Future<void> _createPaymentRecord(String orderId, order_model.PaymentMethod paymentMethod, double amount, double totalAmount) async {
+    try {
+      print('🔍 DEBUG Payment Record - Processing payment: orderId=$orderId, method=$paymentMethod, amount=$amount');
+      final transactionService = TransactionService();
+
+      // Convert order model PaymentMethod to payment model PaymentMethodType
+      PaymentMethodType paymentMethodType;
+      switch (paymentMethod) {
+        case order_model.PaymentMethod.cash:
+          paymentMethodType = PaymentMethodType.cash;
+          break;
+        case order_model.PaymentMethod.card:
+          paymentMethodType = PaymentMethodType.card;
+          break;
+        case order_model.PaymentMethod.mobilePayment:
+          paymentMethodType = PaymentMethodType.mobilePayment;
+          break;
+        case order_model.PaymentMethod.bankTransfer:
+          paymentMethodType = PaymentMethodType.bankTransfer;
+          break;
+        default:
+          paymentMethodType = PaymentMethodType.cash;
+      }
+
+      // Check if we're editing an existing order and have existing payments
+      if (_existingOrderId != null) {
+        final existingPayments = await transactionService.getPaymentsForOrder(orderId);
+        print('🔍 DEBUG Payment Record - Found ${existingPayments.length} existing payments');
+
+        if (existingPayments.isNotEmpty) {
+          // Update the most recent payment instead of creating a new one
+          final mostRecentPayment = existingPayments.first; // getPaymentsForOrder returns in descending order by created_at
+          print('🔍 DEBUG Payment Record - Updating existing payment: ${mostRecentPayment.id}');
+
+          await transactionService.updateTransaction(
+            mostRecentPayment.id,
+            paymentMethod: paymentMethodType,
+            paymentStatus: order_model.PaymentStatus.paid,
+            amount: amount,
+            notes: 'Payment updated via POS',
+            transactionTime: DateTime.now(),
+          );
+        } else {
+          // No existing payments, create new one
+          print('🔍 DEBUG Payment Record - Creating new payment for existing order');
+          await transactionService.createOrderPayment(
+            orderId: orderId,
+            paymentMethod: paymentMethodType,
+            amountPaid: amount,
+            totalAmount: totalAmount,
+            paymentStatus: order_model.PaymentStatus.paid,
+            notes: 'Payment made via POS',
+          );
+        }
+      } else {
+        // New order, create new payment record
+        print('🔍 DEBUG Payment Record - Creating new payment for new order');
+        await transactionService.createOrderPayment(
+          orderId: orderId,
+          paymentMethod: paymentMethodType,
+          amountPaid: amount,
+          totalAmount: totalAmount,
+          paymentStatus: order_model.PaymentStatus.paid,
+          notes: 'Payment made via POS',
+        );
+      }
+
+      // Update order payment status to reflect the payment changes
+      await transactionService.updateOrderPaymentStatus(orderId);
+
+      // Refresh UI state to reflect the payment changes
+      if (mounted) {
+        setState(() {
+          _isPaymentEnabled = true; // Payment was just processed successfully
+        });
+        print('🔍 DEBUG Payment Record - UI state updated: _isPaymentEnabled = true');
+      }
+    } catch (e) {
+      // Log error but don't break the order saving flow
+      debugPrint('Error processing payment record: $e');
+    }
+  }
+
+  /// Handle when payment toggle is turned OFF - mark existing payments as pending
+  Future<void> _handlePaymentToggleOff(String orderId) async {
+    try {
+      print('🔍 DEBUG Payment Toggle OFF - Processing order: $orderId');
+      final transactionService = TransactionService();
+      final existingPayments = await transactionService.getPaymentsForOrder(orderId);
+
+      // Update all existing paid payments to pending status
+      for (final payment in existingPayments) {
+        if (payment.paymentStatus == order_model.PaymentStatus.paid) {
+          print('🔍 DEBUG Payment Toggle OFF - Updating payment ${payment.id} to pending');
+          await transactionService.updateTransaction(
+            payment.id,
+            paymentStatus: order_model.PaymentStatus.pending,
+            notes: 'Payment status changed to pending via POS',
+          );
+        }
+      }
+
+      // Update order payment status
+      await transactionService.updateOrderPaymentStatus(orderId);
+
+      // Update UI state
+      if (mounted) {
+        setState(() {
+          _isPaymentEnabled = false;
+        });
+        print('🔍 DEBUG Payment Toggle OFF - UI state updated: _isPaymentEnabled = false');
+      }
+    } catch (e) {
+      debugPrint('Error handling payment toggle off: $e');
+    }
+  }
 
   void _showOptionSelectionModal(MenuItem menuItem, List<OptionGroup> optionGroups, {bool skipValidation = false}) {
     // Track selected options for each group

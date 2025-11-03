@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../services/supabase_service.dart';
+import '../../../../services/transaction_service.dart';
+import '../../../../models/payment_method.dart';
+import '../../../../models/transaction.dart';
 import '../../../../core/utils/error_messages.dart';
 
 // Enums for filtering
@@ -42,6 +45,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
   Set<String> _recentlyAddedEntries = {};
 
   final _financeService = SupabaseFinanceService();
+  final _transactionService = TransactionService();
   final _searchController = TextEditingController();
 
   @override
@@ -1202,6 +1206,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
     String selectedCategory = 'finance_page.category_sales'.tr();
+    PaymentMethodType? selectedPaymentMethod;
 
     showDialog(
       context: context,
@@ -1264,6 +1269,40 @@ class _FinancePageState extends ConsumerState<FinancePage>
                   selectedCategory = value!;
                 },
               ),
+              const SizedBox(height: 16),
+
+              // Payment method dropdown
+              Text(
+                'Payment Method',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<PaymentMethodType>(
+                initialValue: selectedPaymentMethod,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Select payment method',
+                ),
+                items: PaymentMethodType.values.map((method) => DropdownMenuItem(
+                  value: method,
+                  child: Row(
+                    children: [
+                      Text(method.icon),
+                      const SizedBox(width: 8),
+                      Text(method.displayName),
+                    ],
+                  ),
+                )).toList(),
+                onChanged: (value) {
+                  selectedPaymentMethod = value;
+                },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a payment method';
+                  }
+                  return null;
+                },
+              ),
             ],
           ),
         ),
@@ -1298,12 +1337,23 @@ class _FinancePageState extends ConsumerState<FinancePage>
                 return;
               }
 
-              // Add income entry
-              await _addFinanceEntry(
+              if (selectedPaymentMethod == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please select a payment method'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              // Add income entry using new TransactionService
+              await _addFinanceEntryWithPayment(
                 type: FinanceEntryType.income,
                 amount: amount,
                 description: description,
                 category: selectedCategory,
+                paymentMethod: selectedPaymentMethod!,
               );
 
               if (mounted) {
@@ -1322,6 +1372,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
     String selectedCategory = 'finance_page.category_ingredients'.tr();
+    PaymentMethodType? selectedPaymentMethod;
 
     showDialog(
       context: context,
@@ -1384,6 +1435,40 @@ class _FinancePageState extends ConsumerState<FinancePage>
                   selectedCategory = value!;
                 },
               ),
+              const SizedBox(height: 16),
+
+              // Payment method dropdown
+              Text(
+                'Payment Method',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<PaymentMethodType>(
+                initialValue: selectedPaymentMethod,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Select payment method',
+                ),
+                items: PaymentMethodType.values.map((method) => DropdownMenuItem(
+                  value: method,
+                  child: Row(
+                    children: [
+                      Text(method.icon),
+                      const SizedBox(width: 8),
+                      Text(method.displayName),
+                    ],
+                  ),
+                )).toList(),
+                onChanged: (value) {
+                  selectedPaymentMethod = value;
+                },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a payment method';
+                  }
+                  return null;
+                },
+              ),
             ],
           ),
         ),
@@ -1418,12 +1503,23 @@ class _FinancePageState extends ConsumerState<FinancePage>
                 return;
               }
 
-              // Add expense entry
-              await _addFinanceEntry(
+              if (selectedPaymentMethod == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please select a payment method'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              // Add expense entry using new TransactionService
+              await _addFinanceEntryWithPayment(
                 type: FinanceEntryType.expense,
                 amount: amount,
                 description: description,
                 category: selectedCategory,
+                paymentMethod: selectedPaymentMethod!,
               );
 
               if (mounted) {
@@ -1438,27 +1534,43 @@ class _FinancePageState extends ConsumerState<FinancePage>
     );
   }
 
-  Future<void> _addFinanceEntry({
+  Future<void> _addFinanceEntryWithPayment({
     required FinanceEntryType type,
     required double amount,
     required String description,
     required String category,
+    required PaymentMethodType paymentMethod,
   }) async {
     try {
+      // Use TransactionService to create the transaction with payment method
+      final transaction = type == FinanceEntryType.income
+          ? await _transactionService.createTransaction(
+              transactionType: TransactionType.revenue,
+              referenceType: ReferenceType.manual,
+              paymentMethod: paymentMethod,
+              amount: amount,
+              category: _mapCategoryToKey(category),
+              description: description,
+              accountFrom: 'customer_${paymentMethod.name}',
+              accountTo: 'revenue_${_mapCategoryToKey(category)}',
+              transactionTime: DateTime.now(),
+            )
+          : await _transactionService.createExpense(
+              paymentMethod: paymentMethod,
+              amount: amount,
+              category: _mapCategoryToKey(category),
+              description: description,
+              transactionTime: DateTime.now(),
+            );
 
-      // Save to database first
-      final entryId = await _financeService.createFinanceEntry(
-        type: type == FinanceEntryType.income ? 'income' : 'expense',
-        amount: amount,
-        description: description,
-        category: category,
-      );
+      if (transaction == null) {
+        throw Exception('Failed to create transaction');
+      }
 
-      // Create local entry with the database ID
-      // Use current local time to ensure it matches current date filter
+      // Create local entry for the UI
       final currentTime = DateTime.now();
       final newEntry = FinanceEntry(
-        id: entryId,
+        id: transaction.id,
         type: type,
         amount: amount,
         description: description,
@@ -1486,12 +1598,11 @@ class _FinancePageState extends ConsumerState<FinancePage>
       }
 
       // Clear the recently added flag after 5 minutes so normal filtering resumes
-      // This gives users plenty of time to see their new entry before it gets filtered
       Future.delayed(const Duration(minutes: 5), () {
         if (mounted) {
           setState(() {
-            _recentlyAddedEntries.remove(entryId);
-            _applyFilters(); // Re-apply filters to respect normal filter rules
+            _recentlyAddedEntries.remove(transaction.id);
+            _applyFilters();
           });
         }
       });
@@ -1511,7 +1622,6 @@ class _FinancePageState extends ConsumerState<FinancePage>
         );
       }
     } catch (e) {
-
       // Show user-friendly error message
       if (mounted) {
         ErrorMessages.showErrorSnackbar(
@@ -1521,6 +1631,24 @@ class _FinancePageState extends ConsumerState<FinancePage>
         );
       }
     }
+  }
+
+  /// Map UI category names to database category keys
+  String _mapCategoryToKey(String category) {
+    // Income categories
+    if (category == 'finance_page.category_sales'.tr()) return 'food_sales';
+    if (category == 'finance_page.category_catering'.tr()) return 'catering';
+    if (category == 'finance_page.category_delivery'.tr()) return 'delivery';
+    if (category == 'finance_page.category_tips'.tr()) return 'tips';
+
+    // Expense categories
+    if (category == 'finance_page.category_ingredients'.tr()) return 'food_supplies';
+    if (category == 'finance_page.category_staff'.tr()) return 'wages';
+    if (category == 'finance_page.category_utilities'.tr()) return 'utilities';
+    if (category == 'finance_page.category_marketing'.tr()) return 'marketing';
+
+    // Default to 'other' for unmatched categories
+    return 'other';
   }
 
   String _formatTime(DateTime dateTime) {
