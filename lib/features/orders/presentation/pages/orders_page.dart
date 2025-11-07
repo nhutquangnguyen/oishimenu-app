@@ -1175,10 +1175,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
           Navigator.of(context).pop();
           await _completeOrderWithPayment(order, paymentMethod, remainingAmount);
         },
-        onOpenOrder: () {
-          Navigator.of(context).pop();
-          _navigateToOrderDetail(order);
-        },
         onCancel: () => Navigator.of(context).pop(),
       ),
     );
@@ -1711,7 +1707,6 @@ class _OrdersQuickPaymentDialog extends StatefulWidget {
   final double totalPaidAmount;
   final double remainingAmount;
   final Function(PaymentMethodType) onQuickPayment;
-  final VoidCallback onOpenOrder;
   final VoidCallback onCancel;
 
   const _OrdersQuickPaymentDialog({
@@ -1719,7 +1714,6 @@ class _OrdersQuickPaymentDialog extends StatefulWidget {
     required this.totalPaidAmount,
     required this.remainingAmount,
     required this.onQuickPayment,
-    required this.onOpenOrder,
     required this.onCancel,
   });
 
@@ -1879,10 +1873,6 @@ class _OrdersQuickPaymentDialogState extends State<_OrdersQuickPaymentDialog> {
         TextButton(
           onPressed: widget.onCancel,
           child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: widget.onOpenOrder,
-          child: const Text('Open Order'),
         ),
         ElevatedButton(
           onPressed: _selectedMethod != null
