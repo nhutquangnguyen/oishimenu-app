@@ -137,7 +137,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     // Load payment method if exists (only if order has pending payment status)
     if (widget.order.paymentStatus == PaymentStatus.pending) {
-      _selectedPaymentMethod = widget.order.paymentMethod;
+      // Payment method will be selected by user during checkout
+      _selectedPaymentMethod = null;
     }
   }
 
@@ -328,7 +329,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         total: _total,
         orderType: widget.order.orderType,
         status: OrderStatus.pending, // Active order status
-        paymentMethod: _selectedPaymentMethod ?? PaymentMethod.none, // No default payment method
         paymentStatus: PaymentStatus.pending, // Payment pending
         deliveryInfo: widget.order.deliveryInfo,
         tableNumber: widget.order.tableNumber,
@@ -501,7 +501,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         total: _total,
         orderType: widget.order.orderType,
         status: OrderStatus.delivered,
-        paymentMethod: _selectedPaymentMethod!,
         paymentStatus: PaymentStatus.paid,
         deliveryInfo: widget.order.deliveryInfo,
         tableNumber: widget.order.tableNumber,
@@ -1188,7 +1187,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
               Divider(height: 1, color: Colors.grey[300]),
               _buildPaymentMethodTile(
-                PaymentMethod.digitalWallet,
+                PaymentMethod.mobilePayment,
                 'checkout_page.payment_ewallet'.tr(),
                 Icons.account_balance_wallet,
               ),

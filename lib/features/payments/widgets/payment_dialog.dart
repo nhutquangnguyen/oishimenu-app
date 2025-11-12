@@ -84,7 +84,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
           paymentMethod: _selectedMethod,
           paymentStatus: _selectedStatus,
           amount: amount,
-          transactionId: _transactionIdController.text.isNotEmpty
+          transactionReference: _transactionIdController.text.isNotEmpty
               ? _transactionIdController.text
               : null,
           notes: _notesController.text.isNotEmpty

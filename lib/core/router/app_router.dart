@@ -13,7 +13,6 @@ import '../../features/finance/presentation/pages/finance_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/option_groups/pages/option_group_editor_page.dart';
 import '../../features/menu/presentation/pages/menu_item_editor_page.dart';
-import '../../test_menu_editor.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../widgets/main_layout.dart';
 
@@ -32,10 +31,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       );
 
       final isOnAuthPage = state.fullPath == '/login' || state.fullPath == '/signup';
-      final isOnTestPage = state.fullPath == '/test';
-
-      // Redirect to login if not authenticated and not on auth or test pages
-      if (!isLoggedIn && !isOnAuthPage && !isOnTestPage) {
+      // Redirect to login if not authenticated and not on auth pages
+      if (!isLoggedIn && !isOnAuthPage) {
         return '/login';
       }
 
@@ -47,12 +44,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null; // No redirect needed
     },
     routes: [
-      // Test routes
-      GoRoute(
-        path: '/test',
-        builder: (context, state) => const MenuEditorTestPage(),
-      ),
-
       // Authentication routes
       GoRoute(
         path: '/login',

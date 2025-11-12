@@ -394,7 +394,6 @@ class HybridSyncManager {
       total: items.fold(0.0, (sum, item) => sum + item.subtotal),
       orderType: orderType,
       status: OrderStatus.pending,
-      paymentMethod: PaymentMethod.none,
       paymentStatus: PaymentStatus.pending,
       tableNumber: tableNumber,
       notes: notes,
