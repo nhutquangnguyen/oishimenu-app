@@ -10,12 +10,9 @@ class OrderPaymentHelper {
   /// Returns the payment method of the largest successful payment
   static Future<PaymentMethodType?> getPrimaryPaymentMethod(String orderId) async {
     try {
-      print('🔍 DEBUG Helper - Getting payments for order: $orderId');
       final payments = await _transactionService.getPaymentsForOrder(orderId);
-      print('🔍 DEBUG Helper - Found ${payments.length} payments');
 
       if (payments.isEmpty) {
-        print('🔍 DEBUG Helper - No payments found');
         return null;
       }
 
@@ -25,10 +22,8 @@ class OrderPaymentHelper {
           .fold<PaymentInfo?>(null, (largest, current) =>
               largest == null || current.amountPaid > largest.amountPaid ? current : largest);
 
-      print('🔍 DEBUG Helper - Largest payment: ${largestPayment?.paymentMethod}');
       return largestPayment?.paymentMethod;
     } catch (e) {
-      print('🔍 DEBUG Helper - Error: $e');
       return null;
     }
   }

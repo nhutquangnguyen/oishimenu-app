@@ -17,7 +17,6 @@ class PaymentService {
     DateTime? paymentTime,
   }) async {
     try {
-      print('🔍 DEBUG PaymentService - Creating payment for order: $orderId');
       final now = DateTime.now();
       final payment = PaymentInfo(
         id: '', // Will be set by database
@@ -33,25 +32,19 @@ class PaymentService {
         updatedAt: now,
       );
 
-      print('🔍 DEBUG PaymentService - Payment data: ${payment.toMap()}');
-      print('🔍 DEBUG PaymentService - Inserting into table: $_paymentsTable');
-
       final response = await SupabaseService.client
           .from(_paymentsTable)
           .insert(payment.toMap())
           .select()
           .single();
 
-      print('🔍 DEBUG PaymentService - Payment created successfully: $response');
       return PaymentInfo.fromMap(response);
     } catch (e) {
-      print('🔍 DEBUG PaymentService - Error creating payment: $e');
       // Check if this is a table not found error
       if (e.toString().contains('Could not find the table') ||
           e.toString().contains('PGRST205') ||
           e.toString().contains('order_payments')) {
         // Gracefully handle missing table - payment record will be skipped
-        print('🔍 DEBUG PaymentService - Table not found, returning null');
         return null;
       }
       throw Exception('Failed to create payment: $e');

@@ -305,16 +305,12 @@ class _PosPageState extends ConsumerState<PosPage> {
   // Load payment method from order_payments table
   Future<void> _loadPaymentMethodForOrder(String orderId) async {
     try {
-      print('🔍 DEBUG POS - Looking for payments for order: $orderId');
       final primaryPaymentMethod = await OrderPaymentHelper.getPrimaryPaymentMethod(orderId);
       final hasPayments = await OrderPaymentHelper.hasPayments(orderId);
-      print('🔍 DEBUG POS - Primary payment method found: $primaryPaymentMethod');
-      print('🔍 DEBUG POS - Has successful payments: $hasPayments');
 
       setState(() {
         // Set payment enabled status based on whether there are successful payments
         _isPaymentEnabled = hasPayments;
-        print('🔍 DEBUG POS - Setting _isPaymentEnabled = $hasPayments');
 
         if (primaryPaymentMethod != null) {
           // Convert PaymentMethodType to legacy PaymentMethod for UI compatibility
@@ -335,15 +331,12 @@ class _PosPageState extends ConsumerState<PosPage> {
               _selectedPaymentMethod = order_model.PaymentMethod.other;
               break;
           }
-          print('🔍 DEBUG POS - Payment method set to: $_selectedPaymentMethod');
         } else if (!hasPayments) {
           // No payments found, reset to none so auto-selection can work
           _selectedPaymentMethod = order_model.PaymentMethod.none;
-          print('🔍 DEBUG POS - No payment method found, setting to none');
         }
       });
     } catch (e) {
-      print('🔍 DEBUG POS - Error loading payment method: $e');
     }
   }
 
@@ -354,7 +347,6 @@ class _PosPageState extends ConsumerState<PosPage> {
         // Add small delay to ensure payment status is fully loaded
         await Future.delayed(const Duration(milliseconds: 100));
         if (mounted) {
-          print('🔍 DEBUG Transition - Opening cart with _isPaymentEnabled: $_isPaymentEnabled');
           _showCartBottomSheet();
         }
       }
@@ -839,7 +831,6 @@ class _PosPageState extends ConsumerState<PosPage> {
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, modalSetState) {
-          print('🔍 DEBUG Modal - Opening cart with _isPaymentEnabled: $_isPaymentEnabled');
           return Container(
           height: MediaQuery.of(context).size.height * 0.85,
           padding: const EdgeInsets.all(12),
@@ -1353,7 +1344,6 @@ class _PosPageState extends ConsumerState<PosPage> {
                     child: Switch(
                       value: _isPaymentEnabled,
                       onChanged: (value) {
-                        print('🔍 DEBUG Modal - Toggle changed from $_isPaymentEnabled to $value');
                         modalSetState(() {
                           _isPaymentEnabled = value;
                         });
@@ -1575,7 +1565,6 @@ class _PosPageState extends ConsumerState<PosPage> {
 
     try {
       final now = DateTime.now().toUtc(); // Store in UTC to avoid timezone issues
-      print('🔍 DEBUG ORDER CREATION - DateTime.now().toUtc(): $now (${now.timeZoneName})');
 
       // Convert cart items to order items
       final orderItems = _cartItems.map((cartItem) {
@@ -1669,15 +1658,11 @@ class _PosPageState extends ConsumerState<PosPage> {
         await orderService.updateOrder(order);
 
         // Handle payment record creation/updating based on payment toggle
-        print('🔍 DEBUG Payment - paidAmount: $paidAmount, selectedPaymentMethod: $selectedPaymentMethod, isPaymentEnabled: $_isPaymentEnabled');
         if (paidAmount != null && paidAmount > 0 && selectedPaymentMethod != null) {
-          print('🔍 DEBUG Payment - Creating payment record for existing order');
           await _createPaymentRecord(_existingOrderId!, selectedPaymentMethod, paidAmount, order.total);
         } else if (!_isPaymentEnabled) {
-          print('🔍 DEBUG Payment - Payment toggle is OFF, marking payments as pending');
           await _handlePaymentToggleOff(_existingOrderId!);
         } else {
-          print('🔍 DEBUG Payment - No payment record created for existing order (conditions not met)');
         }
       } else {
         // Create new order
@@ -1707,12 +1692,9 @@ class _PosPageState extends ConsumerState<PosPage> {
         final createdOrderId = await orderService.createOrder(order);
 
         // Create payment record if payment was made
-        print('🔍 DEBUG Payment - paidAmount: $paidAmount, selectedPaymentMethod: $selectedPaymentMethod');
         if (paidAmount != null && paidAmount > 0 && selectedPaymentMethod != null) {
-          print('🔍 DEBUG Payment - Creating payment record for new order');
           await _createPaymentRecord(createdOrderId, selectedPaymentMethod, paidAmount, order.total);
         } else {
-          print('🔍 DEBUG Payment - No payment record created for new order (conditions not met)');
         }
 
         // 🚀 INSTANT BADGE UPDATE: Increment active order count immediately
@@ -1813,7 +1795,6 @@ class _PosPageState extends ConsumerState<PosPage> {
 
   Future<void> _createPaymentRecord(String orderId, order_model.PaymentMethod paymentMethod, double amount, double totalAmount) async {
     try {
-      print('🔍 DEBUG Payment Record - Processing payment: orderId=$orderId, method=$paymentMethod, amount=$amount');
       final transactionService = TransactionService();
 
       // Convert order model PaymentMethod to payment model PaymentMethodType
@@ -1838,12 +1819,10 @@ class _PosPageState extends ConsumerState<PosPage> {
       // Check if we're editing an existing order and have existing payments
       if (_existingOrderId != null) {
         final existingPayments = await transactionService.getPaymentsForOrder(orderId);
-        print('🔍 DEBUG Payment Record - Found ${existingPayments.length} existing payments');
 
         if (existingPayments.isNotEmpty) {
           // Update the most recent payment instead of creating a new one
           final mostRecentPayment = existingPayments.first; // getPaymentsForOrder returns in descending order by created_at
-          print('🔍 DEBUG Payment Record - Updating existing payment: ${mostRecentPayment.id}');
 
           await transactionService.updateTransaction(
             mostRecentPayment.id,
@@ -1855,7 +1834,6 @@ class _PosPageState extends ConsumerState<PosPage> {
           );
         } else {
           // No existing payments, create new one
-          print('🔍 DEBUG Payment Record - Creating new payment for existing order');
           await transactionService.createOrderPayment(
             orderId: orderId,
             paymentMethod: paymentMethodType,
@@ -1867,7 +1845,6 @@ class _PosPageState extends ConsumerState<PosPage> {
         }
       } else {
         // New order, create new payment record
-        print('🔍 DEBUG Payment Record - Creating new payment for new order');
         await transactionService.createOrderPayment(
           orderId: orderId,
           paymentMethod: paymentMethodType,
@@ -1886,7 +1863,6 @@ class _PosPageState extends ConsumerState<PosPage> {
         setState(() {
           _isPaymentEnabled = true; // Payment was just processed successfully
         });
-        print('🔍 DEBUG Payment Record - UI state updated: _isPaymentEnabled = true');
       }
     } catch (e) {
       // Log error but don't break the order saving flow
@@ -1897,14 +1873,12 @@ class _PosPageState extends ConsumerState<PosPage> {
   /// Handle when payment toggle is turned OFF - mark existing payments as pending
   Future<void> _handlePaymentToggleOff(String orderId) async {
     try {
-      print('🔍 DEBUG Payment Toggle OFF - Processing order: $orderId');
       final transactionService = TransactionService();
       final existingPayments = await transactionService.getPaymentsForOrder(orderId);
 
       // Update all existing paid payments to pending status
       for (final payment in existingPayments) {
         if (payment.paymentStatus == order_model.PaymentStatus.paid) {
-          print('🔍 DEBUG Payment Toggle OFF - Updating payment ${payment.id} to pending');
           await transactionService.updateTransaction(
             payment.id,
             paymentStatus: order_model.PaymentStatus.pending,
@@ -1921,7 +1895,6 @@ class _PosPageState extends ConsumerState<PosPage> {
         setState(() {
           _isPaymentEnabled = false;
         });
-        print('🔍 DEBUG Payment Toggle OFF - UI state updated: _isPaymentEnabled = false');
       }
     } catch (e) {
       debugPrint('Error handling payment toggle off: $e');

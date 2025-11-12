@@ -62,7 +62,6 @@ class TransactionService {
 
       return Transaction.fromMap(response);
     } catch (e) {
-      print('🔍 DEBUG TransactionService - Error creating transaction: $e');
       return null;
     }
   }
@@ -117,7 +116,6 @@ class TransactionService {
       final response = await query;
       return response.map<Transaction>((json) => Transaction.fromMap(json)).toList();
     } catch (e) {
-      print('🔍 DEBUG TransactionService - Error getting transactions: $e');
       return [];
     }
   }
@@ -161,7 +159,6 @@ class TransactionService {
 
       return Transaction.fromMap(response);
     } catch (e) {
-      print('🔍 DEBUG TransactionService - Error updating transaction: $e');
       return null;
     }
   }
@@ -175,7 +172,6 @@ class TransactionService {
           .eq('id', transactionId);
       return true;
     } catch (e) {
-      print('🔍 DEBUG TransactionService - Error deleting transaction: $e');
       return false;
     }
   }
@@ -243,7 +239,6 @@ class TransactionService {
 
       return transactions.map((t) => t.toPaymentInfo()).toList();
     } catch (e) {
-      print('🔍 DEBUG TransactionService - Error getting order payments: $e');
       return [];
     }
   }
@@ -292,7 +287,7 @@ class TransactionService {
           })
           .eq('id', orderId);
     } catch (e) {
-      print('🔍 DEBUG TransactionService - Error updating order payment status: $e');
+      // Silently ignore errors when updating order payment status
     }
   }
 
@@ -406,7 +401,6 @@ class TransactionService {
 
       return summary;
     } catch (e) {
-      print('🔍 DEBUG TransactionService - Error getting financial summary: $e');
       return {};
     }
   }

@@ -572,8 +572,8 @@ class SupabaseMenuService extends SupabaseService {
     }
 
     // Last resort: return the current user ID and let the foreign key constraint fail with a clear message
-    print('WARNING: No valid user ID found. Menu item creation will likely fail.');
-    print('This indicates a database configuration issue with RLS policies.');
+    // WARNING: No valid user ID found. Menu item creation will likely fail.
+    // This indicates a database configuration issue with RLS policies.
     return currentUser.id;
   }
 
@@ -628,7 +628,6 @@ class SupabaseMenuService extends SupabaseService {
   /// 🐛 DEBUG: Investigate why deletion says 7 active orders but UI shows no orders
   Future<void> debugMenuItemDeletion(String menuItemId) async {
     try {
-      print('🔍 DEBUG: Investigating menu item deletion issue for ID: $menuItemId');
 
       // 1. Check all order_items that reference this menu item
       print('\n📋 Step 1: Checking order_items table...');
@@ -695,7 +694,7 @@ class SupabaseMenuService extends SupabaseService {
       }
 
     } catch (e) {
-      print('❌ DEBUG ERROR: $e');
+      // Error deleting menu item: ignore silently
     }
   }
 }
@@ -2308,7 +2307,6 @@ class SupabaseOrderService extends SupabaseService {
           .eq('id', _convertToSupabaseId(order.id));
 
       // 🔄 CUSTOMER UPDATE FIX: Update customer information when order is updated
-      print('🔍 DEBUG - Customer ID: "${order.customer.id}", Name: "${order.customer.name}", Phone: "${order.customer.phone}"');
 
       if (order.customer.id.isNotEmpty) {
         final customerData = {
@@ -2319,8 +2317,6 @@ class SupabaseOrderService extends SupabaseService {
           'updated_at': DateTime.now().toIso8601String(),
         };
 
-        print('🔍 DEBUG - About to update customer with data: $customerData');
-        print('🔍 DEBUG - Customer ID for query: ${_convertToSupabaseId(order.customer.id)}');
 
         try {
           // First check if customer exists
@@ -2337,22 +2333,19 @@ class SupabaseOrderService extends SupabaseService {
                 .update(customerData)
                 .eq('id', _convertToSupabaseId(order.customer.id));
 
-            print('✅ Customer updated successfully: ${order.customer.name} (${order.customer.phone})');
-            print('🔍 DEBUG - Update result: $result');
+            // Customer updated successfully
           } else {
-            print('⚠️ WARNING - Customer ID ${order.customer.id} not found in database');
-            print('🔍 INFO - This might be a guest customer or data consistency issue');
+            // WARNING - Customer ID not found in database
+            // This might be a guest customer or data consistency issue
             // Could create a new customer here if needed, but for now just log the issue
           }
         } catch (customerError) {
-          print('❌ ERROR with customer operation: $customerError');
-          print('🔍 DEBUG - Customer data that failed: $customerData');
-          print('🔍 DEBUG - Customer ID that failed: ${_convertToSupabaseId(order.customer.id)}');
-          // Don't rethrow - allow order update to continue even if customer update fails
+          // ERROR with customer operation - don't rethrow
+          // Allow order update to continue even if customer update fails
         }
       } else {
-        print('⚠️ WARNING - Customer ID is empty, need to create customer record');
-        print('🔍 INFO - Creating new customer record for: ${order.customer.name} (${order.customer.phone})');
+        // WARNING - Customer ID is empty, need to create customer record
+        // Creating new customer record
 
         try {
           // Create new customer record
@@ -2364,7 +2357,7 @@ class SupabaseOrderService extends SupabaseService {
           }).select().single();
 
           final newCustomerId = response['id'];
-          print('✅ New customer created with ID: $newCustomerId');
+          // New customer created with ID: $newCustomerId
 
           // Update the order to reference the new customer
           await SupabaseService.client
@@ -2372,10 +2365,9 @@ class SupabaseOrderService extends SupabaseService {
               .update({'customer_id': newCustomerId})
               .eq('id', _convertToSupabaseId(order.id));
 
-          print('✅ Order updated with new customer ID: $newCustomerId');
+          // Order updated with new customer ID: $newCustomerId
         } catch (customerCreateError) {
-          print('❌ ERROR creating customer: $customerCreateError');
-          print('🔍 DEBUG - Customer data: name="${order.customer.name}", phone="${order.customer.phone}"');
+          // ERROR creating customer: ignore silently
         }
       }
 
@@ -2485,9 +2477,9 @@ class SupabaseOrderService extends SupabaseService {
         category: category,
       );
 
-      print('✅ Auto-created income entry: ${order.total}đ from order ${order.orderNumber}');
+      // Auto-created income entry: ${order.total}đ from order ${order.orderNumber}
     } catch (financeError) {
-      print('❌ ERROR creating income entry: $financeError');
+      // ERROR creating income entry: ignore silently
       // Don't throw - allow order operations to continue even if finance entry fails
     }
   }
