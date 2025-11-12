@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/order.dart';
 import '../../../../models/payment_method.dart';
-import '../../../../services/payment_service.dart';
+import '../../../../services/transaction_service.dart';
 import '../../../../core/providers/supabase_providers.dart';
 import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
 import '../../../payments/widgets/payment_method_selector.dart';
@@ -26,7 +26,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   bool _isDiscountPercentage = false;
 
   // Payment-related state
-  final PaymentService _paymentService = PaymentService();
+  final TransactionService _transactionService = TransactionService();
   List<PaymentInfo> _payments = [];
   bool _isLoadingPayments = false;
 
@@ -245,7 +245,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
     setState(() => _isLoadingPayments = true);
     try {
-      final payments = await _paymentService.getPaymentsForOrder(_currentOrder.id);
+      final payments = await _transactionService.getPaymentsForOrder(_currentOrder.id);
       setState(() {
         _payments = payments;
         _isLoadingPayments = false;
@@ -331,8 +331,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
     if (confirmed == true) {
       try {
-        await _paymentService.deletePayment(payment.id);
-        await _paymentService.updateOrderPaymentStatus(_currentOrder.id);
+        await _transactionService.deleteTransaction(payment.id);
+        await _transactionService.updateOrderPaymentStatus(_currentOrder.id);
         await _loadPaymentData();
 
         if (mounted) {
@@ -361,7 +361,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     if (_currentOrder.id.isEmpty) return;
 
     try {
-      await _paymentService.createPayment(
+      await _transactionService.createOrderPayment(
         orderId: _currentOrder.id,
         paymentMethod: paymentMethod,
         amountPaid: amount,
@@ -371,7 +371,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
       );
 
       // Update order payment status
-      await _paymentService.updateOrderPaymentStatus(_currentOrder.id);
+      await _transactionService.updateOrderPaymentStatus(_currentOrder.id);
 
       // Reload payment data
       await _loadPaymentData();

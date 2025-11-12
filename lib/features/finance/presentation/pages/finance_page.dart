@@ -6,6 +6,7 @@ import '../../../../services/transaction_service.dart';
 import '../../../../models/payment_method.dart';
 import '../../../../models/transaction.dart';
 import '../../../../core/utils/error_messages.dart';
+import '../widgets/revenue_distribution_chart.dart';
 
 // Enums for filtering
 enum DateRangeType { today, yesterday, thisWeek, lastWeek, thisMonth, lastMonth, custom }
@@ -351,8 +352,11 @@ class _FinancePageState extends ConsumerState<FinancePage>
             _buildQuickInsights(),
             const SizedBox(height: 20),
 
-            // Recent Transactions Preview
-            _buildRecentTransactionsPreview(),
+            // Revenue Distribution Chart
+            RevenueDistributionChart(
+              startDate: _getStartDate(),
+              endDate: _getEndDate(),
+            ),
           ],
         ),
       ),
@@ -607,52 +611,6 @@ class _FinancePageState extends ConsumerState<FinancePage>
     );
   }
 
-  Widget _buildRecentTransactionsPreview() {
-    final recentEntries = _filteredEntries.take(5).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'finance_page.recent_transactions'.tr(),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            TextButton(
-              onPressed: () => _tabController.animateTo(1),
-              child: Text('finance_page.view_all'.tr()),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        if (recentEntries.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.receipt_long, size: 32, color: Colors.grey[400]),
-                const SizedBox(height: 8),
-                Text(
-                  'finance_page.no_entries'.tr(),
-                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          )
-        else
-          ...recentEntries.map((entry) => _buildFinanceEntryCard(entry)),
-      ],
-    );
-  }
 
   Widget _buildSummaryCard({
     required String title,
@@ -1630,6 +1588,57 @@ class _FinancePageState extends ConsumerState<FinancePage>
           customMessage: ErrorMessages.savingFinanceEntryError,
         );
       }
+    }
+  }
+
+  /// Get start date based on selected date range
+  DateTime? _getStartDate() {
+    final now = DateTime.now();
+    switch (_selectedDateRange) {
+      case DateRangeType.today:
+        return DateTime(now.year, now.month, now.day);
+      case DateRangeType.yesterday:
+        final yesterday = now.subtract(const Duration(days: 1));
+        return DateTime(yesterday.year, yesterday.month, yesterday.day);
+      case DateRangeType.thisWeek:
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        return DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+      case DateRangeType.lastWeek:
+        final startOfLastWeek = now.subtract(Duration(days: now.weekday + 6));
+        return DateTime(startOfLastWeek.year, startOfLastWeek.month, startOfLastWeek.day);
+      case DateRangeType.thisMonth:
+        return DateTime(now.year, now.month, 1);
+      case DateRangeType.lastMonth:
+        final lastMonth = DateTime(now.year, now.month - 1, 1);
+        return lastMonth;
+      case DateRangeType.custom:
+        return _customStartDate;
+    }
+  }
+
+  /// Get end date based on selected date range
+  DateTime? _getEndDate() {
+    final now = DateTime.now();
+    switch (_selectedDateRange) {
+      case DateRangeType.today:
+        return DateTime(now.year, now.month, now.day, 23, 59, 59);
+      case DateRangeType.yesterday:
+        final yesterday = now.subtract(const Duration(days: 1));
+        return DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+      case DateRangeType.thisWeek:
+        final endOfWeek = now.add(Duration(days: 7 - now.weekday));
+        return DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day, 23, 59, 59);
+      case DateRangeType.lastWeek:
+        final endOfLastWeek = now.subtract(Duration(days: now.weekday));
+        return DateTime(endOfLastWeek.year, endOfLastWeek.month, endOfLastWeek.day, 23, 59, 59);
+      case DateRangeType.thisMonth:
+        final nextMonth = DateTime(now.year, now.month + 1, 1);
+        return nextMonth.subtract(const Duration(microseconds: 1));
+      case DateRangeType.lastMonth:
+        final thisMonth = DateTime(now.year, now.month, 1);
+        return thisMonth.subtract(const Duration(microseconds: 1));
+      case DateRangeType.custom:
+        return _customEndDate;
     }
   }
 

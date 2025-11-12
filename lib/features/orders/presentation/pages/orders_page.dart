@@ -8,7 +8,7 @@ import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvide
 import '../../../../core/design_system/app_tokens.dart';
 import '../../../../core/design_system/app_components.dart';
 import '../../../../core/utils/error_messages.dart';
-import '../../../../services/payment_service.dart';
+import '../../../../services/transaction_service.dart';
 import '../../../../models/payment_method.dart';
 import '../../../pos/presentation/pages/pos_page.dart';
 
@@ -1023,15 +1023,15 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
 
       // Try to check payment status, but handle gracefully if payment system isn't set up yet
       try {
-        final paymentService = PaymentService();
-        final payments = await paymentService.getPaymentsForOrder(order.id);
+        final transactionService = TransactionService();
+        final payments = await transactionService.getPaymentsForOrder(order.id);
         totalPaid = payments
             .where((payment) => payment.paymentStatus == PaymentStatus.paid)
             .fold(0.0, (sum, payment) => sum + payment.amountPaid);
         remainingAmount = order.total - totalPaid;
       } catch (paymentError) {
-        debugPrint('_markOrderDone: Payment service error (likely table not created yet): $paymentError');
-        // If payment service fails (e.g., table doesn't exist), treat as unpaid order
+        debugPrint('_markOrderDone: Transaction service error (likely table not created yet): $paymentError');
+        // If transaction service fails (e.g., table doesn't exist), treat as unpaid order
         totalPaid = 0.0;
         remainingAmount = order.total;
       }
@@ -1184,8 +1184,8 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     try {
       // Try to add payment record first (if payment system is set up)
       try {
-        final paymentService = PaymentService();
-        await paymentService.createPayment(
+        final transactionService = TransactionService();
+        await transactionService.createOrderPayment(
           orderId: order.id,
           paymentMethod: paymentMethod,
           amountPaid: amount,
@@ -1195,9 +1195,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
         );
 
         // Update order payment status
-        await paymentService.updateOrderPaymentStatus(order.id);
+        await transactionService.updateOrderPaymentStatus(order.id);
       } catch (paymentError) {
-        debugPrint('_completeOrderWithPayment: Payment service error (likely table not created yet): $paymentError');
+        debugPrint('_completeOrderWithPayment: Transaction service error (likely table not created yet): $paymentError');
         // Continue with order completion even if payment recording fails
         // The order will be marked as completed with payment method info
       }

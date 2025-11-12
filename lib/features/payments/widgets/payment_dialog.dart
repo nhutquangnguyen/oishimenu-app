@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/payment_method.dart';
 import '../../../models/order.dart';
-import '../../../services/payment_service.dart';
+import '../../../services/transaction_service.dart';
 import 'payment_method_selector.dart';
 
 class PaymentDialog extends StatefulWidget {
@@ -30,7 +30,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
   final _amountController = TextEditingController();
   final _transactionIdController = TextEditingController();
   final _notesController = TextEditingController();
-  final _paymentService = PaymentService();
+  final _transactionService = TransactionService();
 
   PaymentMethodType _selectedMethod = PaymentMethodType.cash;
   PaymentStatus _selectedStatus = PaymentStatus.paid;
@@ -79,11 +79,11 @@ class _PaymentDialogState extends State<PaymentDialog> {
       PaymentInfo payment;
       if (widget.existingPayment != null) {
         // Update existing payment
-        payment = await _paymentService.updatePayment(
+        final updatedTransaction = await _transactionService.updateTransaction(
           widget.existingPayment!.id,
           paymentMethod: _selectedMethod,
           paymentStatus: _selectedStatus,
-          amountPaid: amount,
+          amount: amount,
           transactionId: _transactionIdController.text.isNotEmpty
               ? _transactionIdController.text
               : null,
@@ -91,9 +91,15 @@ class _PaymentDialogState extends State<PaymentDialog> {
               ? _notesController.text
               : null,
         );
+        // Convert Transaction back to PaymentInfo for compatibility
+        if (updatedTransaction != null) {
+          payment = updatedTransaction.toPaymentInfo();
+        } else {
+          throw Exception('Failed to update payment');
+        }
       } else {
         // Create new payment
-        payment = await _paymentService.createPayment(
+        final newPayment = await _transactionService.createOrderPayment(
           orderId: widget.orderId,
           paymentMethod: _selectedMethod,
           amountPaid: amount,
@@ -106,10 +112,16 @@ class _PaymentDialogState extends State<PaymentDialog> {
               ? _notesController.text
               : null,
         );
+
+        if (newPayment != null) {
+          payment = newPayment;
+        } else {
+          throw Exception('Failed to create payment');
+        }
       }
 
       // Update order payment status
-      await _paymentService.updateOrderPaymentStatus(widget.orderId);
+      await _transactionService.updateOrderPaymentStatus(widget.orderId);
 
       widget.onPaymentAdded(payment);
 

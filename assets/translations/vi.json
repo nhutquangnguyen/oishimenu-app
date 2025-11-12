@@ -709,7 +709,11 @@
     "filtered_results": "Hiển thị {count} kết quả",
     "net_amount": "Thực: {amount}đ",
     "no_transactions": "Không tìm thấy giao dịch",
-    "try_different_filters": "Thử điều chỉnh bộ lọc"
+    "try_different_filters": "Thử điều chỉnh bộ lọc",
+    "revenue_by_payment_method": "Doanh thu theo phương thức thanh toán",
+    "total_revenue": "Tổng doanh thu",
+    "no_revenue_data": "Không có dữ liệu doanh thu\ncho khoảng thời gian đã chọn",
+    "refresh": "Làm mới"
   },
 
   "option_groups_editor": {

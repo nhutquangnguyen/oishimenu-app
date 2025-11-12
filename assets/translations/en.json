@@ -706,7 +706,11 @@
     "filtered_results": "Showing {count} results",
     "net_amount": "Net: {amount}đ",
     "no_transactions": "No transactions found",
-    "try_different_filters": "Try adjusting your filters"
+    "try_different_filters": "Try adjusting your filters",
+    "revenue_by_payment_method": "Revenue by Payment Method",
+    "total_revenue": "Total Revenue",
+    "no_revenue_data": "No revenue data available\nfor the selected period",
+    "refresh": "Refresh"
   },
 
   "option_groups_editor": {

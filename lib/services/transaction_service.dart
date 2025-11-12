@@ -379,11 +379,11 @@ class TransactionService {
       summary['net_profit'] = totalRevenue - totalExpenses;
       summary['transaction_count'] = transactions.length;
 
-      // Breakdown by payment method
+      // Breakdown by payment method (REVENUE transactions only)
       final methodTotals = <PaymentMethodType, double>{};
-      for (final transaction in transactions.where((t) => t.paymentStatus == PaymentStatus.paid)) {
+      for (final transaction in revenueTransactions.where((t) => t.paymentStatus == PaymentStatus.paid)) {
         methodTotals[transaction.paymentMethod] =
-            (methodTotals[transaction.paymentMethod] ?? 0) + transaction.amount.abs();
+            (methodTotals[transaction.paymentMethod] ?? 0) + transaction.amount;
       }
 
       summary['payment_method_breakdown'] = methodTotals.map(
