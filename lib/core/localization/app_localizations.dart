@@ -138,25 +138,6 @@ class AppLocalizations {
     return 'good_evening'.tr();
   }
 
-  // Inventory strings
-  static String get inventoryManagement => 'inventory_management'.tr();
-  static String get ingredients => 'ingredients'.tr();
-  static String get stocktake => 'stocktake'.tr();
-  static String get lowStock => 'low_stock'.tr();
-  static String get outOfStock => 'out_of_stock'.tr();
-  static String get critical => 'critical'.tr();
-  static String get inStock => 'in_stock'.tr();
-  static String get quantity => 'quantity'.tr();
-  static String get unit => 'unit'.tr();
-  static String get costPerUnit => 'cost_per_unit'.tr();
-  static String get minimumThreshold => 'minimum_threshold'.tr();
-  static String get supplier => 'supplier'.tr();
-  static String get category => 'category'.tr();
-  static String get addIngredient => 'add_ingredient'.tr();
-  static String get editIngredient => 'edit_ingredient'.tr();
-  static String get deleteIngredient => 'delete_ingredient'.tr();
-  static String get exportData => 'export_data'.tr();
-  static String get allCategories => 'all_categories'.tr();
 
   // Option Groups strings
   static String get optionGroups => 'option_groups'.tr();

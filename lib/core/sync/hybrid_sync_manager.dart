@@ -395,7 +395,6 @@ class HybridSyncManager {
       orderType: orderType,
       status: OrderStatus.pending,
       paymentStatus: PaymentStatus.pending,
-      tableNumber: tableNumber,
       notes: notes,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),

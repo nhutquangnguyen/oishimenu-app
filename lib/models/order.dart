@@ -160,7 +160,6 @@ class Order {
   final OrderStatus status;
   final PaymentStatus paymentStatus;
   final DeliveryInfo? deliveryInfo;
-  final String? tableNumber;
   final String platform;
   final String? assignedStaff;
   final String? notes;
@@ -182,7 +181,6 @@ class Order {
     required this.status,
     required this.paymentStatus,
     this.deliveryInfo,
-    this.tableNumber,
     this.platform = 'direct',
     this.assignedStaff,
     this.notes,
@@ -212,7 +210,6 @@ class Order {
       status: OrderStatus.fromString(map['status'] ?? 'PENDING'),
       paymentStatus: PaymentStatus.fromString(map['payment_status'] ?? 'PENDING'),
       deliveryInfo: null, // Will be handled separately if needed
-      tableNumber: stringFromDynamic(map['table_number']),
       platform: stringFromDynamic(map['platform']) == '' ? 'direct' : stringFromDynamic(map['platform']),
       assignedStaff: map['assigned_staff_id']?.toString(),
       notes: stringFromDynamic(map['notes']),
@@ -255,7 +252,6 @@ class Order {
       'order_type': orderType.value,
       'status': status.value,
       'payment_status': paymentStatus.value,
-      'table_number': tableNumber,
       'platform': platform,
       'assigned_staff_id': assignedStaff?.isEmpty == true ? null : _parseIdForDatabase(assignedStaff ?? ''),
       'notes': notes,
@@ -292,7 +288,6 @@ class Order {
     OrderStatus? status,
     PaymentStatus? paymentStatus,
     DeliveryInfo? deliveryInfo,
-    String? tableNumber,
     String? platform,
     String? assignedStaff,
     String? notes,
@@ -314,7 +309,6 @@ class Order {
       status: status ?? this.status,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       deliveryInfo: deliveryInfo ?? this.deliveryInfo,
-      tableNumber: tableNumber ?? this.tableNumber,
       platform: platform ?? this.platform,
       assignedStaff: assignedStaff ?? this.assignedStaff,
       notes: notes ?? this.notes,
