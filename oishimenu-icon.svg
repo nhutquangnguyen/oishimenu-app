@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with rounded corners -->
+  <rect x="64" y="64" width="384" height="384" rx="96" ry="96" fill="#6366F1"/>
+
+  <!-- Menu card background -->
+  <rect x="120" y="120" width="272" height="220" rx="16" ry="16" fill="#FFFFFF"/>
+
+  <!-- POS header -->
+  <rect x="140" y="140" width="232" height="28" rx="4" fill="#6366F1"/>
+  <text x="256" y="160" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="16" font-weight="bold">POS</text>
+
+  <!-- Order items with prices (POS style) -->
+  <rect x="140" y="185" width="140" height="10" rx="5" fill="#E5E7EB"/>
+  <text x="365" y="194" text-anchor="end" fill="#6366F1" font-family="Arial, sans-serif" font-size="9" font-weight="bold">₫50K</text>
+
+  <rect x="140" y="205" width="120" height="10" rx="5" fill="#E5E7EB"/>
+  <text x="365" y="214" text-anchor="end" fill="#6366F1" font-family="Arial, sans-serif" font-size="9" font-weight="bold">₫75K</text>
+
+  <rect x="140" y="225" width="160" height="10" rx="5" fill="#E5E7EB"/>
+  <text x="365" y="234" text-anchor="end" fill="#6366F1" font-family="Arial, sans-serif" font-size="9" font-weight="bold">₫25K</text>
+
+  <rect x="140" y="245" width="100" height="10" rx="5" fill="#E5E7EB"/>
+  <text x="365" y="254" text-anchor="end" fill="#6366F1" font-family="Arial, sans-serif" font-size="9" font-weight="bold">₫90K</text>
+
+  <!-- Divider -->
+  <rect x="140" y="270" width="232" height="2" rx="1" fill="#E5E7EB"/>
+
+  <!-- Total -->
+  <text x="145" y="294" fill="#333333" font-family="Arial, sans-serif" font-size="12" font-weight="bold">TOTAL:</text>
+  <text x="365" y="294" text-anchor="end" fill="#10B981" font-family="Arial, sans-serif" font-size="12" font-weight="bold">₫240K</text>
+
+  <!-- App Name - Much bigger and more prominent -->
+  <text x="256" y="395" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="48" font-weight="bold">Oishi</text>
+</svg>

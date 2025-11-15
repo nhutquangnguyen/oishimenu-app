@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/order.dart';
 import '../../../../models/payment_method.dart';
 import '../../../../services/transaction_service.dart';
+import '../../../../services/order_payment_helper.dart';
 import '../../../../core/providers/supabase_providers.dart';
 import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
 import '../../../payments/widgets/payment_method_selector.dart';
@@ -189,6 +190,43 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
       // First save any changes
       await _saveOrder();
+
+      // Get the primary payment method used for this order
+      final primaryPaymentMethod = await OrderPaymentHelper.getPrimaryPaymentMethod(_currentOrder.id);
+
+      // Create finance transaction if we have payment information
+      if (primaryPaymentMethod != null) {
+        try {
+          await _transactionService.createOrderPayment(
+            orderId: _currentOrder.id,
+            paymentMethod: primaryPaymentMethod,
+            amountPaid: _currentOrder.total,
+            totalAmount: _currentOrder.total,
+            paymentStatus: PaymentStatus.paid,
+            notes: 'Order completion from order detail page',
+          );
+          debugPrint('_completeOrder: Finance transaction created successfully');
+        } catch (e) {
+          debugPrint('_completeOrder: Failed to create finance transaction: $e');
+          // Continue with order completion even if transaction creation fails
+        }
+      } else {
+        // If no payment method is found, try to create transaction with cash as fallback
+        // This handles orders that were paid but don't have payment records
+        try {
+          await _transactionService.createOrderPayment(
+            orderId: _currentOrder.id,
+            paymentMethod: PaymentMethodType.cash,
+            amountPaid: _currentOrder.total,
+            totalAmount: _currentOrder.total,
+            paymentStatus: PaymentStatus.paid,
+            notes: 'Order completion (assumed cash payment)',
+          );
+          debugPrint('_completeOrder: Finance transaction created with cash fallback');
+        } catch (e) {
+          debugPrint('_completeOrder: Failed to create fallback transaction: $e');
+        }
+      }
 
       // Then mark as delivered
       final completedOrder = _currentOrder.copyWith(

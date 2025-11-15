@@ -1,37 +1,37 @@
 {
   "project_info": {
-    "project_number": "198270461285",
-    "project_id": "oishimenu-476214",
-    "storage_bucket": "oishimenu-476214.firebasestorage.app"
+    "project_number": "YOUR_PROJECT_NUMBER",
+    "project_id": "YOUR_PROJECT_ID",
+    "storage_bucket": "YOUR_PROJECT_ID.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:198270461285:android:3efad21c76ce1cfd852d8c",
+        "mobilesdk_app_id": "YOUR_MOBILE_SDK_APP_ID",
         "android_client_info": {
           "package_name": "com.oishimenu.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "198270461285-d3nrrj2bi1ktmvaj7oimavslibf6nmeo.apps.googleusercontent.com",
+          "client_id": "YOUR_OAUTH_CLIENT_ID",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDjyByrAyz5hb_FNtnCux-YXcYyCvocMXI"
+          "current_key": "YOUR_API_KEY"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "198270461285-d3nrrj2bi1ktmvaj7oimavslibf6nmeo.apps.googleusercontent.com",
+              "client_id": "YOUR_OAUTH_CLIENT_ID",
               "client_type": 3
             },
             {
-              "client_id": "198270461285-l9bnra8gj4lnubtlce5auurcgem8md7h.apps.googleusercontent.com",
+              "client_id": "YOUR_IOS_OAUTH_CLIENT_ID",
               "client_type": 2,
               "ios_info": {
                 "bundle_id": "com.oishimenu.app"

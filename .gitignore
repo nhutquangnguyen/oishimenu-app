@@ -43,3 +43,18 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment files containing sensitive data
+.env
+.env.local
+.env.*.local
+
+# Secure configuration directory
+config/secure/
+
+# Android sensitive files
+android/key.properties
+android/app/google-services.json
+
+# iOS sensitive files
+ios/Runner/GoogleService-Info.plist

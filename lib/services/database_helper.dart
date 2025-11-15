@@ -497,15 +497,15 @@ class DatabaseHelper {
         ALTER TABLE menu_items ADD COLUMN user_id INTEGER
       ''');
 
-      // Get the admin user ID to assign existing menu items
+      // Get any admin user ID to assign existing menu items
       final adminUsers = await db.query(
         'users',
-        where: 'email = ? OR role = ?',
-        whereArgs: ['admin@oishimenu.com', 'admin'],
+        where: 'role = ?',
+        whereArgs: ['admin'],
         limit: 1,
       );
 
-      final adminUserId = adminUsers.isNotEmpty ? adminUsers.first['id'] : 1;
+      final adminUserId = adminUsers.isNotEmpty ? adminUsers.first['id'] : null;
 
       // Update all existing menu items to belong to admin user
       await db.update(
@@ -615,17 +615,9 @@ class DatabaseHelper {
   Future<void> _createDefaultAdmin(Database db) async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // Create default admin user with password: "admin123"
-    // In production, you should require password change on first login
-    await db.insert('users', {
-      'email': 'admin@oishimenu.com',
-      'password_hash': _hashPassword('admin123'),
-      'full_name': 'System Administrator',
-      'role': 'admin',
-      'is_active': 1,
-      'created_at': now,
-      'updated_at': now,
-    });
+    // SECURITY: Removed hardcoded admin user creation for security
+    // Admin users should be created through proper registration process
+    // with strong password requirements and proper validation
   }
 
   Future<void> _createSampleCategories(Database db) async {

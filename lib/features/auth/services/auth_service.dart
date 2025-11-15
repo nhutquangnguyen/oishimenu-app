@@ -66,36 +66,8 @@ class AuthService {
 
   // Web-compatible sign in using SharedPreferences
   Future<AppUser?> _signInWeb(String email, String password) async {
-    // Check for demo admin account
-    if (email == 'admin@oishimenu.com' && password == 'admin123') {
-      final user = AppUser(
-        id: '1',
-        email: email,
-        fullName: 'System Administrator',
-        role: 'admin',
-        isActive: true,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      _currentUser = user;
-
-      // Save current user to preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('current_user_id', user.id);
-      await prefs.setString('user_data', jsonEncode({
-        'id': user.id,
-        'email': user.email,
-        'fullName': user.fullName,
-        'role': user.role,
-        'isActive': user.isActive,
-        'createdAt': user.createdAt.millisecondsSinceEpoch,
-        'updatedAt': user.updatedAt.millisecondsSinceEpoch,
-      }));
-
-      _authStateController.add(_currentUser);
-      return user;
-    }
+    // SECURITY: Removed hardcoded admin credentials for security
+    // Admin users must be created through proper registration process
 
     // Check for stored users in SharedPreferences
     final prefs = await SharedPreferences.getInstance();

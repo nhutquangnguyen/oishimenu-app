@@ -9,11 +9,17 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-// Load keystore properties
+// Load keystore properties from secure config
 val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
+val keystorePropertiesFile = rootProject.file("../../config/secure/key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+} else {
+    // Fallback to original location for compatibility
+    val fallbackFile = rootProject.file("key.properties")
+    if (fallbackFile.exists()) {
+        keystoreProperties.load(FileInputStream(fallbackFile))
+    }
 }
 
 android {

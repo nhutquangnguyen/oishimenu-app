@@ -1,15 +1,23 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseConfig {
-  // TODO: Replace with your actual Supabase project URL and anon key
-  // You can find these in your Supabase dashboard: https://app.supabase.com/
-  static const String url = 'https://jqjpxhgxuwkvvmvannut.supabase.co';
-  static const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxanB4aGd4dXdrdnZtdmFubnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzOTAwMjksImV4cCI6MjA3Njk2NjAyOX0.iXNOT2Cf3NkqDGHh6S9f-HALdCjZ7D1_i2tKK6J1-E8';
+  // Load Supabase credentials from environment variables
+  static String get url => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get anonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   static SupabaseClient get client => Supabase.instance.client;
 
   static Future<void> initialize() async {
     try {
+      // Load environment variables first
+      await dotenv.load(fileName: ".env");
+
+      // Validate that required environment variables are present
+      if (url.isEmpty || anonKey.isEmpty) {
+        throw Exception('Missing required Supabase environment variables');
+      }
+
       await Supabase.initialize(
         url: url,
         anonKey: anonKey,
