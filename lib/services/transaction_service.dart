@@ -9,6 +9,12 @@ class TransactionService {
   static const String _transactionsTable = 'transactions';
   static const String _orderPaymentsView = 'order_payments_view'; // Backward compatibility
 
+  /// Get current user ID for filtering
+  static String? _getCurrentUserId() {
+    final user = SupabaseService.client.auth.currentUser;
+    return user?.id;
+  }
+
   // ==================== GENERALIZED TRANSACTION METHODS ====================
 
   /// Create a new transaction (generalized for all types)
@@ -29,34 +35,41 @@ class TransactionService {
     String? accountFrom,
     String? accountTo,
     DateTime? transactionTime,
+    String? userId,
   }) async {
     try {
+      // Get user ID - use provided userId or current authenticated user
+      final currentUserId = userId ?? _getCurrentUserId();
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to create transactions');
+      }
+
       final now = DateTime.now();
-      final transaction = Transaction(
-        id: '', // Will be set by database
-        transactionType: transactionType,
-        referenceType: referenceType,
-        referenceId: referenceId,
-        paymentMethod: paymentMethod,
-        paymentStatus: paymentStatus,
-        amount: amount,
-        currency: currency ?? 'VND',
-        transactionId: transactionId,
-        batchId: batchId,
-        category: category,
-        subcategory: subcategory,
-        description: description,
-        notes: notes,
-        accountFrom: accountFrom,
-        accountTo: accountTo,
-        transactionTime: transactionTime ?? now,
-        createdAt: now,
-        updatedAt: now,
-      );
+      final transactionData = {
+        'transaction_type': transactionType.value,
+        'reference_type': referenceType?.value,
+        'reference_id': referenceId,
+        'payment_method': paymentMethod.value,
+        'payment_status': paymentStatus.value,
+        'amount': amount,
+        'currency': currency ?? 'VND',
+        'transaction_id': transactionId,
+        'batch_id': batchId,
+        'category': category,
+        'subcategory': subcategory,
+        'description': description,
+        'notes': notes,
+        'account_from': accountFrom,
+        'account_to': accountTo,
+        'transaction_time': (transactionTime ?? now).toIso8601String(),
+        'user_id': currentUserId,
+        'created_at': now.toIso8601String(),
+        'updated_at': now.toIso8601String(),
+      };
 
       final response = await SupabaseService.client
           .from(_transactionsTable)
-          .insert(transaction.toMap())
+          .insert(transactionData)
           .select()
           .single();
 
@@ -77,11 +90,21 @@ class TransactionService {
     DateTime? startDate,
     DateTime? endDate,
     int? limit,
+    String? userId,
   }) async {
     try {
+      // Get user ID - use provided userId or current authenticated user
+      final currentUserId = userId ?? _getCurrentUserId();
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to get transactions');
+      }
+
       dynamic query = SupabaseService.client.from(_transactionsTable).select();
 
-      // Apply filters
+      // Apply user filtering first (most important for security)
+      query = query.eq('user_id', currentUserId);
+
+      // Apply other filters
       if (transactionType != null) {
         query = query.eq('transaction_type', transactionType.value);
       }
@@ -133,8 +156,15 @@ class TransactionService {
     String? description,
     String? notes,
     DateTime? transactionTime,
+    String? userId,
   }) async {
     try {
+      // Get user ID - use provided userId or current authenticated user
+      final currentUserId = userId ?? _getCurrentUserId();
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to update transactions');
+      }
+
       final updates = <String, dynamic>{
         'updated_at': DateTime.now().toIso8601String(),
       };
@@ -154,6 +184,7 @@ class TransactionService {
           .from(_transactionsTable)
           .update(updates)
           .eq('id', transactionId)
+          .eq('user_id', currentUserId) // Security: only update user's own transactions
           .select()
           .single();
 
@@ -164,12 +195,19 @@ class TransactionService {
   }
 
   /// Delete a transaction
-  Future<bool> deleteTransaction(String transactionId) async {
+  Future<bool> deleteTransaction(String transactionId, {String? userId}) async {
     try {
+      // Get user ID - use provided userId or current authenticated user
+      final currentUserId = userId ?? _getCurrentUserId();
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to delete transactions');
+      }
+
       await SupabaseService.client
           .from(_transactionsTable)
           .delete()
-          .eq('id', transactionId);
+          .eq('id', transactionId)
+          .eq('user_id', currentUserId); // Security: only delete user's own transactions
       return true;
     } catch (e) {
       return false;
@@ -353,11 +391,13 @@ class TransactionService {
   Future<Map<String, dynamic>> getFinancialSummary({
     DateTime? startDate,
     DateTime? endDate,
+    String? userId,
   }) async {
     try {
       final transactions = await getTransactions(
         startDate: startDate,
         endDate: endDate,
+        userId: userId,
       );
 
       final summary = <String, dynamic>{};

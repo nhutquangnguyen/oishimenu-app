@@ -20,15 +20,28 @@ abstract class SupabaseService {
 /// Menu service using Supabase
 class SupabaseMenuService extends SupabaseService {
 
-  Future<List<MenuItem>> getMenuItems() async {
+  /// Helper method to get current user ID
+  String _getCurrentUserId() {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    return currentUser.id;
+  }
+
+  Future<List<MenuItem>> getMenuItems({String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // Try with deleted_at filter first, fallback if column doesn't exist
       dynamic query = SupabaseService.client
           .from('menu_items')
           .select('''
             *,
             menu_categories!inner(name, display_order)
-          ''');
+          ''')
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Filter by user_id
 
       try {
         query = query.isFilter('deleted_at', null); // Filter out soft-deleted items (IS NULL)
@@ -274,14 +287,18 @@ class SupabaseMenuService extends SupabaseService {
   }
 
   /// Get unavailable menu items (for potential restoration)
-  Future<List<MenuItem>> getSoftDeletedMenuItems() async {
+  Future<List<MenuItem>> getSoftDeletedMenuItems({String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('menu_items')
           .select('''
             *,
             menu_categories!inner(name, display_order)
           ''')
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
           .eq('available_status', 0) // Only unavailable items
           .order('updated_at', ascending: false);
 
@@ -347,11 +364,15 @@ class SupabaseMenuService extends SupabaseService {
     }
   }
 
-  Future<List<MenuCategory>> getCategories() async {
+  Future<List<MenuCategory>> getCategories({String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('menu_categories')
           .select()
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
           .eq('is_active', true)
           .order('display_order', ascending: true);
 
@@ -377,12 +398,16 @@ class SupabaseMenuService extends SupabaseService {
     return getCategories();
   }
 
-  Future<String?> createCategory(MenuCategory category) async {
+  Future<String?> createCategory(MenuCategory category, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client.from('menu_categories').insert({
         'name': category.name,
         'is_active': true,
         'display_order': 0,
+        'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       }).select('id').single();
@@ -393,18 +418,23 @@ class SupabaseMenuService extends SupabaseService {
     }
   }
 
-  Future<bool> updateCategory(MenuCategory category) async {
+  Future<bool> updateCategory(MenuCategory category, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // Validate that we have a valid category ID
       if (category.id.isEmpty) {
         throw Exception('Category ID is required for update');
       }
 
       // Check if category with this name already exists (excluding current category)
+      // and belongs to the current user
       final existing = await SupabaseService.client
           .from('menu_categories')
           .select('id')
           .eq('name', category.name)
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Check within user's data
           .neq('id', category.id)
           .maybeSingle();
 
@@ -418,7 +448,8 @@ class SupabaseMenuService extends SupabaseService {
             'name': category.name,
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', category.id);
+          .eq('id', category.id)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update own categories
 
       return true;
     } catch (e) {
@@ -702,11 +733,24 @@ class SupabaseMenuService extends SupabaseService {
 /// Customer service using Supabase
 class SupabaseCustomerService extends SupabaseService {
 
-  Future<List<customer_model.Customer>> getCustomers() async {
+  /// Helper method to get current user ID
+  String _getCurrentUserId() {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    return currentUser.id;
+  }
+
+  Future<List<customer_model.Customer>> getCustomers({String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('customers')
           .select()
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
           .order('created_at', ascending: false);
 
       return response.map<customer_model.Customer>((json) {
@@ -722,11 +766,15 @@ class SupabaseCustomerService extends SupabaseService {
     }
   }
 
-  Future<customer_model.Customer?> getCustomerByPhone(String phone) async {
+  Future<customer_model.Customer?> getCustomerByPhone(String phone, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('customers')
           .select()
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
           .eq('phone', phone)
           .maybeSingle();
 
@@ -743,13 +791,17 @@ class SupabaseCustomerService extends SupabaseService {
     }
   }
 
-  Future<String> createCustomer(customer_model.Customer customer) async {
+  Future<String> createCustomer(customer_model.Customer customer, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client.from('customers').insert({
         'name': customer.name,
         'phone': customer.phone,
         'email': customer.email,
         'address': customer.address,
+        'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
       }).select().single();
 
       return response['id'];
@@ -758,15 +810,19 @@ class SupabaseCustomerService extends SupabaseService {
     }
   }
 
-  Future<void> updateCustomer(customer_model.Customer customer) async {
+  Future<void> updateCustomer(customer_model.Customer customer, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       await SupabaseService.client.from('customers').update({
         'name': customer.name,
         'phone': customer.phone,
         'email': customer.email,
         'address': customer.address,
         'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', customer.id);
+      }).eq('id', customer.id)
+        .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update own customers
     } catch (e) {
       throw Exception('Failed to update customer: $e');
     }
@@ -1169,11 +1225,24 @@ class SupabaseAuthService extends SupabaseService {
 /// Supabase Menu Option Service for managing option groups and menu options
 class SupabaseMenuOptionService extends SupabaseService {
 
-  Future<List<MenuOption>> getAllMenuOptions() async {
+  /// Helper method to get current user ID
+  String _getCurrentUserId() {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    return currentUser.id;
+  }
+
+  Future<List<MenuOption>> getAllMenuOptions({String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('menu_options')
           .select()
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
           .order('name');
 
       return response.map((json) => MenuOption.fromMap(json)).toList();
@@ -1182,11 +1251,15 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<List<MenuOption>> getMenuOptionsByCategory(String category) async {
+  Future<List<MenuOption>> getMenuOptionsByCategory(String category, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('menu_options')
           .select()
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
           .eq('category', category)
           .order('name');
 
@@ -1196,14 +1269,18 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<String?> createMenuOption(MenuOption option) async {
+  Future<String?> createMenuOption(MenuOption option, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final insertData = {
         'name': option.name,
         'category': option.category,
         'price': option.price,
         'is_available': option.isAvailable ? 1 : 0, // Convert boolean to integer
         'description': option.description,
+        'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       };
@@ -1226,8 +1303,11 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<bool> updateMenuOption(MenuOption option) async {
+  Future<bool> updateMenuOption(MenuOption option, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final updateData = {
         'name': option.name,
         'category': option.category,
@@ -1244,7 +1324,8 @@ class SupabaseMenuOptionService extends SupabaseService {
       await SupabaseService.client
           .from('menu_options')
           .update(updateData)
-          .eq('id', option.id);
+          .eq('id', option.id)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own options
 
       print('✅ Updated option ${option.id} successfully');
       return true;
@@ -1254,12 +1335,16 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<bool> deleteMenuOption(String optionId) async {
+  Future<bool> deleteMenuOption(String optionId, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       await SupabaseService.client
           .from('menu_options')
           .delete()
-          .eq('id', optionId);
+          .eq('id', optionId)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only delete user's own options
 
       return true;
     } catch (e) {
@@ -1267,11 +1352,15 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<List<OptionGroup>> getAllOptionGroups({bool includeUnavailableOptions = false}) async {
+  Future<List<OptionGroup>> getAllOptionGroups({bool includeUnavailableOptions = false, String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('option_groups')
           .select()
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
           .order('name');
 
       List<OptionGroup> groups = [];
@@ -1311,12 +1400,28 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<List<MenuOption>> getOptionsForGroup(String optionGroupId, {bool includeUnavailable = false}) async {
+  Future<List<MenuOption>> getOptionsForGroup(String optionGroupId, {bool includeUnavailable = false, String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // First verify that the option group belongs to the current user
+      final groupCheck = await SupabaseService.client
+          .from('option_groups')
+          .select('id')
+          .eq('id', optionGroupId)
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Verify group ownership
+          .maybeSingle();
+
+      if (groupCheck == null) {
+        throw Exception('Option group not found or access denied');
+      }
+
       var query = SupabaseService.client
           .from('option_group_options')
-          .select('option_id, display_order, menu_options(*)')
+          .select('option_id, display_order, menu_options!inner(*)')
           .eq('option_group_id', optionGroupId)
+          .eq('menu_options.user_id', currentUserId) // 🔒 SECURITY FIX: Filter options by user_id
           .order('display_order');
 
       final response = await query;
@@ -1336,8 +1441,11 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<String?> createOptionGroup(OptionGroup optionGroup) async {
+  Future<String?> createOptionGroup(OptionGroup optionGroup, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('option_groups')
           .insert({
@@ -1346,6 +1454,7 @@ class SupabaseMenuOptionService extends SupabaseService {
             'min_selection': optionGroup.minSelection,
             'max_selection': optionGroup.maxSelection,
             'is_required': optionGroup.isRequired ? 1 : 0, // Convert boolean to integer
+            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           })
@@ -1446,8 +1555,30 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<bool> connectOptionToGroup(String optionId, String groupId, {int displayOrder = 0}) async {
+  Future<bool> connectOptionToGroup(String optionId, String groupId, {int displayOrder = 0, String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // Verify both option and group belong to current user
+      final optionCheck = await SupabaseService.client
+          .from('menu_options')
+          .select('id')
+          .eq('id', optionId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      final groupCheck = await SupabaseService.client
+          .from('option_groups')
+          .select('id')
+          .eq('id', groupId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (optionCheck == null || groupCheck == null) {
+        throw Exception('Option or group not found or access denied');
+      }
+
       await SupabaseService.client
           .from('option_group_options')
           .insert({
@@ -1463,8 +1594,30 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<bool> disconnectOptionFromGroup(String optionId, String groupId) async {
+  Future<bool> disconnectOptionFromGroup(String optionId, String groupId, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // Verify both option and group belong to current user
+      final optionCheck = await SupabaseService.client
+          .from('menu_options')
+          .select('id')
+          .eq('id', optionId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      final groupCheck = await SupabaseService.client
+          .from('option_groups')
+          .select('id')
+          .eq('id', groupId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (optionCheck == null || groupCheck == null) {
+        throw Exception('Option or group not found or access denied');
+      }
+
       await SupabaseService.client
           .from('option_group_options')
           .delete()
@@ -1496,8 +1649,31 @@ class SupabaseMenuOptionService extends SupabaseService {
     String optionGroupId, {
     bool isRequired = false,
     int displayOrder = 0,
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // Verify both menu item and option group belong to current user
+      final menuItemCheck = await SupabaseService.client
+          .from('menu_items')
+          .select('id')
+          .eq('id', menuItemId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      final optionGroupCheck = await SupabaseService.client
+          .from('option_groups')
+          .select('id')
+          .eq('id', optionGroupId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (menuItemCheck == null || optionGroupCheck == null) {
+        throw Exception('Menu item or option group not found or access denied');
+      }
+
       // Check if relationship already exists
       final existing = await SupabaseService.client
           .from('menu_item_option_groups')
@@ -1531,9 +1707,32 @@ class SupabaseMenuOptionService extends SupabaseService {
   /// Disconnect a menu item from an option group
   Future<bool> disconnectMenuItemFromOptionGroup(
     String menuItemId,
-    String optionGroupId,
-  ) async {
+    String optionGroupId, {
+    String? userId,
+  }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // Verify both menu item and option group belong to current user
+      final menuItemCheck = await SupabaseService.client
+          .from('menu_items')
+          .select('id')
+          .eq('id', menuItemId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      final optionGroupCheck = await SupabaseService.client
+          .from('option_groups')
+          .select('id')
+          .eq('id', optionGroupId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (menuItemCheck == null || optionGroupCheck == null) {
+        throw Exception('Menu item or option group not found or access denied');
+      }
+
       await SupabaseService.client
           .from('menu_item_option_groups')
           .delete()
@@ -1549,10 +1748,36 @@ class SupabaseMenuOptionService extends SupabaseService {
   }
 
   /// Update menu item links for an option group
-  Future<bool> updateMenuItemLinks(String optionGroupId, List<String> menuItemIds) async {
+  Future<bool> updateMenuItemLinks(String optionGroupId, List<String> menuItemIds, {String? userId}) async {
     try {
+      final String currentUserId = userId ?? _getCurrentUserId();
       print('🔗 Updating menu item links for option group $optionGroupId');
       print('📋 New menu item IDs: $menuItemIds');
+
+      // Verify option group belongs to current user
+      final optionGroupCheck = await SupabaseService.client
+          .from('option_groups')
+          .select('id')
+          .eq('id', optionGroupId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (optionGroupCheck == null) {
+        throw Exception('Option group not found or access denied');
+      }
+
+      // Verify all menu items belong to current user
+      if (menuItemIds.isNotEmpty) {
+        final menuItemsCheck = await SupabaseService.client
+            .from('menu_items')
+            .select('id')
+            .eq('user_id', currentUserId)
+            .inFilter('id', menuItemIds);
+
+        if (menuItemsCheck.length != menuItemIds.length) {
+          throw Exception('Some menu items not found or access denied');
+        }
+      }
 
       // Get current links
       final currentLinks = await SupabaseService.client
@@ -1569,13 +1794,13 @@ class SupabaseMenuOptionService extends SupabaseService {
       // Remove links that are no longer needed
       final toRemove = currentMenuItemIds.where((id) => !menuItemIds.contains(id));
       for (final menuItemId in toRemove) {
-        await disconnectMenuItemFromOptionGroup(menuItemId, optionGroupId);
+        await disconnectMenuItemFromOptionGroup(menuItemId, optionGroupId, userId: currentUserId);
       }
 
       // Add new links
       final toAdd = menuItemIds.where((id) => !currentMenuItemIds.contains(id));
       for (final menuItemId in toAdd) {
-        await connectMenuItemToOptionGroup(menuItemId, optionGroupId);
+        await connectMenuItemToOptionGroup(menuItemId, optionGroupId, userId: currentUserId);
       }
 
       print('✅ Successfully updated menu item links');
@@ -1590,13 +1815,26 @@ class SupabaseMenuOptionService extends SupabaseService {
 /// Inventory management service using Supabase
 class SupabaseInventoryService extends SupabaseService {
 
+  /// Helper method to get current user ID
+  String _getCurrentUserId() {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    return currentUser.id;
+  }
+
   // ============= INGREDIENT MANAGEMENT =============
 
-  Future<List<Ingredient>> getIngredients({InventoryFilter? filter}) async {
+  Future<List<Ingredient>> getIngredients({InventoryFilter? filter, String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       var query = SupabaseService.client
           .from('ingredients')
-          .select();
+          .select()
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Filter by user_id
 
       // Apply filters
       if (filter != null) {
@@ -1650,12 +1888,16 @@ class SupabaseInventoryService extends SupabaseService {
     }
   }
 
-  Future<Ingredient?> getIngredientById(String id) async {
+  Future<Ingredient?> getIngredientById(String id, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('ingredients')
           .select()
           .eq('id', id)
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
           .eq('is_active', true)
           .maybeSingle();
 
@@ -1668,8 +1910,11 @@ class SupabaseInventoryService extends SupabaseService {
     }
   }
 
-  Future<String> createIngredient(Ingredient ingredient) async {
+  Future<String> createIngredient(Ingredient ingredient, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('ingredients')
           .insert({
@@ -1681,6 +1926,7 @@ class SupabaseInventoryService extends SupabaseService {
             'minimum_threshold': ingredient.minimumThreshold,
             'cost_per_unit': ingredient.costPerUnit,
             'supplier': ingredient.supplier,
+            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
             'is_active': true,
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
@@ -1694,8 +1940,11 @@ class SupabaseInventoryService extends SupabaseService {
     }
   }
 
-  Future<void> updateIngredient(Ingredient ingredient) async {
+  Future<void> updateIngredient(Ingredient ingredient, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       await SupabaseService.client
           .from('ingredients')
           .update({
@@ -1709,14 +1958,18 @@ class SupabaseInventoryService extends SupabaseService {
             'supplier': ingredient.supplier,
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', ingredient.id.toString());
+          .eq('id', ingredient.id.toString())
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own ingredients
     } catch (e) {
       throw Exception('Failed to update ingredient: $e');
     }
   }
 
-  Future<void> deleteIngredient(String id) async {
+  Future<void> deleteIngredient(String id, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // Soft delete by setting is_active to false
       await SupabaseService.client
           .from('ingredients')
@@ -1724,18 +1977,22 @@ class SupabaseInventoryService extends SupabaseService {
             'is_active': false,
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', id);
+          .eq('id', id)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only delete user's own ingredients
     } catch (e) {
       throw Exception('Failed to delete ingredient: $e');
     }
   }
 
-  Future<void> updateIngredientQuantity(String ingredientId, double newQuantity, {String? reason}) async {
+  Future<void> updateIngredientQuantity(String ingredientId, double newQuantity, {String? reason, String? userId}) async {
     try {
-      // Get current ingredient
-      final ingredient = await getIngredientById(ingredientId);
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // Get current ingredient (this now includes user_id filtering from our earlier fix)
+      final ingredient = await getIngredientById(ingredientId, userId: currentUserId);
       if (ingredient == null) {
-        throw Exception('Ingredient not found');
+        throw Exception('Ingredient not found or access denied');
       }
 
       final now = DateTime.now();
@@ -1747,7 +2004,8 @@ class SupabaseInventoryService extends SupabaseService {
             'current_quantity': newQuantity,
             'updated_at': now.toIso8601String(),
           })
-          .eq('id', ingredientId);
+          .eq('id', ingredientId)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own ingredients
 
       // Record transaction
       await SupabaseService.client
@@ -1757,6 +2015,7 @@ class SupabaseInventoryService extends SupabaseService {
             'transaction_type': 'ADJUSTMENT',
             'quantity': newQuantity - ingredient.currentQuantity,
             'unit': ingredient.unit,
+            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign transaction to current user
             'reason': reason ?? 'Manual adjustment',
             'created_at': now.toIso8601String(),
           });
@@ -1767,11 +2026,15 @@ class SupabaseInventoryService extends SupabaseService {
 
   // ============= STOCKTAKE MANAGEMENT =============
 
-  Future<List<StocktakeSession>> getStocktakeSessions() async {
+  Future<List<StocktakeSession>> getStocktakeSessions({String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('stocktake_sessions')
           .select()
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Only get user's own stocktake sessions
           .order('created_at', ascending: false);
 
       return response.map((json) => _stocktakeSessionFromSupabaseMap(json)).toList();
@@ -1780,12 +2043,16 @@ class SupabaseInventoryService extends SupabaseService {
     }
   }
 
-  Future<StocktakeSession?> getStocktakeSessionById(String id) async {
+  Future<StocktakeSession?> getStocktakeSessionById(String id, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('stocktake_sessions')
           .select()
           .eq('id', id)
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Only get user's own stocktake sessions
           .maybeSingle();
 
       if (response != null) {
@@ -1803,16 +2070,20 @@ class SupabaseInventoryService extends SupabaseService {
     required String type,
     String? location,
     List<String>? categoryFilter,
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final now = DateTime.now();
 
-      // Get all ingredients to include in stocktake
+      // Get all ingredients to include in stocktake (with user filtering)
       final filter = InventoryFilter(
         categories: categoryFilter,
         active: true,
       );
-      final ingredients = await getIngredients(filter: filter);
+      final ingredients = await getIngredients(filter: filter, userId: currentUserId);
 
       // Create stocktake session
       final sessionResponse = await SupabaseService.client
@@ -1827,6 +2098,7 @@ class SupabaseInventoryService extends SupabaseService {
             'counted_items': 0,
             'variance_count': 0,
             'total_variance_value': 0,
+            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
             'created_at': now.toIso8601String(),
           })
           .select('id')
@@ -1841,6 +2113,7 @@ class SupabaseInventoryService extends SupabaseService {
         'ingredient_name': ingredient.name,
         'unit': ingredient.unit,
         'expected_quantity': ingredient.currentQuantity,
+        'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
       }).toList();
 
       if (stocktakeItems.isNotEmpty) {
@@ -1855,22 +2128,41 @@ class SupabaseInventoryService extends SupabaseService {
     }
   }
 
-  Future<void> startStocktakeSession(String sessionId) async {
+  Future<void> startStocktakeSession(String sessionId, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       await SupabaseService.client
           .from('stocktake_sessions')
           .update({
             'status': 'in_progress',
             'started_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', sessionId);
+          .eq('id', sessionId)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only start user's own sessions
     } catch (e) {
       throw Exception('Failed to start stocktake session: $e');
     }
   }
 
-  Future<List<StocktakeItem>> getStocktakeItems(String sessionId) async {
+  Future<List<StocktakeItem>> getStocktakeItems(String sessionId, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // Verify session belongs to current user first
+      final sessionCheck = await SupabaseService.client
+          .from('stocktake_sessions')
+          .select('id')
+          .eq('id', sessionId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (sessionCheck == null) {
+        throw Exception('Stocktake session not found or access denied');
+      }
+
       final response = await SupabaseService.client
           .from('stocktake_items')
           .select()
@@ -1888,15 +2180,31 @@ class SupabaseInventoryService extends SupabaseService {
     String itemId,
     double countedQuantity, {
     String? notes,
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
       final now = DateTime.now();
+
+      // Verify session belongs to current user first
+      final sessionCheck = await SupabaseService.client
+          .from('stocktake_sessions')
+          .select('id')
+          .eq('id', sessionId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (sessionCheck == null) {
+        throw Exception('Stocktake session not found or access denied');
+      }
 
       // Get the stocktake item to calculate variance
       final item = await SupabaseService.client
           .from('stocktake_items')
           .select()
           .eq('id', itemId)
+          .eq('session_id', sessionId) // Additional security: ensure item belongs to this session
           .single();
 
       final expectedQuantity = (item['expected_quantity'] as num).toDouble();
@@ -1914,14 +2222,26 @@ class SupabaseInventoryService extends SupabaseService {
           .eq('id', itemId);
 
       // Update session statistics
-      await _updateSessionStatistics(sessionId);
+      await _updateSessionStatistics(sessionId, currentUserId);
     } catch (e) {
       throw Exception('Failed to update stocktake item count: $e');
     }
   }
 
-  Future<void> _updateSessionStatistics(String sessionId) async {
+  Future<void> _updateSessionStatistics(String sessionId, String userId) async {
     try {
+      // Verify session belongs to user first
+      final sessionCheck = await SupabaseService.client
+          .from('stocktake_sessions')
+          .select('id')
+          .eq('id', sessionId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (sessionCheck == null) {
+        throw Exception('Stocktake session not found or access denied');
+      }
+
       // Get all items for this session
       final items = await SupabaseService.client
           .from('stocktake_items')
@@ -1958,9 +2278,23 @@ class SupabaseInventoryService extends SupabaseService {
     }
   }
 
-  Future<void> completeStocktakeSession(String sessionId, {bool applyChanges = false}) async {
+  Future<void> completeStocktakeSession(String sessionId, {bool applyChanges = false, String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
       final now = DateTime.now();
+
+      // Verify session belongs to current user first
+      final sessionCheck = await SupabaseService.client
+          .from('stocktake_sessions')
+          .select('id')
+          .eq('id', sessionId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (sessionCheck == null) {
+        throw Exception('Stocktake session not found or access denied');
+      }
 
       if (applyChanges) {
         // Apply counted quantities to actual inventory
@@ -1978,6 +2312,7 @@ class SupabaseInventoryService extends SupabaseService {
             ingredientId,
             countedQuantity,
             reason: 'Stocktake adjustment - Session: ${sessionId}',
+            userId: currentUserId,
           );
         }
       }
@@ -1989,20 +2324,26 @@ class SupabaseInventoryService extends SupabaseService {
             'status': 'completed',
             'completed_at': now.toIso8601String(),
           })
-          .eq('id', sessionId);
+          .eq('id', sessionId)
+          .eq('user_id', currentUserId); // Security: only complete user's own sessions
     } catch (e) {
       throw Exception('Failed to complete stocktake session: $e');
     }
   }
 
-  Future<void> cancelStocktakeSession(String sessionId) async {
+  Future<void> cancelStocktakeSession(String sessionId, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // Verify session belongs to current user and cancel it
       await SupabaseService.client
           .from('stocktake_sessions')
           .update({
             'status': 'cancelled',
           })
-          .eq('id', sessionId);
+          .eq('id', sessionId)
+          .eq('user_id', currentUserId); // Security: only cancel user's own sessions
     } catch (e) {
       throw Exception('Failed to cancel stocktake session: $e');
     }
@@ -2010,10 +2351,10 @@ class SupabaseInventoryService extends SupabaseService {
 
   // ============= ANALYTICS & UTILITIES =============
 
-  Future<Map<String, dynamic>> getInventoryStatistics() async {
+  Future<Map<String, dynamic>> getInventoryStatistics({String? userId}) async {
     try {
-      // Get all active ingredients
-      final ingredients = await getIngredients();
+      // Get all active ingredients for the user
+      final ingredients = await getIngredients(userId: userId);
 
       double totalValue = 0;
       int lowStockCount = 0;
@@ -2082,6 +2423,15 @@ class SupabaseInventoryService extends SupabaseService {
 /// Order management service using Supabase
 class SupabaseOrderService extends SupabaseService {
 
+  /// Helper method to get current user ID
+  String _getCurrentUserId() {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    return currentUser.id;
+  }
+
   // ============= ORDER CRUD OPERATIONS =============
 
   /// Get all orders with optional filtering - OPTIMIZED to fix N+1 query problem
@@ -2091,8 +2441,12 @@ class SupabaseOrderService extends SupabaseService {
     DateTime? endDate,
     int? limit,
     String? customerId,
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // 🚀 PERFORMANCE FIX: Single optimized query with JOIN to get orders AND items in one call
       dynamic ordersQuery = SupabaseService.client
           .from('orders')
@@ -2118,6 +2472,9 @@ class SupabaseOrderService extends SupabaseService {
       if (customerId != null) {
         ordersQuery = ordersQuery.eq('customer_id', customerId);
       }
+
+      // 🔒 SECURITY FIX: Filter by user_id (after running migration 001)
+      ordersQuery = ordersQuery.eq('user_id', currentUserId);
 
       // Apply ordering and limit
       ordersQuery = ordersQuery.order('created_at', ascending: false);
@@ -2171,8 +2528,11 @@ class SupabaseOrderService extends SupabaseService {
   }
 
   /// Get a single order by ID
-  Future<Order?> getOrderById(String id) async {
+  Future<Order?> getOrderById(String id, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('orders')
           .select('''
@@ -2180,6 +2540,7 @@ class SupabaseOrderService extends SupabaseService {
             customers!inner(id, name, phone, email, address)
           ''')
           .eq('id', _convertToSupabaseId(id))
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Only get user's own orders
           .single();
 
       // Transform customer data
@@ -2199,8 +2560,8 @@ class SupabaseOrderService extends SupabaseService {
 
       final order = Order.fromMap(transformedJson);
 
-      // Load order items
-      final orderItems = await getOrderItems(order.id);
+      // Load order items (pass userId to maintain consistency)
+      final orderItems = await getOrderItems(order.id, userId: currentUserId);
 
       return order.copyWith(items: orderItems);
     } catch (e) {
@@ -2210,8 +2571,23 @@ class SupabaseOrderService extends SupabaseService {
   }
 
   /// Get order items for a specific order
-  Future<List<OrderItem>> getOrderItems(String orderId) async {
+  Future<List<OrderItem>> getOrderItems(String orderId, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // First verify the order belongs to the current user
+      final orderCheck = await SupabaseService.client
+          .from('orders')
+          .select('id')
+          .eq('id', _convertToSupabaseId(orderId))
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Verify order ownership
+          .maybeSingle();
+
+      if (orderCheck == null) {
+        throw Exception('Order not found or access denied');
+      }
+
       final response = await SupabaseService.client
           .from('order_items')
           .select('*')
@@ -2241,6 +2617,9 @@ class SupabaseOrderService extends SupabaseService {
       // Convert timestamps to ISO strings for Supabase
       data['created_at'] = DateTime.now().toIso8601String();
       data['updated_at'] = DateTime.now().toIso8601String();
+
+      // 🔒 SECURITY FIX: Add user_id for data isolation
+      data['user_id'] = _getCurrentUserId();
 
       // Create order
       final response = await SupabaseService.client
@@ -2284,8 +2663,11 @@ class SupabaseOrderService extends SupabaseService {
   }
 
   /// Update an existing order
-  Future<void> updateOrder(Order order) async {
+  Future<void> updateOrder(Order order, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // Validate payment method for delivered orders
       if (_requiresPaymentMethod(order.status)) {
         _validatePaymentMethodForOrder(order);
@@ -2304,7 +2686,8 @@ class SupabaseOrderService extends SupabaseService {
       await SupabaseService.client
           .from('orders')
           .update(data)
-          .eq('id', _convertToSupabaseId(order.id));
+          .eq('id', _convertToSupabaseId(order.id))
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own orders
 
       // 🔄 CUSTOMER UPDATE FIX: Update customer information when order is updated
 
@@ -2354,6 +2737,7 @@ class SupabaseOrderService extends SupabaseService {
             'phone': order.customer.phone,
             'email': order.customer.email,
             'address': order.customer.address,
+            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign customer to current user
           }).select().single();
 
           final newCustomerId = response['id'];
@@ -2413,8 +2797,11 @@ class SupabaseOrderService extends SupabaseService {
   }
 
   /// Update order status
-  Future<void> updateOrderStatus(String orderId, OrderStatus status) async {
+  Future<void> updateOrderStatus(String orderId, OrderStatus status, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // Validate payment method is required for completion statuses
       if (_requiresPaymentMethod(status)) {
         await _validatePaymentMethodForCompletion(orderId, status);
@@ -2426,7 +2813,8 @@ class SupabaseOrderService extends SupabaseService {
             'status': status.value,
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', _convertToSupabaseId(orderId));
+          .eq('id', _convertToSupabaseId(orderId))
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own orders
     } catch (e) {
       print('❌ Error updating order status: $e');
 
@@ -2523,15 +2911,19 @@ class SupabaseOrderService extends SupabaseService {
   }
 
   /// Update payment status
-  Future<void> updatePaymentStatus(String orderId, PaymentStatus status) async {
+  Future<void> updatePaymentStatus(String orderId, PaymentStatus status, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       await SupabaseService.client
           .from('orders')
           .update({
             'payment_status': status.value,
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', _convertToSupabaseId(orderId));
+          .eq('id', _convertToSupabaseId(orderId))
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own orders
     } catch (e) {
       print('❌ Error updating payment status: $e');
       throw Exception('Failed to update payment status: $e');
@@ -2545,8 +2937,12 @@ class SupabaseOrderService extends SupabaseService {
     PaymentMethod paymentMethod, {
     PaymentStatus paymentStatus = PaymentStatus.paid,
     OrderStatus orderStatus = OrderStatus.delivered,
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // Validate payment method is not 'none'
       if (paymentMethod == PaymentMethod.none) {
         throw Exception('Payment method required');
@@ -2561,7 +2957,8 @@ class SupabaseOrderService extends SupabaseService {
             'status': orderStatus.value,
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', _convertToSupabaseId(orderId));
+          .eq('id', _convertToSupabaseId(orderId))
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only complete user's own orders
     } catch (e) {
       print('❌ Error completing order with payment: $e');
       throw Exception('Failed to complete order with payment: $e');
@@ -2569,8 +2966,23 @@ class SupabaseOrderService extends SupabaseService {
   }
 
   /// Delete an order
-  Future<void> deleteOrder(String id) async {
+  Future<void> deleteOrder(String id, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      // First verify the order belongs to the current user
+      final orderCheck = await SupabaseService.client
+          .from('orders')
+          .select('id')
+          .eq('id', _convertToSupabaseId(id))
+          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Verify ownership
+          .maybeSingle();
+
+      if (orderCheck == null) {
+        throw Exception('Order not found or access denied');
+      }
+
       // Delete order items first (foreign key constraint)
       await SupabaseService.client
           .from('order_items')
@@ -2581,7 +2993,8 @@ class SupabaseOrderService extends SupabaseService {
       await SupabaseService.client
           .from('orders')
           .delete()
-          .eq('id', _convertToSupabaseId(id));
+          .eq('id', _convertToSupabaseId(id))
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only delete user's own orders
     } catch (e) {
       print('❌ Error deleting order: $e');
       throw Exception('Failed to delete order: $e');
@@ -2616,12 +3029,17 @@ class SupabaseOrderService extends SupabaseService {
   Future<Map<String, dynamic>> getOrderStatistics({
     DateTime? startDate,
     DateTime? endDate,
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // Build date filter
       dynamic query = SupabaseService.client
           .from('orders')
-          .select('total, status, order_type, payment_status, created_at');
+          .select('total, status, order_type, payment_status, created_at')
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only get user's own orders
 
       if (startDate != null) {
         query = query.gte('created_at', startDate.toIso8601String());
@@ -2701,12 +3119,17 @@ class SupabaseOrderService extends SupabaseService {
     DateTime? startDate,
     DateTime? endDate,
     int limit = 10,
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       // Build query for order items with date filter via orders table
       dynamic orderQuery = SupabaseService.client
           .from('orders')
-          .select('id');
+          .select('id')
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only get user's own orders
 
       if (startDate != null) {
         orderQuery = orderQuery.gte('created_at', startDate.toIso8601String());
@@ -2769,12 +3192,17 @@ class SupabaseOrderService extends SupabaseService {
     DateTime? startDate,
     DateTime? endDate,
     String groupBy = 'day', // 'hour', 'day', 'week', 'month'
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       dynamic query = SupabaseService.client
           .from('orders')
           .select('total, created_at')
-          .eq('payment_status', PaymentStatus.paid.value);
+          .eq('payment_status', PaymentStatus.paid.value)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only get user's own orders
 
       if (startDate != null) {
         query = query.gte('created_at', startDate.toIso8601String());
@@ -2903,14 +3331,29 @@ class SupabaseOrderService extends SupabaseService {
 /// Order Source management service using Supabase
 class SupabaseOrderSourceService extends SupabaseService {
 
+  /// Helper method to get current user ID
+  String _getCurrentUserId() {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User must be authenticated');
+    }
+    return currentUser.id;
+  }
+
   // ============= ORDER SOURCE CRUD OPERATIONS =============
 
   /// Get all order sources
-  Future<List<OrderSource>> getOrderSources({bool? isActive}) async {
+  Future<List<OrderSource>> getOrderSources({bool? isActive, String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       dynamic query = SupabaseService.client
           .from('order_sources')
           .select();
+
+      // Apply user filtering (assuming user_id column exists or will be added)
+      query = query.eq('user_id', currentUserId);
 
       if (isActive != null) {
         query = query.eq('is_active', isActive);
@@ -2936,12 +3379,16 @@ class SupabaseOrderSourceService extends SupabaseService {
   }
 
   /// Get order source by ID
-  Future<OrderSource?> getOrderSourceById(String id) async {
+  Future<OrderSource?> getOrderSourceById(String id, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final response = await SupabaseService.client
           .from('order_sources')
           .select()
           .eq('id', _convertToSupabaseId(id))
+          .eq('user_id', currentUserId) // Security: only get user's own order sources
           .maybeSingle();
 
       if (response != null) {
@@ -2956,12 +3403,18 @@ class SupabaseOrderSourceService extends SupabaseService {
   }
 
   /// Create order source
-  Future<String> createOrderSource(OrderSource orderSource) async {
+  Future<String> createOrderSource(OrderSource orderSource, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final data = orderSource.toMap();
 
       // Remove id field for new records
       data.remove('id');
+
+      // Add user_id to ensure ownership
+      data['user_id'] = currentUserId;
 
       // Convert timestamps to ISO strings for Supabase
       data['created_at'] = DateTime.now().toIso8601String();
@@ -2981,12 +3434,16 @@ class SupabaseOrderSourceService extends SupabaseService {
   }
 
   /// Update order source
-  Future<void> updateOrderSource(OrderSource orderSource) async {
+  Future<void> updateOrderSource(OrderSource orderSource, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final data = orderSource.toMap();
 
-      // Remove id field for updates (used in WHERE clause)
+      // Remove id and user_id fields for updates (used in WHERE clause)
       data.remove('id');
+      data.remove('user_id');
 
       // Update timestamp to ISO string for Supabase
       data['updated_at'] = DateTime.now().toIso8601String();
@@ -2994,7 +3451,8 @@ class SupabaseOrderSourceService extends SupabaseService {
       await SupabaseService.client
           .from('order_sources')
           .update(data)
-          .eq('id', _convertToSupabaseId(orderSource.id));
+          .eq('id', _convertToSupabaseId(orderSource.id))
+          .eq('user_id', currentUserId); // Security: only update user's own order sources
     } catch (e) {
       print('❌ Error updating order source: $e');
       throw Exception('Failed to update order source: $e');
@@ -3002,12 +3460,16 @@ class SupabaseOrderSourceService extends SupabaseService {
   }
 
   /// Delete order source
-  Future<void> deleteOrderSource(String id) async {
+  Future<void> deleteOrderSource(String id, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       await SupabaseService.client
           .from('order_sources')
           .delete()
-          .eq('id', _convertToSupabaseId(id));
+          .eq('id', _convertToSupabaseId(id))
+          .eq('user_id', currentUserId); // Security: only delete user's own order sources
     } catch (e) {
       print('❌ Error deleting order source: $e');
       throw Exception('Failed to delete order source: $e');
@@ -3015,13 +3477,16 @@ class SupabaseOrderSourceService extends SupabaseService {
   }
 
   /// Initialize default order sources if table is empty
-  Future<void> initializeDefaultOrderSources() async {
+  Future<void> initializeDefaultOrderSources({String? userId}) async {
     try {
-      final sources = await getOrderSources();
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
+      final sources = await getOrderSources(userId: currentUserId);
       if (sources.isEmpty) {
         final defaultSources = OrderSource.getDefaultSources();
         for (final source in defaultSources) {
-          await createOrderSource(source);
+          await createOrderSource(source, userId: currentUserId);
         }
         print('✅ Initialized ${defaultSources.length} default order sources');
       }
@@ -3050,6 +3515,15 @@ class SupabaseOrderSourceService extends SupabaseService {
 
 /// Finance entries management service using Supabase
 class SupabaseFinanceService extends SupabaseService {
+
+  /// Helper method to get current user ID
+  String _getCurrentUserId() {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    return currentUser.id;
+  }
 
   // ============= FINANCE ENTRY CRUD OPERATIONS =============
 
@@ -3104,9 +3578,13 @@ class SupabaseFinanceService extends SupabaseService {
     String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       dynamic query = SupabaseService.client
           .from('finance_entries')
-          .select();
+          .select()
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Always filter by user_id
 
       // Filter by date range
       if (startDate != null) {
@@ -3119,11 +3597,6 @@ class SupabaseFinanceService extends SupabaseService {
       // Filter by type
       if (type != null) {
         query = query.eq('type', type);
-      }
-
-      // Filter by user (optional)
-      if (userId != null) {
-        query = query.eq('user_id', userId);
       }
 
       // Order by creation date (newest first)
@@ -3139,7 +3612,7 @@ class SupabaseFinanceService extends SupabaseService {
   }
 
   /// Get today's finance entries
-  Future<List<Map<String, dynamic>>> getTodayFinanceEntries() async {
+  Future<List<Map<String, dynamic>>> getTodayFinanceEntries({String? userId}) async {
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
     final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
@@ -3147,6 +3620,7 @@ class SupabaseFinanceService extends SupabaseService {
     return getFinanceEntries(
       startDate: startOfDay,
       endDate: endOfDay,
+      userId: userId, // 🔒 SECURITY FIX: Pass userId parameter
     );
   }
 
@@ -3154,11 +3628,13 @@ class SupabaseFinanceService extends SupabaseService {
   Future<Map<String, double>> getFinanceSummary({
     DateTime? startDate,
     DateTime? endDate,
+    String? userId,
   }) async {
     try {
       final entries = await getFinanceEntries(
         startDate: startDate,
         endDate: endDate,
+        userId: userId, // 🔒 SECURITY FIX: Pass userId parameter
       );
 
       double totalIncome = 0.0;
@@ -3195,8 +3671,12 @@ class SupabaseFinanceService extends SupabaseService {
     required double amount,
     required String description,
     required String category,
+    String? userId,
   }) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       final data = {
         'type': type,
         'amount': amount,
@@ -3208,7 +3688,8 @@ class SupabaseFinanceService extends SupabaseService {
       await SupabaseService.client
           .from('finance_entries')
           .update(data)
-          .eq('id', id);
+          .eq('id', id)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update own entries
 
       print('✅ Finance entry updated successfully');
     } catch (e) {
@@ -3218,12 +3699,16 @@ class SupabaseFinanceService extends SupabaseService {
   }
 
   /// Delete finance entry
-  Future<void> deleteFinanceEntry(String id) async {
+  Future<void> deleteFinanceEntry(String id, {String? userId}) async {
     try {
+      // Get current user if userId not provided
+      final String currentUserId = userId ?? _getCurrentUserId();
+
       await SupabaseService.client
           .from('finance_entries')
           .delete()
-          .eq('id', id);
+          .eq('id', id)
+          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only delete own entries
 
       print('✅ Finance entry deleted successfully');
     } catch (e) {
