@@ -56,9 +56,9 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            isShrinkResources = true  // Remove unused resources
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            isMinifyEnabled = false
+            isShrinkResources = false  // Remove unused resources
+            // proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
@@ -78,6 +78,9 @@ android {
     packagingOptions {
         // Strip debug symbols for significantly smaller APK
         // Keep only essential runtime symbols
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 

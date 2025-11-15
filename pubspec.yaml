@@ -1,7 +1,7 @@
 name: oishimenu_app
 description: OishiMenu - Complete restaurant management solution with cloud sync, Google Sign-In, POS system, inventory tracking, and analytics. Perfect for restaurants, cafes, and food businesses.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
