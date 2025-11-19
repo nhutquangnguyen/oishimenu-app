@@ -3,7 +3,6 @@ import '../models/menu_item.dart';
 import '../models/menu_options.dart';
 import '../models/customer.dart' as customer_model;
 import '../models/order.dart';
-import '../models/inventory_models.dart';
 import '../models/order_source.dart';
 import 'supabase_service.dart';
 
@@ -205,34 +204,6 @@ class SupabaseImportExportService extends SupabaseService {
     }
   }
 
-  // ============= INVENTORY DATA IMPORT/EXPORT =============
-
-  /// Export ingredients to JSON format
-  Future<String> exportInventoryToJson() async {
-    try {
-      final inventoryService = SupabaseInventoryService();
-      final ingredients = await inventoryService.getIngredients();
-
-      final exportData = ingredients.map((ingredient) => {
-        'name': ingredient.name,
-        'category': ingredient.category,
-        'unit': ingredient.unit,
-        'current_quantity': ingredient.currentQuantity,
-        'minimum_threshold': ingredient.minimumThreshold,
-        'cost_per_unit': ingredient.costPerUnit,
-        'supplier': ingredient.supplier,
-        'description': ingredient.description,
-        'is_active': ingredient.isActive,
-        'created_at': ingredient.createdAt.toIso8601String(),
-        'updated_at': ingredient.updatedAt.toIso8601String(),
-      }).toList();
-
-      return json.encode(exportData);
-    } catch (e) {
-      throw Exception('Failed to export inventory: $e');
-    }
-  }
-
   // ============= ORDER DATA EXPORT =============
 
   /// Export orders to JSON format (for analytics and backup)
@@ -290,9 +261,6 @@ class SupabaseImportExportService extends SupabaseService {
 
       print('👥 Backing up customers...');
       backup['data']['customers'] = json.decode(await exportCustomersToJson());
-
-      print('📦 Backing up inventory...');
-      backup['data']['inventory'] = json.decode(await exportInventoryToJson());
 
       print('🛒 Backing up recent orders...');
       final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));

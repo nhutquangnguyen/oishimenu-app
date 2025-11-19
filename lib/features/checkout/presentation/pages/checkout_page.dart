@@ -331,7 +331,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         status: OrderStatus.pending, // Active order status
         paymentStatus: PaymentStatus.pending, // Payment pending
         deliveryInfo: widget.order.deliveryInfo,
-        tableNumber: widget.order.tableNumber,
         platform: _selectedOrderSource?.name ?? widget.order.platform, // Save the selected order source name or keep existing
         assignedStaff: widget.order.assignedStaff,
         notes: widget.order.notes,
@@ -503,7 +502,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         status: OrderStatus.delivered,
         paymentStatus: PaymentStatus.paid,
         deliveryInfo: widget.order.deliveryInfo,
-        tableNumber: widget.order.tableNumber,
         platform: _selectedOrderSource!.name, // Save the selected order source name
         assignedStaff: widget.order.assignedStaff,
         notes: widget.order.notes,

@@ -1410,8 +1410,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
             children: [
               _buildInfoRow(Icons.access_time, 'orders_page.order_time'.tr(), _formatDateTime(order.createdAt)),
               const SizedBox(height: 8),
-              if (order.tableNumber != null)
-                _buildInfoRow(Icons.table_restaurant, 'orders_page.table_number'.tr(), order.tableNumber!),
             ],
           ),
         ),

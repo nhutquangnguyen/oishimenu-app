@@ -8,7 +8,6 @@ import '../models/menu_item.dart';
 import '../models/customer.dart' as customer_model;
 import '../models/order.dart';
 import '../models/menu_options.dart';
-import '../models/inventory_models.dart';
 import '../models/order_source.dart';
 import '../models/restaurant.dart';
 import '../features/auth/services/auth_service.dart' show AuthException;

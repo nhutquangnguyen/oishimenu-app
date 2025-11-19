@@ -1342,7 +1342,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
   void _showAddExpenseDialog() {
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
-    String selectedCategory = 'finance_page.category_ingredients'.tr();
+    String selectedCategory = 'finance_page.category_staff'.tr();
     PaymentMethodType? selectedPaymentMethod;
 
     showDialog(
@@ -1393,7 +1393,6 @@ class _FinancePageState extends ConsumerState<FinancePage>
                   border: OutlineInputBorder(),
                 ),
                 items: [
-                  'finance_page.category_ingredients'.tr(),
                   'finance_page.category_staff'.tr(),
                   'finance_page.category_utilities'.tr(),
                   'finance_page.category_marketing'.tr(),
@@ -1664,7 +1663,6 @@ class _FinancePageState extends ConsumerState<FinancePage>
     if (category == 'finance_page.category_tips'.tr()) return 'tips';
 
     // Expense categories
-    if (category == 'finance_page.category_ingredients'.tr()) return 'food_supplies';
     if (category == 'finance_page.category_staff'.tr()) return 'wages';
     if (category == 'finance_page.category_utilities'.tr()) return 'utilities';
     if (category == 'finance_page.category_marketing'.tr()) return 'marketing';

@@ -57,7 +57,6 @@ class _PosPageState extends ConsumerState<PosPage> {
   List<CartItem> _cartItems = [];
   String _searchQuery = '';
   String? _selectedCategory; // null means "All"
-  String? _selectedTable;
   Customer? _selectedCustomer;
   bool _isLoading = true;
   String _orderNotes = ''; // Order notes/comments
@@ -131,8 +130,6 @@ class _PosPageState extends ConsumerState<PosPage> {
         updatedAt: order.customer.updatedAt ?? DateTime.now(),
       );
 
-      // Load table information
-      _selectedTable = order.tableNumber;
 
       // Load discount information
       _discountAmount = order.discount;
@@ -162,7 +159,6 @@ class _PosPageState extends ConsumerState<PosPage> {
           photos: const [],
           availableStatus: true,
           sizes: const [],
-          recipes: const [],
           displayOrder: 0,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -265,7 +261,6 @@ class _PosPageState extends ConsumerState<PosPage> {
 
     setState(() {
       _cartItems = cartItems;
-      _selectedTable = order.tableNumber;
       _selectedCustomer = Customer(
         id: order.customer.id,
         name: order.customer.name,
@@ -1591,18 +1586,8 @@ class _PosPageState extends ConsumerState<PosPage> {
         );
       }).toList();
 
-      // Determine order type based on table
-      order_model.OrderType orderType;
-      if (_selectedTable == null) {
-        // No table selected - use takeaway as fallback but don't pre-select it in UI
-        orderType = order_model.OrderType.takeaway;
-      } else if (_selectedTable == 'pos_page.default_table'.tr()) {
-        orderType = order_model.OrderType.takeaway;
-      } else if (_selectedTable == 'Grab') {
-        orderType = order_model.OrderType.delivery;
-      } else {
-        orderType = order_model.OrderType.dineIn;
-      }
+      // Default to takeaway order type
+      order_model.OrderType orderType = order_model.OrderType.takeaway;
 
       // Convert Customer to order model Customer using the new controller values
       final orderCustomer = order_model.Customer(
@@ -1648,7 +1633,6 @@ class _PosPageState extends ConsumerState<PosPage> {
           paymentStatus: (paidAmount != null && paidAmount > 0)
               ? order_model.PaymentStatus.paid
               : _originalPaymentStatus ?? order_model.PaymentStatus.pending,
-          tableNumber: _selectedTable,
           platform: _originalPlatform ?? 'POS', // Preserve original platform
           notes: _orderNotesController.text.trim().isEmpty ? null : _orderNotesController.text.trim(),
           createdAt: _existingOrderCreatedAt ?? now, // Preserve original creation time
@@ -1682,7 +1666,6 @@ class _PosPageState extends ConsumerState<PosPage> {
           paymentStatus: (paidAmount != null && paidAmount > 0)
               ? order_model.PaymentStatus.paid
               : order_model.PaymentStatus.pending,
-          tableNumber: _selectedTable,
           platform: 'POS',
           notes: _orderNotes.isEmpty ? null : _orderNotes,
           createdAt: now,
@@ -1755,7 +1738,6 @@ class _PosPageState extends ConsumerState<PosPage> {
           setState(() {
             _cartItems = [];
             _selectedCustomer = null;
-            _selectedTable = null;
             _orderNotes = '';
             _orderNotesController.text = '';
             _customerNameController.text = '';

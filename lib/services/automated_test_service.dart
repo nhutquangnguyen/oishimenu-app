@@ -919,16 +919,6 @@ class AutomatedTestService {
       }
     );
 
-    await _runTest(
-      'DATA_003',
-      'Inventory Service',
-      'Test inventory service functionality',
-      () async {
-        final inventoryService = ref.read(supabaseInventoryServiceProvider);
-        final ingredients = await inventoryService.getIngredients();
-        return TestResult.passed('DATA_003', 'Inventory data accessible: ${ingredients.length} ingredients');
-      }
-    );
 
     await _runTest(
       'DATA_004',
@@ -1497,7 +1487,6 @@ class AutomatedTestService {
           ref.read(supabaseMenuServiceProvider),
           ref.read(supabaseCustomerServiceProvider),
           ref.read(supabaseOrderServiceProvider),
-          ref.read(supabaseInventoryServiceProvider),
           ref.read(supabaseMenuOptionServiceProvider),
         ];
 

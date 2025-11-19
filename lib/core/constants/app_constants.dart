@@ -14,13 +14,6 @@ class AppConstants {
   static const String ordersCollection = 'orders';
   static const String customersCollection = 'customers';
   static const String employeesCollection = 'employees';
-  static const String inventoryCollection = 'inventory';
-  static const String ingredientsCollection = 'ingredients';
-  static const String recipesCollection = 'recipes';
-  static const String stockAlertsCollection = 'stock-alerts';
-  static const String stocktakeSessionsCollection = 'stocktake-sessions';
-  static const String stocktakeItemsCollection = 'stocktake-items';
-  static const String tablesCollection = 'tables';
   static const String feedbackCollection = 'feedback';
   static const String optionGroupsCollection = 'option-groups';
   static const String analyticsCollection = 'analytics-cache';
@@ -40,12 +33,6 @@ class AppConstants {
   static const String orderTypeTakeaway = 'TAKEAWAY';
   static const String orderTypeDelivery = 'DELIVERY';
 
-  // Table Status
-  static const String tableStatusAvailable = 'AVAILABLE';
-  static const String tableStatusOccupied = 'OCCUPIED';
-  static const String tableStatusReserved = 'RESERVED';
-  static const String tableStatusCleaning = 'CLEANING';
-  static const String tableStatusOutOfOrder = 'OUT_OF_ORDER';
 
   // Employee Roles
   static const String roleAdmin = 'admin';

@@ -214,10 +214,6 @@ final supabaseOrderSourceServiceProvider = Provider<SupabaseOrderSourceService>(
   return SupabaseOrderSourceService();
 });
 
-// Inventory Service Provider
-final supabaseInventoryServiceProvider = Provider<SupabaseInventoryService>((ref) {
-  return SupabaseInventoryService();
-});
 
 // Import/Export Service Provider
 final supabaseImportExportServiceProvider = Provider<SupabaseImportExportService>((ref) {
