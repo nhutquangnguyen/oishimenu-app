@@ -7,6 +7,10 @@ import '../../providers/settings_provider.dart';
 import 'order_source_management_page.dart';
 import '../../../testing/test_results_page.dart';
 import '../../../auth/providers/auth_provider.dart';
+import 'restaurant_management_page.dart';
+import '../../../restaurants/providers/restaurant_provider.dart';
+import '../../../../models/restaurant.dart';
+import '../../../../services/supabase_service.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -81,11 +85,32 @@ class SettingsPage extends ConsumerWidget {
 
             const SizedBox(height: 24),
 
+            // Default Restaurant Section
+            _buildDefaultRestaurantSection(context, ref),
+
+            const SizedBox(height: 24),
+
             // Management Section
             _buildSectionCard(
               context: context,
               title: 'Management',
               children: [
+                ListTile(
+                  leading: const Icon(Icons.restaurant_menu),
+                  title: const Text('Restaurants'),
+                  subtitle: const Text('Manage your restaurants'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RestaurantManagementPage(),
+                      ),
+                    );
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
                 ListTile(
                   leading: const Icon(Icons.source),
                   title: const Text('Order Sources'),
@@ -421,6 +446,176 @@ class SettingsPage extends ConsumerWidget {
                 size: 20,
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Default Restaurant Section
+  Widget _buildDefaultRestaurantSection(BuildContext context, WidgetRef ref) {
+    final userRestaurants = ref.watch(userRestaurantsProvider);
+    final currentRestaurant = ref.watch(currentRestaurantProvider);
+
+    return _buildSectionCard(
+      context: context,
+      title: 'Default Restaurant',
+      children: [
+        userRestaurants.when(
+          loading: () => const ListTile(
+            leading: Icon(Icons.restaurant),
+            title: Text('Loading restaurants...'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          error: (error, _) => ListTile(
+            leading: const Icon(Icons.error, color: Colors.red),
+            title: const Text('Error loading restaurants'),
+            subtitle: Text(error.toString()),
+            contentPadding: EdgeInsets.zero,
+          ),
+          data: (restaurants) {
+            if (restaurants.isEmpty) {
+              return const ListTile(
+                leading: Icon(Icons.restaurant_menu),
+                title: Text('No restaurants found'),
+                subtitle: Text('Create a restaurant first'),
+                contentPadding: EdgeInsets.zero,
+              );
+            }
+
+            return Column(
+              children: restaurants.map((restaurant) {
+                final isSelected = restaurant.isDefault; // Use database isDefault field
+                return _buildRestaurantOption(
+                  context: context,
+                  ref: ref,
+                  restaurant: restaurant,
+                  isSelected: isSelected,
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // Restaurant option widget
+  Widget _buildRestaurantOption({
+    required BuildContext context,
+    required WidgetRef ref,
+    required Restaurant restaurant,
+    required bool isSelected,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () async {
+          // Set as default in database
+          final restaurantService = SupabaseRestaurantService();
+          final user = ref.read(currentUserProvider);
+
+          if (user != null) {
+            final success = await restaurantService.setDefaultRestaurant(restaurant.id, user.id);
+
+            if (success) {
+              // Update local provider state
+              ref.read(restaurantSelectionProvider.notifier).selectRestaurant(restaurant);
+
+              // Refresh the restaurant list to show updated default state
+              ref.invalidate(userRestaurantsProvider);
+
+              // Also invalidate the restaurant selection provider to force reload
+              ref.invalidate(restaurantSelectionProvider);
+
+              // Add a longer delay to ensure database changes are committed and cached data is cleared
+              await Future.delayed(const Duration(milliseconds: 1500));
+
+              // Force another refresh to get fresh data
+              ref.invalidate(userRestaurantsProvider);
+
+              // Also clear any cached restaurant data
+              ref.invalidate(restaurantSelectionProvider);
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Default restaurant set to: ${restaurant.name}'),
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } else {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to set default restaurant'),
+                    duration: Duration(seconds: 2),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Text(
+                  restaurant.name.isNotEmpty ? restaurant.name[0].toUpperCase() : 'R',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      restaurant.name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (restaurant.country.isNotEmpty)
+                      Text(
+                        restaurant.country,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.check_circle,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 24,
+                ),
+            ],
+          ),
         ),
       ),
     );

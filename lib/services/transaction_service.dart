@@ -15,6 +15,27 @@ class TransactionService {
     return user?.id;
   }
 
+  /// Get current restaurant ID for filtering transactions
+  static Future<String> _getCurrentRestaurantId() async {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_user_id', currentUser.id)
+          .limit(1)
+          .single();
+
+      return response['id'];
+    } catch (e) {
+      throw Exception('Could not determine restaurant ID: $e');
+    }
+  }
+
   // ==================== GENERALIZED TRANSACTION METHODS ====================
 
   /// Create a new transaction (generalized for all types)
@@ -38,11 +59,8 @@ class TransactionService {
     String? userId,
   }) async {
     try {
-      // Get user ID - use provided userId or current authenticated user
-      final currentUserId = userId ?? _getCurrentUserId();
-      if (currentUserId == null) {
-        throw Exception('User must be authenticated to create transactions');
-      }
+      // Get current restaurant ID for proper multi-tenant isolation
+      final currentRestaurantId = await _getCurrentRestaurantId();
 
       final now = DateTime.now();
       final transactionData = {
@@ -62,7 +80,7 @@ class TransactionService {
         'account_from': accountFrom,
         'account_to': accountTo,
         'transaction_time': (transactionTime ?? now).toIso8601String(),
-        'user_id': currentUserId,
+        'restaurant_id': currentRestaurantId, // 🔒 SECURITY FIX: Assign to current restaurant
         'created_at': now.toIso8601String(),
         'updated_at': now.toIso8601String(),
       };
@@ -93,16 +111,13 @@ class TransactionService {
     String? userId,
   }) async {
     try {
-      // Get user ID - use provided userId or current authenticated user
-      final currentUserId = userId ?? _getCurrentUserId();
-      if (currentUserId == null) {
-        throw Exception('User must be authenticated to get transactions');
-      }
+      // Get current restaurant ID for proper multi-tenant isolation
+      final currentRestaurantId = await _getCurrentRestaurantId();
 
       dynamic query = SupabaseService.client.from(_transactionsTable).select();
 
-      // Apply user filtering first (most important for security)
-      query = query.eq('user_id', currentUserId);
+      // Apply restaurant filtering first (most important for security)
+      query = query.eq('restaurant_id', currentRestaurantId);
 
       // Apply other filters
       if (transactionType != null) {
@@ -159,11 +174,8 @@ class TransactionService {
     String? userId,
   }) async {
     try {
-      // Get user ID - use provided userId or current authenticated user
-      final currentUserId = userId ?? _getCurrentUserId();
-      if (currentUserId == null) {
-        throw Exception('User must be authenticated to update transactions');
-      }
+      // Get current restaurant ID for proper multi-tenant isolation
+      final currentRestaurantId = await _getCurrentRestaurantId();
 
       final updates = <String, dynamic>{
         'updated_at': DateTime.now().toIso8601String(),
@@ -184,7 +196,7 @@ class TransactionService {
           .from(_transactionsTable)
           .update(updates)
           .eq('id', transactionId)
-          .eq('user_id', currentUserId) // Security: only update user's own transactions
+          .eq('restaurant_id', currentRestaurantId) // Security: only update restaurant's own transactions
           .select()
           .single();
 
@@ -197,17 +209,14 @@ class TransactionService {
   /// Delete a transaction
   Future<bool> deleteTransaction(String transactionId, {String? userId}) async {
     try {
-      // Get user ID - use provided userId or current authenticated user
-      final currentUserId = userId ?? _getCurrentUserId();
-      if (currentUserId == null) {
-        throw Exception('User must be authenticated to delete transactions');
-      }
+      // Get current restaurant ID for proper multi-tenant isolation
+      final currentRestaurantId = await _getCurrentRestaurantId();
 
       await SupabaseService.client
           .from(_transactionsTable)
           .delete()
           .eq('id', transactionId)
-          .eq('user_id', currentUserId); // Security: only delete user's own transactions
+          .eq('restaurant_id', currentRestaurantId); // Security: only delete restaurant's own transactions
       return true;
     } catch (e) {
       return false;

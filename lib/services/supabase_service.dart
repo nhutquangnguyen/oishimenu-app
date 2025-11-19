@@ -10,6 +10,7 @@ import '../models/order.dart';
 import '../models/menu_options.dart';
 import '../models/inventory_models.dart';
 import '../models/order_source.dart';
+import '../models/restaurant.dart';
 import '../features/auth/services/auth_service.dart' show AuthException;
 
 /// Base Supabase service class that other services can extend
@@ -29,10 +30,36 @@ class SupabaseMenuService extends SupabaseService {
     return currentUser.id;
   }
 
-  Future<List<MenuItem>> getMenuItems({String? userId}) async {
+  /// Helper method to get current user's restaurant ID
+  /// For now, returns the first restaurant owned by the user
+  /// TODO: Add restaurant selection functionality
+  Future<String> _getCurrentRestaurantId() async {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_user_id', currentUser.id)
+          .limit(1)
+          .single();
+
+      return response['id'];
+    } catch (e) {
+      throw Exception('No restaurant found for user. Please contact support.');
+    }
+  }
+
+  Future<List<MenuItem>> getMenuItems({String? restaurantId}) async {
+    try {
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
+
+      print('🍽️ MENU SERVICE: getMenuItems called with restaurantId: ${restaurantId ?? 'null'}');
+      print('🍽️ MENU SERVICE: Using restaurant ID for query: $currentRestaurantId');
 
       // Try with deleted_at filter first, fallback if column doesn't exist
       dynamic query = SupabaseService.client
@@ -41,7 +68,7 @@ class SupabaseMenuService extends SupabaseService {
             *,
             menu_categories!inner(name, display_order)
           ''')
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Filter by restaurant_id
 
       try {
         query = query.isFilter('deleted_at', null); // Filter out soft-deleted items (IS NULL)
@@ -51,6 +78,11 @@ class SupabaseMenuService extends SupabaseService {
       }
 
       final response = await query.order('display_order', ascending: true);
+
+      print('🍽️ MENU SERVICE: Database returned ${response.length} menu items');
+      if (response.isNotEmpty) {
+        print('🍽️ MENU SERVICE: Sample items: ${response.take(3).map((item) => '${item['name']} (restaurant_id: ${item['restaurant_id']})').join(', ')}');
+      }
 
       // Sort by category display_order first, then by menu item display_order
       final sortedResponse = List.from(response);
@@ -104,15 +136,8 @@ class SupabaseMenuService extends SupabaseService {
         throw Exception('Category ID is required');
       }
 
-      // Try to get a valid user ID, but proceed without one if RLS blocks it
-      String? userIdToUse;
-      try {
-        userIdToUse = await _getValidUserId(currentUser);
-        print('Using user ID for menu item: $userIdToUse');
-      } catch (e) {
-        print('Could not resolve user ID: $e');
-        print('Attempting to create menu item without user_id (requires nullable user_id column)');
-      }
+      // Get current restaurant ID for proper multi-tenant isolation
+      final currentRestaurantId = await _getCurrentRestaurantId();
 
       // Prepare menu item data
       Map<String, dynamic> menuItemData = {
@@ -124,15 +149,8 @@ class SupabaseMenuService extends SupabaseService {
         'available_status': item.availableStatus ? 1 : 0,  // Convert boolean to integer
         'photos': item.photos,
         'display_order': item.displayOrder,
+        'restaurant_id': currentRestaurantId, // 🔒 SECURITY FIX: Assign to current restaurant
       };
-
-      // Only add user_id if we have a valid one
-      if (userIdToUse != null) {
-        menuItemData['user_id'] = userIdToUse;
-      } else {
-        print('⚠️ Creating menu item without user_id due to RLS policy restrictions');
-        print('⚠️ This is a temporary workaround - please fix RLS policies in Supabase');
-      }
 
       // Insert menu item
       await SupabaseService.client.from('menu_items').insert(menuItemData);
@@ -298,7 +316,7 @@ class SupabaseMenuService extends SupabaseService {
             *,
             menu_categories!inner(name, display_order)
           ''')
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Filter by user_id
           .eq('available_status', 0) // Only unavailable items
           .order('updated_at', ascending: false);
 
@@ -364,15 +382,15 @@ class SupabaseMenuService extends SupabaseService {
     }
   }
 
-  Future<List<MenuCategory>> getCategories({String? userId}) async {
+  Future<List<MenuCategory>> getCategories({String? restaurantId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       final response = await SupabaseService.client
           .from('menu_categories')
           .select()
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', currentRestaurantId) // 🔒 SECURITY FIX: Filter by restaurant_id
           .eq('is_active', true)
           .order('display_order', ascending: true);
 
@@ -398,16 +416,16 @@ class SupabaseMenuService extends SupabaseService {
     return getCategories();
   }
 
-  Future<String?> createCategory(MenuCategory category, {String? userId}) async {
+  Future<String?> createCategory(MenuCategory category, {String? restaurantId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       final response = await SupabaseService.client.from('menu_categories').insert({
         'name': category.name,
         'is_active': true,
         'display_order': 0,
-        'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
+        'restaurant_id': currentRestaurantId, // 🔒 SECURITY FIX: Assign to current restaurant
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       }).select('id').single();
@@ -418,10 +436,10 @@ class SupabaseMenuService extends SupabaseService {
     }
   }
 
-  Future<bool> updateCategory(MenuCategory category, {String? userId}) async {
+  Future<bool> updateCategory(MenuCategory category, {String? restaurantId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       // Validate that we have a valid category ID
       if (category.id.isEmpty) {
@@ -429,12 +447,12 @@ class SupabaseMenuService extends SupabaseService {
       }
 
       // Check if category with this name already exists (excluding current category)
-      // and belongs to the current user
+      // and belongs to the current restaurant
       final existing = await SupabaseService.client
           .from('menu_categories')
           .select('id')
           .eq('name', category.name)
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Check within user's data
+          .eq('restaurant_id', currentRestaurantId) // 🔒 SECURITY FIX: Check within restaurant's data
           .neq('id', category.id)
           .maybeSingle();
 
@@ -449,7 +467,7 @@ class SupabaseMenuService extends SupabaseService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', category.id)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update own categories
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Only update own categories
 
       return true;
     } catch (e) {
@@ -742,15 +760,36 @@ class SupabaseCustomerService extends SupabaseService {
     return currentUser.id;
   }
 
-  Future<List<customer_model.Customer>> getCustomers({String? userId}) async {
+  /// Helper method to get current user's restaurant ID
+  Future<String> _getCurrentRestaurantId() async {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_user_id', currentUser.id)
+          .limit(1)
+          .single();
+
+      return response['id'];
+    } catch (e) {
+      throw Exception('No restaurant found for user. Please contact support.');
+    }
+  }
+
+  Future<List<customer_model.Customer>> getCustomers({String? restaurantId}) async {
+    try {
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       final response = await SupabaseService.client
           .from('customers')
           .select()
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', currentRestaurantId) // 🔒 SECURITY FIX: Filter by restaurant_id
           .order('created_at', ascending: false);
 
       return response.map<customer_model.Customer>((json) {
@@ -774,7 +813,7 @@ class SupabaseCustomerService extends SupabaseService {
       final response = await SupabaseService.client
           .from('customers')
           .select()
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Filter by user_id
           .eq('phone', phone)
           .maybeSingle();
 
@@ -801,7 +840,7 @@ class SupabaseCustomerService extends SupabaseService {
         'phone': customer.phone,
         'email': customer.email,
         'address': customer.address,
-        'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
+        'restaurant_id': await _getCurrentRestaurantId(), // 🔒 SECURITY FIX: Assign to current restaurant
       }).select().single();
 
       return response['id'];
@@ -813,7 +852,7 @@ class SupabaseCustomerService extends SupabaseService {
   Future<void> updateCustomer(customer_model.Customer customer, {String? userId}) async {
     try {
       // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      final currentRestaurantId = await _getCurrentRestaurantId();
 
       await SupabaseService.client.from('customers').update({
         'name': customer.name,
@@ -822,7 +861,7 @@ class SupabaseCustomerService extends SupabaseService {
         'address': customer.address,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', customer.id)
-        .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update own customers
+        .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Only update restaurant's own customers
     } catch (e) {
       throw Exception('Failed to update customer: $e');
     }
@@ -1234,15 +1273,36 @@ class SupabaseMenuOptionService extends SupabaseService {
     return currentUser.id;
   }
 
-  Future<List<MenuOption>> getAllMenuOptions({String? userId}) async {
+  /// Helper method to get current user's restaurant ID
+  Future<String> _getCurrentRestaurantId() async {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_user_id', currentUser.id)
+          .limit(1)
+          .single();
+
+      return response['id'];
+    } catch (e) {
+      throw Exception('No restaurant found for user. Please contact support.');
+    }
+  }
+
+  Future<List<MenuOption>> getAllMenuOptions({String? restaurantId}) async {
+    try {
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       final response = await SupabaseService.client
           .from('menu_options')
           .select()
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', currentRestaurantId) // 🔒 SECURITY FIX: Filter by restaurant_id
           .order('name');
 
       return response.map((json) => MenuOption.fromMap(json)).toList();
@@ -1251,15 +1311,15 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<List<MenuOption>> getMenuOptionsByCategory(String category, {String? userId}) async {
+  Future<List<MenuOption>> getMenuOptionsByCategory(String category, {String? restaurantId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       final response = await SupabaseService.client
           .from('menu_options')
           .select()
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', currentRestaurantId) // 🔒 SECURITY FIX: Filter by restaurant_id
           .eq('category', category)
           .order('name');
 
@@ -1280,7 +1340,7 @@ class SupabaseMenuOptionService extends SupabaseService {
         'price': option.price,
         'is_available': option.isAvailable ? 1 : 0, // Convert boolean to integer
         'description': option.description,
-        'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
+        'restaurant_id': await _getCurrentRestaurantId(), // 🔒 SECURITY FIX: Assign to current restaurant
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       };
@@ -1325,7 +1385,7 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('menu_options')
           .update(updateData)
           .eq('id', option.id)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own options
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only update restaurant's own options
 
       print('✅ Updated option ${option.id} successfully');
       return true;
@@ -1344,7 +1404,7 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('menu_options')
           .delete()
           .eq('id', optionId)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only delete user's own options
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only delete restaurant's own options
 
       return true;
     } catch (e) {
@@ -1352,16 +1412,18 @@ class SupabaseMenuOptionService extends SupabaseService {
     }
   }
 
-  Future<List<OptionGroup>> getAllOptionGroups({bool includeUnavailableOptions = false, String? userId}) async {
+  Future<List<OptionGroup>> getAllOptionGroups({bool includeUnavailableOptions = false, String? restaurantId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
+
 
       final response = await SupabaseService.client
           .from('option_groups')
           .select()
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', currentRestaurantId) // 🔒 SECURITY FIX: Filter by restaurant_id
           .order('name');
+
 
       List<OptionGroup> groups = [];
 
@@ -1402,15 +1464,12 @@ class SupabaseMenuOptionService extends SupabaseService {
 
   Future<List<MenuOption>> getOptionsForGroup(String optionGroupId, {bool includeUnavailable = false, String? userId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
-
-      // First verify that the option group belongs to the current user
+      // First verify that the option group belongs to the current restaurant
       final groupCheck = await SupabaseService.client
           .from('option_groups')
           .select('id')
           .eq('id', optionGroupId)
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Verify group ownership
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Verify group ownership
           .maybeSingle();
 
       if (groupCheck == null) {
@@ -1421,7 +1480,7 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('option_group_options')
           .select('option_id, display_order, menu_options!inner(*)')
           .eq('option_group_id', optionGroupId)
-          .eq('menu_options.user_id', currentUserId) // 🔒 SECURITY FIX: Filter options by user_id
+          .eq('menu_options.restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Filter options by restaurant_id
           .order('display_order');
 
       final response = await query;
@@ -1443,8 +1502,9 @@ class SupabaseMenuOptionService extends SupabaseService {
 
   Future<String?> createOptionGroup(OptionGroup optionGroup, {String? userId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant
+      final String currentRestaurantId = await _getCurrentRestaurantId();
+
 
       final response = await SupabaseService.client
           .from('option_groups')
@@ -1454,14 +1514,16 @@ class SupabaseMenuOptionService extends SupabaseService {
             'min_selection': optionGroup.minSelection,
             'max_selection': optionGroup.maxSelection,
             'is_required': optionGroup.isRequired ? 1 : 0, // Convert boolean to integer
-            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
+            'restaurant_id': currentRestaurantId, // 🔒 SECURITY FIX: Assign to current restaurant
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           })
           .select('id')
           .single();
 
-      return response['id'];
+      final createdId = response['id'];
+
+      return createdId;
     } catch (e) {
       throw Exception('Failed to create option group: $e');
     }
@@ -1565,14 +1627,14 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('menu_options')
           .select('id')
           .eq('id', optionId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       final groupCheck = await SupabaseService.client
           .from('option_groups')
           .select('id')
           .eq('id', groupId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (optionCheck == null || groupCheck == null) {
@@ -1604,14 +1666,14 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('menu_options')
           .select('id')
           .eq('id', optionId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       final groupCheck = await SupabaseService.client
           .from('option_groups')
           .select('id')
           .eq('id', groupId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (optionCheck == null || groupCheck == null) {
@@ -1660,14 +1722,14 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('menu_items')
           .select('id')
           .eq('id', menuItemId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       final optionGroupCheck = await SupabaseService.client
           .from('option_groups')
           .select('id')
           .eq('id', optionGroupId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (menuItemCheck == null || optionGroupCheck == null) {
@@ -1719,14 +1781,14 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('menu_items')
           .select('id')
           .eq('id', menuItemId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       final optionGroupCheck = await SupabaseService.client
           .from('option_groups')
           .select('id')
           .eq('id', optionGroupId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (menuItemCheck == null || optionGroupCheck == null) {
@@ -1759,7 +1821,7 @@ class SupabaseMenuOptionService extends SupabaseService {
           .from('option_groups')
           .select('id')
           .eq('id', optionGroupId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (optionGroupCheck == null) {
@@ -1771,7 +1833,7 @@ class SupabaseMenuOptionService extends SupabaseService {
         final menuItemsCheck = await SupabaseService.client
             .from('menu_items')
             .select('id')
-            .eq('user_id', currentUserId)
+            .eq('restaurant_id', await _getCurrentRestaurantId())
             .inFilter('id', menuItemIds);
 
         if (menuItemsCheck.length != menuItemIds.length) {
@@ -1824,6 +1886,23 @@ class SupabaseInventoryService extends SupabaseService {
     return currentUser.id;
   }
 
+  /// Helper method to get current user's restaurant ID
+  Future<String> _getCurrentRestaurantId() async {
+    try {
+      final currentUserId = _getCurrentUserId();
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_user_id', currentUserId)
+          .limit(1)
+          .single();
+
+      return response['id'];
+    } catch (e) {
+      throw Exception('Failed to get current restaurant: $e');
+    }
+  }
+
   // ============= INGREDIENT MANAGEMENT =============
 
   Future<List<Ingredient>> getIngredients({InventoryFilter? filter, String? userId}) async {
@@ -1831,10 +1910,11 @@ class SupabaseInventoryService extends SupabaseService {
       // Get current user if userId not provided
       final String currentUserId = userId ?? _getCurrentUserId();
 
+      final String currentRestaurantId = await _getCurrentRestaurantId();
       var query = SupabaseService.client
           .from('ingredients')
           .select()
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Filter by restaurant_id
 
       // Apply filters
       if (filter != null) {
@@ -1890,14 +1970,14 @@ class SupabaseInventoryService extends SupabaseService {
 
   Future<Ingredient?> getIngredientById(String id, {String? userId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant
+      final String currentRestaurantId = await _getCurrentRestaurantId();
 
       final response = await SupabaseService.client
           .from('ingredients')
           .select()
           .eq('id', id)
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Filter by user_id
+          .eq('restaurant_id', currentRestaurantId) // 🔒 SECURITY FIX: Filter by restaurant_id
           .eq('is_active', true)
           .maybeSingle();
 
@@ -1912,8 +1992,8 @@ class SupabaseInventoryService extends SupabaseService {
 
   Future<String> createIngredient(Ingredient ingredient, {String? userId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant
+      final String currentRestaurantId = await _getCurrentRestaurantId();
 
       final response = await SupabaseService.client
           .from('ingredients')
@@ -1926,7 +2006,7 @@ class SupabaseInventoryService extends SupabaseService {
             'minimum_threshold': ingredient.minimumThreshold,
             'cost_per_unit': ingredient.costPerUnit,
             'supplier': ingredient.supplier,
-            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
+            'restaurant_id': currentRestaurantId, // 🔒 SECURITY FIX: Assign to current restaurant
             'is_active': true,
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
@@ -1959,7 +2039,7 @@ class SupabaseInventoryService extends SupabaseService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', ingredient.id.toString())
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own ingredients
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only update restaurant's own ingredients
     } catch (e) {
       throw Exception('Failed to update ingredient: $e');
     }
@@ -1978,7 +2058,7 @@ class SupabaseInventoryService extends SupabaseService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', id)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only delete user's own ingredients
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only delete user's own ingredients
     } catch (e) {
       throw Exception('Failed to delete ingredient: $e');
     }
@@ -2005,7 +2085,7 @@ class SupabaseInventoryService extends SupabaseService {
             'updated_at': now.toIso8601String(),
           })
           .eq('id', ingredientId)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own ingredients
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only update restaurant's own ingredients
 
       // Record transaction
       await SupabaseService.client
@@ -2015,7 +2095,7 @@ class SupabaseInventoryService extends SupabaseService {
             'transaction_type': 'ADJUSTMENT',
             'quantity': newQuantity - ingredient.currentQuantity,
             'unit': ingredient.unit,
-            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign transaction to current user
+            'restaurant_id': await _getCurrentRestaurantId(), // 🔒 SECURITY FIX: Assign transaction to current restaurant
             'reason': reason ?? 'Manual adjustment',
             'created_at': now.toIso8601String(),
           });
@@ -2034,7 +2114,7 @@ class SupabaseInventoryService extends SupabaseService {
       final response = await SupabaseService.client
           .from('stocktake_sessions')
           .select()
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Only get user's own stocktake sessions
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Only get user's own stocktake sessions
           .order('created_at', ascending: false);
 
       return response.map((json) => _stocktakeSessionFromSupabaseMap(json)).toList();
@@ -2052,7 +2132,7 @@ class SupabaseInventoryService extends SupabaseService {
           .from('stocktake_sessions')
           .select()
           .eq('id', id)
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Only get user's own stocktake sessions
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Only get user's own stocktake sessions
           .maybeSingle();
 
       if (response != null) {
@@ -2077,6 +2157,7 @@ class SupabaseInventoryService extends SupabaseService {
       final String currentUserId = userId ?? _getCurrentUserId();
 
       final now = DateTime.now();
+      final String currentRestaurantId = await _getCurrentRestaurantId();
 
       // Get all ingredients to include in stocktake (with user filtering)
       final filter = InventoryFilter(
@@ -2098,7 +2179,7 @@ class SupabaseInventoryService extends SupabaseService {
             'counted_items': 0,
             'variance_count': 0,
             'total_variance_value': 0,
-            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
+            'restaurant_id': currentRestaurantId, // 🔒 SECURITY FIX: Assign to current restaurant
             'created_at': now.toIso8601String(),
           })
           .select('id')
@@ -2113,7 +2194,7 @@ class SupabaseInventoryService extends SupabaseService {
         'ingredient_name': ingredient.name,
         'unit': ingredient.unit,
         'expected_quantity': ingredient.currentQuantity,
-        'user_id': currentUserId, // 🔒 SECURITY FIX: Assign to current user
+        'restaurant_id': currentRestaurantId, // 🔒 SECURITY FIX: Assign to current restaurant
       }).toList();
 
       if (stocktakeItems.isNotEmpty) {
@@ -2140,7 +2221,7 @@ class SupabaseInventoryService extends SupabaseService {
             'started_at': DateTime.now().toIso8601String(),
           })
           .eq('id', sessionId)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only start user's own sessions
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only start user's own sessions
     } catch (e) {
       throw Exception('Failed to start stocktake session: $e');
     }
@@ -2156,7 +2237,7 @@ class SupabaseInventoryService extends SupabaseService {
           .from('stocktake_sessions')
           .select('id')
           .eq('id', sessionId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (sessionCheck == null) {
@@ -2192,7 +2273,7 @@ class SupabaseInventoryService extends SupabaseService {
           .from('stocktake_sessions')
           .select('id')
           .eq('id', sessionId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (sessionCheck == null) {
@@ -2230,12 +2311,12 @@ class SupabaseInventoryService extends SupabaseService {
 
   Future<void> _updateSessionStatistics(String sessionId, String userId) async {
     try {
-      // Verify session belongs to user first
+      // Verify session belongs to current restaurant first
       final sessionCheck = await SupabaseService.client
           .from('stocktake_sessions')
           .select('id')
           .eq('id', sessionId)
-          .eq('user_id', userId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (sessionCheck == null) {
@@ -2289,7 +2370,7 @@ class SupabaseInventoryService extends SupabaseService {
           .from('stocktake_sessions')
           .select('id')
           .eq('id', sessionId)
-          .eq('user_id', currentUserId)
+          .eq('restaurant_id', await _getCurrentRestaurantId())
           .maybeSingle();
 
       if (sessionCheck == null) {
@@ -2325,7 +2406,7 @@ class SupabaseInventoryService extends SupabaseService {
             'completed_at': now.toIso8601String(),
           })
           .eq('id', sessionId)
-          .eq('user_id', currentUserId); // Security: only complete user's own sessions
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // Security: only complete user's own sessions
     } catch (e) {
       throw Exception('Failed to complete stocktake session: $e');
     }
@@ -2343,7 +2424,7 @@ class SupabaseInventoryService extends SupabaseService {
             'status': 'cancelled',
           })
           .eq('id', sessionId)
-          .eq('user_id', currentUserId); // Security: only cancel user's own sessions
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // Security: only cancel user's own sessions
     } catch (e) {
       throw Exception('Failed to cancel stocktake session: $e');
     }
@@ -2432,6 +2513,27 @@ class SupabaseOrderService extends SupabaseService {
     return currentUser.id;
   }
 
+  /// Helper method to get current user's restaurant ID
+  Future<String> _getCurrentRestaurantId() async {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_user_id', currentUser.id)
+          .limit(1)
+          .single();
+
+      return response['id'];
+    } catch (e) {
+      throw Exception('No restaurant found for user. Please contact support.');
+    }
+  }
+
   // ============= ORDER CRUD OPERATIONS =============
 
   /// Get all orders with optional filtering - OPTIMIZED to fix N+1 query problem
@@ -2441,11 +2543,11 @@ class SupabaseOrderService extends SupabaseService {
     DateTime? endDate,
     int? limit,
     String? customerId,
-    String? userId,
+    String? restaurantId,
   }) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       // 🚀 PERFORMANCE FIX: Single optimized query with JOIN to get orders AND items in one call
       dynamic ordersQuery = SupabaseService.client
@@ -2473,8 +2575,8 @@ class SupabaseOrderService extends SupabaseService {
         ordersQuery = ordersQuery.eq('customer_id', customerId);
       }
 
-      // 🔒 SECURITY FIX: Filter by user_id (after running migration 001)
-      ordersQuery = ordersQuery.eq('user_id', currentUserId);
+      // 🔒 SECURITY FIX: Filter by restaurant_id (after running restaurant migration)
+      ordersQuery = ordersQuery.eq('restaurant_id', currentRestaurantId);
 
       // Apply ordering and limit
       ordersQuery = ordersQuery.order('created_at', ascending: false);
@@ -2540,7 +2642,7 @@ class SupabaseOrderService extends SupabaseService {
             customers!inner(id, name, phone, email, address)
           ''')
           .eq('id', _convertToSupabaseId(id))
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Only get user's own orders
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Only get user's own orders
           .single();
 
       // Transform customer data
@@ -2581,7 +2683,7 @@ class SupabaseOrderService extends SupabaseService {
           .from('orders')
           .select('id')
           .eq('id', _convertToSupabaseId(orderId))
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Verify order ownership
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Verify order ownership
           .maybeSingle();
 
       if (orderCheck == null) {
@@ -2618,8 +2720,8 @@ class SupabaseOrderService extends SupabaseService {
       data['created_at'] = DateTime.now().toIso8601String();
       data['updated_at'] = DateTime.now().toIso8601String();
 
-      // 🔒 SECURITY FIX: Add user_id for data isolation
-      data['user_id'] = _getCurrentUserId();
+      // 🔒 SECURITY FIX: Add restaurant_id for proper multi-tenant isolation
+      data['restaurant_id'] = await _getCurrentRestaurantId();
 
       // Create order
       final response = await SupabaseService.client
@@ -2687,7 +2789,7 @@ class SupabaseOrderService extends SupabaseService {
           .from('orders')
           .update(data)
           .eq('id', _convertToSupabaseId(order.id))
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own orders
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only update user's own orders
 
       // 🔄 CUSTOMER UPDATE FIX: Update customer information when order is updated
 
@@ -2737,7 +2839,7 @@ class SupabaseOrderService extends SupabaseService {
             'phone': order.customer.phone,
             'email': order.customer.email,
             'address': order.customer.address,
-            'user_id': currentUserId, // 🔒 SECURITY FIX: Assign customer to current user
+            'restaurant_id': await _getCurrentRestaurantId(), // 🔒 SECURITY FIX: Assign customer to current restaurant
           }).select().single();
 
           final newCustomerId = response['id'];
@@ -2814,7 +2916,7 @@ class SupabaseOrderService extends SupabaseService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', _convertToSupabaseId(orderId))
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own orders
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only update user's own orders
     } catch (e) {
       print('❌ Error updating order status: $e');
 
@@ -2923,7 +3025,7 @@ class SupabaseOrderService extends SupabaseService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', _convertToSupabaseId(orderId))
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update user's own orders
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only update user's own orders
     } catch (e) {
       print('❌ Error updating payment status: $e');
       throw Exception('Failed to update payment status: $e');
@@ -2958,7 +3060,7 @@ class SupabaseOrderService extends SupabaseService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', _convertToSupabaseId(orderId))
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only complete user's own orders
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only complete user's own orders
     } catch (e) {
       print('❌ Error completing order with payment: $e');
       throw Exception('Failed to complete order with payment: $e');
@@ -2976,7 +3078,7 @@ class SupabaseOrderService extends SupabaseService {
           .from('orders')
           .select('id')
           .eq('id', _convertToSupabaseId(id))
-          .eq('user_id', currentUserId) // 🔒 SECURITY FIX: Verify ownership
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // 🔒 SECURITY FIX: Verify ownership
           .maybeSingle();
 
       if (orderCheck == null) {
@@ -2994,7 +3096,7 @@ class SupabaseOrderService extends SupabaseService {
           .from('orders')
           .delete()
           .eq('id', _convertToSupabaseId(id))
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only delete user's own orders
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // 🔒 SECURITY FIX: Only delete user's own orders
     } catch (e) {
       print('❌ Error deleting order: $e');
       throw Exception('Failed to delete order: $e');
@@ -3029,17 +3131,17 @@ class SupabaseOrderService extends SupabaseService {
   Future<Map<String, dynamic>> getOrderStatistics({
     DateTime? startDate,
     DateTime? endDate,
-    String? userId,
+    String? restaurantId,
   }) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       // Build date filter
       dynamic query = SupabaseService.client
           .from('orders')
           .select('total, status, order_type, payment_status, created_at')
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only get user's own orders
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Only get restaurant's own orders
 
       if (startDate != null) {
         query = query.gte('created_at', startDate.toIso8601String());
@@ -3119,17 +3221,17 @@ class SupabaseOrderService extends SupabaseService {
     DateTime? startDate,
     DateTime? endDate,
     int limit = 10,
-    String? userId,
+    String? restaurantId,
   }) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       // Build query for order items with date filter via orders table
       dynamic orderQuery = SupabaseService.client
           .from('orders')
           .select('id')
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only get user's own orders
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Only get restaurant's own orders
 
       if (startDate != null) {
         orderQuery = orderQuery.gte('created_at', startDate.toIso8601String());
@@ -3192,17 +3294,17 @@ class SupabaseOrderService extends SupabaseService {
     DateTime? startDate,
     DateTime? endDate,
     String groupBy = 'day', // 'hour', 'day', 'week', 'month'
-    String? userId,
+    String? restaurantId,
   }) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       dynamic query = SupabaseService.client
           .from('orders')
           .select('total, created_at')
           .eq('payment_status', PaymentStatus.paid.value)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only get user's own orders
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Only get restaurant's own orders
 
       if (startDate != null) {
         query = query.gte('created_at', startDate.toIso8601String());
@@ -3340,6 +3442,23 @@ class SupabaseOrderSourceService extends SupabaseService {
     return currentUser.id;
   }
 
+  /// Helper method to get current user's restaurant ID
+  Future<String> _getCurrentRestaurantId() async {
+    try {
+      final currentUserId = _getCurrentUserId();
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_user_id', currentUserId)
+          .limit(1)
+          .single();
+
+      return response['id'];
+    } catch (e) {
+      throw Exception('Failed to get current restaurant: $e');
+    }
+  }
+
   // ============= ORDER SOURCE CRUD OPERATIONS =============
 
   /// Get all order sources
@@ -3352,8 +3471,8 @@ class SupabaseOrderSourceService extends SupabaseService {
           .from('order_sources')
           .select();
 
-      // Apply user filtering (assuming user_id column exists or will be added)
-      query = query.eq('user_id', currentUserId);
+      // Apply restaurant filtering for proper multi-tenant isolation
+      query = query.eq('restaurant_id', await _getCurrentRestaurantId());
 
       if (isActive != null) {
         query = query.eq('is_active', isActive);
@@ -3388,7 +3507,7 @@ class SupabaseOrderSourceService extends SupabaseService {
           .from('order_sources')
           .select()
           .eq('id', _convertToSupabaseId(id))
-          .eq('user_id', currentUserId) // Security: only get user's own order sources
+          .eq('restaurant_id', await _getCurrentRestaurantId()) // Security: only get user's own order sources
           .maybeSingle();
 
       if (response != null) {
@@ -3405,16 +3524,13 @@ class SupabaseOrderSourceService extends SupabaseService {
   /// Create order source
   Future<String> createOrderSource(OrderSource orderSource, {String? userId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
-
       final data = orderSource.toMap();
 
       // Remove id field for new records
       data.remove('id');
 
-      // Add user_id to ensure ownership
-      data['user_id'] = currentUserId;
+      // Add restaurant_id for proper multi-tenant isolation
+      data['restaurant_id'] = await _getCurrentRestaurantId();
 
       // Convert timestamps to ISO strings for Supabase
       data['created_at'] = DateTime.now().toIso8601String();
@@ -3452,7 +3568,7 @@ class SupabaseOrderSourceService extends SupabaseService {
           .from('order_sources')
           .update(data)
           .eq('id', _convertToSupabaseId(orderSource.id))
-          .eq('user_id', currentUserId); // Security: only update user's own order sources
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // Security: only update user's own order sources
     } catch (e) {
       print('❌ Error updating order source: $e');
       throw Exception('Failed to update order source: $e');
@@ -3469,7 +3585,7 @@ class SupabaseOrderSourceService extends SupabaseService {
           .from('order_sources')
           .delete()
           .eq('id', _convertToSupabaseId(id))
-          .eq('user_id', currentUserId); // Security: only delete user's own order sources
+          .eq('restaurant_id', await _getCurrentRestaurantId()); // Security: only delete user's own order sources
     } catch (e) {
       print('❌ Error deleting order source: $e');
       throw Exception('Failed to delete order source: $e');
@@ -3525,6 +3641,27 @@ class SupabaseFinanceService extends SupabaseService {
     return currentUser.id;
   }
 
+  /// Helper method to get current user's restaurant ID
+  Future<String> _getCurrentRestaurantId() async {
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_user_id', currentUser.id)
+          .limit(1)
+          .single();
+
+      return response['id'];
+    } catch (e) {
+      throw Exception('No restaurant found for user. Please contact support.');
+    }
+  }
+
   // ============= FINANCE ENTRY CRUD OPERATIONS =============
 
   /// Create a new finance entry
@@ -3553,7 +3690,7 @@ class SupabaseFinanceService extends SupabaseService {
         'amount': amount,
         'description': description,
         'category': category,
-        'user_id': userIdToUse,
+        'restaurant_id': await _getCurrentRestaurantId(),
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       };
@@ -3575,16 +3712,16 @@ class SupabaseFinanceService extends SupabaseService {
     DateTime? startDate,
     DateTime? endDate,
     String? type, // 'income' or 'expense'
-    String? userId,
+    String? restaurantId,
   }) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       dynamic query = SupabaseService.client
           .from('finance_entries')
           .select()
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Always filter by user_id
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Always filter by restaurant_id
 
       // Filter by date range
       if (startDate != null) {
@@ -3620,7 +3757,7 @@ class SupabaseFinanceService extends SupabaseService {
     return getFinanceEntries(
       startDate: startOfDay,
       endDate: endOfDay,
-      userId: userId, // 🔒 SECURITY FIX: Pass userId parameter
+      restaurantId: userId, // 🔒 SECURITY FIX: Pass restaurant parameter
     );
   }
 
@@ -3634,7 +3771,7 @@ class SupabaseFinanceService extends SupabaseService {
       final entries = await getFinanceEntries(
         startDate: startDate,
         endDate: endDate,
-        userId: userId, // 🔒 SECURITY FIX: Pass userId parameter
+        restaurantId: userId, // 🔒 SECURITY FIX: Pass restaurant parameter
       );
 
       double totalIncome = 0.0;
@@ -3671,11 +3808,11 @@ class SupabaseFinanceService extends SupabaseService {
     required double amount,
     required String description,
     required String category,
-    String? userId,
+    String? restaurantId,
   }) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       final data = {
         'type': type,
@@ -3689,7 +3826,7 @@ class SupabaseFinanceService extends SupabaseService {
           .from('finance_entries')
           .update(data)
           .eq('id', id)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only update own entries
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Only update own entries
 
       print('✅ Finance entry updated successfully');
     } catch (e) {
@@ -3699,16 +3836,16 @@ class SupabaseFinanceService extends SupabaseService {
   }
 
   /// Delete finance entry
-  Future<void> deleteFinanceEntry(String id, {String? userId}) async {
+  Future<void> deleteFinanceEntry(String id, {String? restaurantId}) async {
     try {
-      // Get current user if userId not provided
-      final String currentUserId = userId ?? _getCurrentUserId();
+      // Get current restaurant if restaurantId not provided
+      final String currentRestaurantId = restaurantId ?? await _getCurrentRestaurantId();
 
       await SupabaseService.client
           .from('finance_entries')
           .delete()
           .eq('id', id)
-          .eq('user_id', currentUserId); // 🔒 SECURITY FIX: Only delete own entries
+          .eq('restaurant_id', currentRestaurantId); // 🔒 SECURITY FIX: Only delete own entries
 
       print('✅ Finance entry deleted successfully');
     } catch (e) {
@@ -3738,6 +3875,377 @@ class SupabaseFinanceService extends SupabaseService {
     } catch (e) {
       print('❌ Error getting valid user ID: $e');
       throw Exception('Could not determine user ID');
+    }
+  }
+}
+
+// ============= RESTAURANT SERVICE =============
+
+/// Service for managing restaurant data in Supabase
+class SupabaseRestaurantService extends SupabaseService {
+  /// Get all restaurants owned by a specific user
+  Future<List<Restaurant>> getRestaurantsByOwner(String ownerUserId) async {
+    try {
+      // Get the local user ID for this Supabase user (auto-creates if needed)
+      final localUserId = await _getLocalUserIdForSupabaseUser(ownerUserId);
+      if (localUserId == null) {
+        print('❌ Failed to create or find local user for Supabase user: $ownerUserId');
+        return [];
+      }
+
+
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('*')
+          .eq('owner_user_id', localUserId)
+          .order('created_at', ascending: false);
+
+
+      return response.map<Restaurant>((data) {
+        return Restaurant.fromMap(data);
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting restaurants by owner: $e');
+      throw Exception('Failed to get restaurants: $e');
+    }
+  }
+
+  /// Get restaurant by ID
+  Future<Restaurant?> getRestaurantById(String restaurantId) async {
+    try {
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .select('*')
+          .eq('id', restaurantId)
+          .maybeSingle();
+
+      if (response == null) return null;
+      return Restaurant.fromMap(response);
+    } catch (e) {
+      print('❌ Error getting restaurant by ID: $e');
+      throw Exception('Failed to get restaurant: $e');
+    }
+  }
+
+  /// Create new restaurant
+  Future<Restaurant> createRestaurant({
+    required String name,
+    String? description,
+    String? phone,
+    String? email,
+    String? website,
+    String? country,
+    required String ownerUserId,
+  }) async {
+    try {
+      // Generate slug from name
+      final slug = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+
+      // Get the local user ID for this Supabase user (auto-creates if needed)
+      final localUserId = await _getLocalUserIdForSupabaseUser(ownerUserId);
+      if (localUserId == null) {
+        throw Exception('Cannot create restaurant: Failed to create or find local user for Supabase user: $ownerUserId');
+      }
+
+      final data = {
+        'name': name,
+        'slug': slug,
+        'description': description ?? '',
+        'phone': phone ?? '',
+        'email': email ?? '',
+        'website': website ?? '',
+        'country': country ?? 'VN',
+        'cuisine_type': 'vietnamese',
+        'price_range': 2,
+        'owner_user_id': localUserId,
+        'is_active': true,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .insert(data)
+          .select('*')
+          .single();
+
+      print('✅ Restaurant created successfully');
+      return Restaurant.fromMap(response);
+    } catch (e) {
+      print('❌ Error creating restaurant: $e');
+      throw Exception('Failed to create restaurant: $e');
+    }
+  }
+
+  /// Update restaurant
+  Future<Restaurant> updateRestaurant({
+    required String restaurantId,
+    required String name,
+    String? description,
+    String? phone,
+    String? email,
+    String? website,
+    String? country,
+  }) async {
+    try {
+      // Generate slug from name
+      final slug = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+
+      final data = {
+        'name': name,
+        'slug': slug,
+        'description': description ?? '',
+        'phone': phone ?? '',
+        'email': email ?? '',
+        'website': website ?? '',
+        'country': country ?? 'VN',
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      final response = await SupabaseService.client
+          .from('restaurants')
+          .update(data)
+          .eq('id', restaurantId)
+          .select('*')
+          .single();
+
+      print('✅ Restaurant updated successfully');
+      return Restaurant.fromMap(response);
+    } catch (e) {
+      print('❌ Error updating restaurant: $e');
+      throw Exception('Failed to update restaurant: $e');
+    }
+  }
+
+  /// Delete restaurant (soft delete by setting is_active = false)
+  Future<void> deleteRestaurant(String restaurantId) async {
+    try {
+      await SupabaseService.client
+          .from('restaurants')
+          .update({
+            'is_active': false,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', restaurantId);
+
+      print('✅ Restaurant deleted successfully');
+    } catch (e) {
+      print('❌ Error deleting restaurant: $e');
+      throw Exception('Failed to delete restaurant: $e');
+    }
+  }
+
+  /// Get current user's default restaurant (or first if no default set)
+  Future<Restaurant?> getCurrentUserRestaurant() async {
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      if (user == null) {
+        print('🔐 No authenticated user found');
+        return null;
+      }
+
+      print('🔐 Getting restaurants for user: ${user.id}');
+      final restaurants = await getRestaurantsByOwner(user.id);
+      print('🏪 Found ${restaurants.length} restaurants for user');
+
+      if (restaurants.isEmpty) {
+        print('🏪 No restaurants found for user');
+        return null;
+      }
+
+      // First try to find the default restaurant
+      final defaultRestaurant = restaurants.where((r) => r.isDefault).firstOrNull;
+      if (defaultRestaurant != null) {
+        print('🏪 Returning default restaurant: ${defaultRestaurant.name} (ID: ${defaultRestaurant.id})');
+        return defaultRestaurant;
+      }
+
+      // If no default, return the first one
+      final restaurant = restaurants.first;
+      print('🏪 No default set, returning first restaurant: ${restaurant.name} (ID: ${restaurant.id})');
+      return restaurant;
+    } catch (e) {
+      print('❌ Error getting current user restaurant: $e');
+      return null;
+    }
+  }
+
+  /// Get restaurant ID for current user (helper method)
+  Future<String> getCurrentRestaurantId() async {
+    try {
+      final restaurant = await getCurrentUserRestaurant();
+      if (restaurant == null) {
+        throw Exception('No restaurant found for current user. Please create a restaurant first.');
+      }
+      return restaurant.id;
+    } catch (e) {
+      print('❌ Error getting current restaurant ID: $e');
+      rethrow;
+    }
+  }
+
+  /// Set a restaurant as the default for the current user
+  Future<bool> setDefaultRestaurant(String restaurantId, String ownerUserId) async {
+    try {
+      print('🏪 Setting restaurant $restaurantId as default for user $ownerUserId');
+
+      // Try direct database update approach first (more reliable)
+      print('🏪 Attempting direct database update approach...');
+
+      try {
+        // Get the local user ID for this Supabase user
+        final localUserId = await _getLocalUserIdForSupabaseUser(ownerUserId);
+        if (localUserId == null) {
+          print('❌ Failed to find local user for Supabase user: $ownerUserId');
+          return false;
+        }
+
+        // First, unset all defaults for this user using direct SQL
+        await SupabaseService.client
+            .from('restaurants')
+            .update({'is_default': false})
+            .eq('owner_user_id', localUserId);
+
+        print('🏪 Unset all defaults for user $localUserId');
+
+        // Then set the specified restaurant as default
+        // Restaurant ID is a UUID, not an integer
+        final updateResult = await SupabaseService.client
+            .from('restaurants')
+            .update({'is_default': true})
+            .eq('id', restaurantId)
+            .eq('owner_user_id', localUserId);
+
+        print('🏪 Set restaurant $restaurantId as default: $updateResult');
+
+        // Verify the update actually worked by querying the database
+        final verificationQuery = await SupabaseService.client
+            .from('restaurants')
+            .select('id, name, is_default')
+            .eq('owner_user_id', localUserId);
+
+        print('🔍 Verification query result: $verificationQuery');
+
+        // Check if our target restaurant is now marked as default
+        final updatedRestaurants = verificationQuery as List<dynamic>;
+        final targetRestaurant = updatedRestaurants.cast<Map<String, dynamic>>().firstWhere(
+          (r) => r['id'] == restaurantId,
+          orElse: () => <String, dynamic>{},
+        );
+
+        if (targetRestaurant.isNotEmpty) {
+          final isDefault = targetRestaurant['is_default'] == true || targetRestaurant['is_default'] == 1;
+          print('🔍 Target restaurant ${targetRestaurant['name']} isDefault: $isDefault');
+
+          if (isDefault) {
+            print('✅ Successfully set restaurant $restaurantId as default (direct approach - verified)');
+            return true;
+          } else {
+            print('❌ Database update failed - restaurant is not marked as default');
+            return false;
+          }
+        } else {
+          print('❌ Restaurant not found in verification query');
+          return false;
+        }
+
+      } catch (directError) {
+        print('❌ Direct approach failed: $directError');
+
+        // Fallback: try the database function approach
+        print('🔄 Trying database function approach...');
+
+        final result = await SupabaseService.client
+            .rpc('set_default_restaurant', params: {
+              'restaurant_id': restaurantId,
+              'user_id': ownerUserId, // Use Supabase UUID directly
+            });
+
+        if (result == true) {
+          print('✅ Successfully set restaurant $restaurantId as default (function approach)');
+          return true;
+        } else {
+          print('❌ Function approach also failed');
+        }
+      }
+
+      return false;
+
+    } catch (e) {
+      print('❌ Error setting default restaurant: $e');
+      return false;
+    }
+  }
+
+  /// Helper method to get local user ID for Supabase user
+  /// This handles the mapping between Supabase UUIDs and local database IDs
+  /// Automatically creates local user record if one doesn't exist
+  Future<String?> _getLocalUserIdForSupabaseUser(String supabaseUserId) async {
+    try {
+      print('🔍 Starting user lookup for Supabase ID: $supabaseUserId');
+
+      // The supabaseUserId is the user ID we want to look up
+      print('🔍 Looking up user ID: $supabaseUserId');
+
+      // If it's a Supabase UUID, try to find the corresponding local user
+      print('🔍 Getting current Supabase user...');
+      final user = SupabaseService.client.auth.currentUser;
+      print('🔍 Current user: ${user?.email}, ID: ${user?.id}');
+
+      if (user?.email == null) {
+        print('❌ No authenticated user or email found');
+        return null;
+      }
+
+      // Try to find existing local user by email
+      print('🔍 Looking for local user with email: ${user!.email!}');
+      var response = await SupabaseService.client
+          .from('users')
+          .select('id')
+          .eq('email', user!.email!)
+          .maybeSingle();
+
+      print('🔍 Local user lookup response: $response');
+
+      if (response != null) {
+        final localId = response['id'];
+        print('🔍 Found existing local user with ID: $localId (type: ${localId.runtimeType})');
+        return localId.toString(); // Return the UUID as string
+      }
+
+      // No local user found, create one automatically
+      print('🔄 Creating local user record for Supabase user: ${user.email}');
+      print('🔄 Supabase user metadata: ${user.userMetadata}');
+
+      final now = DateTime.now();
+      final userData = {
+        'email': user.email!,
+        'full_name': user.userMetadata?['full_name'] ?? user.email!.split('@')[0],
+        'role': 'staff',
+        'subscription_plan': 'free',
+        'is_active': 1,
+        'password_hash': '', // Not used for Supabase auth users
+        'created_at': now.toIso8601String(),
+        'updated_at': now.toIso8601String(),
+      };
+
+      print('🔄 Attempting to insert user data: $userData');
+
+      response = await SupabaseService.client
+          .from('users')
+          .insert(userData)
+          .select('id')
+          .single();
+
+      print('🔄 Insert response: $response');
+      final newLocalId = response['id'];
+      print('✅ Created local user with ID: $newLocalId');
+
+      return newLocalId.toString(); // Return the UUID as string
+    } catch (e, stackTrace) {
+      print('❌ Error getting/creating local user ID: $e');
+      print('❌ Stack trace: $stackTrace');
+      return null;
     }
   }
 }

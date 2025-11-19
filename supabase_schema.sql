@@ -14,9 +14,42 @@ CREATE TABLE public.users (
     email TEXT UNIQUE NOT NULL,
     full_name TEXT,
     role TEXT DEFAULT 'staff' CHECK (role IN ('admin', 'manager', 'staff')),
+    subscription_plan TEXT DEFAULT 'free' CHECK (subscription_plan IN ('free', 'basic', 'premium', 'enterprise')),
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Restaurants table
+CREATE TABLE public.restaurants (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    description TEXT,
+    logo_url TEXT,
+    cover_image_url TEXT,
+
+    -- Contact Information
+    phone TEXT,
+    email TEXT,
+    website TEXT,
+    country TEXT NOT NULL DEFAULT 'VN', -- ISO 2-letter country code
+
+    -- Business Details
+    cuisine_type TEXT DEFAULT 'vietnamese', -- vietnamese, italian, chinese, etc.
+    price_range INTEGER CHECK (price_range >= 1 AND price_range <= 4) DEFAULT 2, -- 1=$ to 4=$$$$
+
+    -- Ownership & Status
+    owner_user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    brand TEXT,
+    is_active BOOLEAN DEFAULT true,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT unique_restaurant_name_per_owner UNIQUE(owner_user_id, name)
 );
 
 -- Menu Categories table
@@ -25,6 +58,7 @@ CREATE TABLE public.menu_categories (
     name TEXT NOT NULL,
     display_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
+    restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -36,7 +70,7 @@ CREATE TABLE public.menu_items (
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
     category_id UUID REFERENCES public.menu_categories(id),
-    user_id UUID REFERENCES public.users(id) NOT NULL,
+    restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
     cost_price DECIMAL(10,2),
     available_status BOOLEAN DEFAULT true,
     availability_schedule JSONB, -- JSON for scheduling availability
@@ -62,6 +96,7 @@ CREATE TABLE public.customers (
     phone TEXT,
     email TEXT,
     address TEXT,
+    restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -84,6 +119,7 @@ CREATE TABLE public.orders (
     table_number TEXT,
     platform TEXT DEFAULT 'direct',
     assigned_staff_id UUID REFERENCES public.users(id),
+    restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -282,8 +318,19 @@ CREATE TABLE public.finance_entries (
 );
 
 -- Create indexes for better performance
+-- Restaurant indexes
+CREATE INDEX idx_restaurants_owner ON public.restaurants(owner_user_id);
+CREATE INDEX idx_restaurants_slug ON public.restaurants(slug);
+CREATE INDEX idx_restaurants_active ON public.restaurants(is_active);
+CREATE INDEX idx_restaurants_cuisine ON public.restaurants(cuisine_type);
+CREATE INDEX idx_restaurants_country ON public.restaurants(country);
+
+-- Updated table indexes
+CREATE INDEX idx_menu_categories_restaurant ON public.menu_categories(restaurant_id);
 CREATE INDEX idx_menu_items_category_id ON public.menu_items(category_id);
-CREATE INDEX idx_menu_items_user_id ON public.menu_items(user_id);
+CREATE INDEX idx_menu_items_restaurant ON public.menu_items(restaurant_id);
+CREATE INDEX idx_customers_restaurant ON public.customers(restaurant_id);
+CREATE INDEX idx_orders_restaurant ON public.orders(restaurant_id);
 CREATE INDEX idx_orders_customer_id ON public.orders(customer_id);
 CREATE INDEX idx_orders_status ON public.orders(status);
 CREATE INDEX idx_orders_created_at ON public.orders(created_at);
@@ -321,6 +368,7 @@ CREATE TRIGGER update_finance_entries_updated_at BEFORE UPDATE ON public.finance
 -- Enable Row Level Security (RLS) for all tables
 -- You can customize these policies based on your needs
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.restaurants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_item_sizes ENABLE ROW LEVEL SECURITY;

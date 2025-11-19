@@ -593,7 +593,7 @@
   "orders_page": {
     "title": "Đơn hàng",
     "refresh_tooltip": "Làm mới",
-    "processing_tab": "Đơn đang xử lý",
+    "processing_tab": "Đơn đang hoạt động",
     "history_tab": "Lịch sử",
     "no_orders": "Chưa có đơn hàng nào",
     "reload_button": "Tải lại",

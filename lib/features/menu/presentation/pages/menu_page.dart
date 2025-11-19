@@ -8,6 +8,8 @@ import '../widgets/menu_item_card.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../../core/providers/supabase_providers.dart';
+import '../../../restaurants/providers/restaurant_provider.dart';
+import '../../../../models/restaurant.dart';
 
 class MenuPage extends ConsumerStatefulWidget {
   const MenuPage({super.key});
@@ -36,14 +38,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     _loadMenuData();
   }
 
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) {
-      setState(() {
-        _currentTabIndex = _tabController.index;
-      });
-    }
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -68,6 +62,14 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     }
   }
 
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
@@ -85,14 +87,36 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         return;
       }
 
+      // Check if a restaurant is selected
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) {
+        print('📍 No restaurant selected - clearing menu data');
+        setState(() {
+          _menuItems = [];
+          _categories = {};
+          _orderedCategories = [];
+          _optionGroups = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      print('📍 Loading menu data for restaurant: ${currentRestaurant.name}');
+
       final menuService = ref.read(supabaseMenuServiceProvider);
       final optionGroupService = ref.read(supabaseMenuOptionServiceProvider);
-      final menuItems = await menuService.getMenuItems();
-      final categories = await menuService.getCategories();
-      final optionGroups = await optionGroupService.getAllOptionGroups(includeUnavailableOptions: true);
+
+      // Use restaurant-aware data fetching
+      print('📍 MENU PAGE: About to call getMenuItems with restaurantId: ${currentRestaurant.id}');
+      print('📍 MENU PAGE: Current restaurant name: ${currentRestaurant.name}');
+      final menuItems = await menuService.getMenuItems(restaurantId: currentRestaurant.id);
+      final categories = await menuService.getCategories(restaurantId: currentRestaurant.id);
+      final optionGroups = await optionGroupService.getAllOptionGroups(includeUnavailableOptions: true, restaurantId: currentRestaurant.id);
 
       // Client-side filter as backup: only show available items
       final availableMenuItems = menuItems.where((item) => item.availableStatus).toList();
+
+      print('📊 Loaded ${availableMenuItems.length} menu items, ${categories.length} categories, ${optionGroups.length} option groups for restaurant ${currentRestaurant.name}');
 
       setState(() {
         _menuItems = availableMenuItems;
@@ -101,7 +125,6 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         _optionGroups = optionGroups;
         _isLoading = false;
       });
-
 
       // Restore the original tab index
       if (_tabController.index != currentTabIndex) {
@@ -116,6 +139,14 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    // Listen to restaurant changes and reload data
+    ref.listen<Restaurant?>(currentRestaurantProvider, (previous, next) {
+      if (previous != next) {
+        print('🔄 Restaurant changed from ${previous?.name ?? 'none'} to ${next?.name ?? 'none'} - reloading menu data');
+        _loadMenuData();
+      }
+    });
+
     return Scaffold(
       body: Column(
         children: [
@@ -577,6 +608,11 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       print('✅ UI updated immediately with new status: $newAvailabilityStatus');
 
       // 💾 Update database in background (no loading spinner)
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) {
+        throw Exception('No restaurant selected');
+      }
+
       await ref.read(supabaseMenuServiceProvider).updateMenuItemStatus(
         menuItem.id,
         newAvailabilityStatus,
@@ -687,6 +723,11 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
                 print('✅ UI updated immediately - item removed from display');
 
                 // 💾 Delete from database in background (no loading spinner)
+                final currentRestaurant = ref.read(currentRestaurantProvider);
+                if (currentRestaurant == null) {
+                  throw Exception('No restaurant selected');
+                }
+
                 await ref.read(supabaseMenuServiceProvider).deleteMenuItem(menuItem.id, userId: currentUser.id);
 
                 print('✅ Database deletion completed successfully');
@@ -785,6 +826,9 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) return;
 
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) return;
+
       await ref.read(supabaseMenuServiceProvider).updateMenuItemStatus(item.id, !item.availableStatus, userId: currentUser.id);
       // Refresh the data to show the updated availability
       await _loadMenuData();
@@ -841,6 +885,11 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         print('✅ UI updated immediately - item removed from display');
 
         // 💾 Delete from database in background (no loading spinner)
+        final currentRestaurant = ref.read(currentRestaurantProvider);
+        if (currentRestaurant == null) {
+          throw Exception('No restaurant selected');
+        }
+
         await ref.read(supabaseMenuServiceProvider).deleteMenuItem(item.id, userId: currentUser.id);
 
         print('✅ Database deletion completed successfully');
@@ -1044,6 +1093,9 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
   Future<void> _showDeleteCategoryConfirmation(MenuCategory category) async {
     try {
       // Check if category has items before showing delete dialog
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) return;
+
       final itemCount = await ref.read(supabaseMenuServiceProvider).getCategoryItemCount(category.id);
 
       if (!mounted) return;
@@ -1138,6 +1190,9 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
     try {
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) return;
+
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) return;
 
       final success = await ref.read(supabaseMenuServiceProvider).deleteCategory(category.id, userId: currentUser.id);
       if (success && mounted) {
@@ -1292,6 +1347,11 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
       if (categoryName != null && categoryName.trim().isNotEmpty && mounted) {
         try {
+          final currentRestaurant = ref.read(currentRestaurantProvider);
+          if (currentRestaurant == null) {
+            throw Exception('No restaurant selected');
+          }
+
           final category = MenuCategory(
             id: '',
             name: categoryName.trim(),
@@ -1299,7 +1359,7 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
             updatedAt: DateTime.now(),
           );
 
-          final result = await ref.read(supabaseMenuServiceProvider).createCategory(category);
+          final result = await ref.read(supabaseMenuServiceProvider).createCategory(category, restaurantId: currentRestaurant.id);
           if (result != null && mounted) {
             await _loadMenuData();
             if (mounted) {
@@ -1384,12 +1444,17 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
         }
 
         try {
+          final currentRestaurant = ref.read(currentRestaurantProvider);
+          if (currentRestaurant == null) {
+            throw Exception('No restaurant selected');
+          }
+
           final updatedCategory = category.copyWith(
             name: newCategoryName.trim(),
             updatedAt: DateTime.now(),
           );
 
-          final success = await ref.read(supabaseMenuServiceProvider).updateCategory(updatedCategory);
+          final success = await ref.read(supabaseMenuServiceProvider).updateCategory(updatedCategory, restaurantId: currentRestaurant.id);
           if (success && mounted) {
             await _loadMenuData();
             if (mounted) {
@@ -1507,6 +1572,11 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
     // 💾 Update database in background (no loading spinner)
     try {
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) {
+        throw Exception('No restaurant selected');
+      }
+
       final success = await ref.read(supabaseMenuServiceProvider).reorderCategories(reorderedCategories);
 
       if (success) {
@@ -1580,6 +1650,11 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
     // 💾 Update database in background (no loading spinner)
     try {
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) {
+        throw Exception('No restaurant selected');
+      }
+
       final success = await ref.read(supabaseMenuServiceProvider).reorderMenuItems(reorderedItems, category.id);
 
       if (success) {
@@ -1700,6 +1775,11 @@ class _MenuPageState extends ConsumerState<MenuPage> with TickerProviderStateMix
 
     // 💾 Update database in background (no loading spinner)
     try {
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) {
+        throw Exception('No restaurant selected');
+      }
+
       final success = await ref.read(supabaseMenuServiceProvider).reorderMenuItems(reorderedItems, category.id);
 
       if (success) {

@@ -5,6 +5,8 @@ import 'package:easy_localization/easy_localization.dart';
 import '../../../../models/order.dart';
 import '../../../../core/providers/supabase_providers.dart';
 import '../../../../core/widgets/main_layout.dart' show activeOrdersCountProvider;
+import '../../../restaurants/providers/restaurant_provider.dart';
+import '../../../../models/restaurant.dart';
 import '../../../../core/design_system/app_tokens.dart';
 import '../../../../core/design_system/app_components.dart';
 import '../../../../core/utils/error_messages.dart';
@@ -46,6 +48,11 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     WidgetsBinding.instance.addObserver(this);
     _loadOrders();
     _startRefreshTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
   }
 
   @override
@@ -137,13 +144,36 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
     }
 
     try {
+      // Ensure restaurant selection provider is initialized
+      ref.read(restaurantSelectionProvider);
+
+      // Check if a restaurant is selected
+      final currentRestaurant = ref.read(currentRestaurantProvider);
+      if (currentRestaurant == null) {
+        print('📍 No restaurant selected - clearing orders data');
+        if (mounted) {
+          setState(() {
+            _orders = [];
+            if (showLoading) {
+              _isLoading = false;
+            }
+          });
+        }
+        return;
+      }
+
+      print('📍 Loading orders for restaurant: ${currentRestaurant.name}');
+
       final orderService = ref.read(supabaseOrderServiceProvider);
 
       // 🚀 PERFORMANCE FIX: Add pagination limit to prevent loading too many historical orders
       // This limits the database response size and improves loading speed
       final orders = await orderService.getOrders(
         limit: 100, // Limit to most recent 100 orders for better performance
+        restaurantId: currentRestaurant.id, // Filter by restaurant
       );
+
+      print('📊 Loaded ${orders.length} orders for restaurant ${currentRestaurant.name}');
 
       if (mounted) {
         setState(() {
@@ -321,6 +351,14 @@ class _OrdersPageState extends ConsumerState<OrdersPage> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    // Listen to restaurant changes and reload orders
+    ref.listen<Restaurant?>(currentRestaurantProvider, (previous, next) {
+      if (previous != next) {
+        print('🔄 Restaurant changed from ${previous?.name ?? 'none'} to ${next?.name ?? 'none'} - reloading orders');
+        _loadOrders();
+      }
+    });
+
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor, // Add proper background
       child: Column(

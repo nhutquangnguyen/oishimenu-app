@@ -18,6 +18,8 @@ class ErrorMessages {
   // Saving and creating errors
   static String get savingDataError => 'We couldn\'t save your changes. Please try again.';
   static String get savingFinanceEntryError => 'We couldn\'t save your entry. Please try again.';
+  static String get addIncomeError => 'Unable to add income. Please check your input and try again.';
+  static String get addExpenseError => 'Unable to add expense. Please check your input and try again.';
   static String get savingOrderError => 'Unable to save the order. Please try again.';
   static String get creatingItemError => 'Unable to create item. Please check your input and try again.';
 

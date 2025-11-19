@@ -590,7 +590,7 @@
   "orders_page": {
     "title": "Orders",
     "refresh_tooltip": "Refresh",
-    "processing_tab": "Processing Orders",
+    "processing_tab": "Active Orders",
     "history_tab": "History",
     "no_orders": "No orders yet",
     "reload_button": "Reload",

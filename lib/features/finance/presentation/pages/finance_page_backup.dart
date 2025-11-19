@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
-// Removed SupabaseService import - using TransactionService as single source of truth
+import '../../../../services/supabase_service.dart';
 import '../../../../services/transaction_service.dart';
 import '../../../../models/payment_method.dart';
 import '../../../../models/transaction.dart';
@@ -45,6 +45,7 @@ class _FinancePageState extends ConsumerState<FinancePage>
   // Track recently added entries to show them regardless of filters
   Set<String> _recentlyAddedEntries = {};
 
+  final _financeService = SupabaseFinanceService();
   final _transactionService = TransactionService();
   final _searchController = TextEditingController();
 
@@ -72,39 +73,24 @@ class _FinancePageState extends ConsumerState<FinancePage>
     }
 
     try {
-      // Load ALL transactions from database (using TransactionService as single source of truth)
-      print('🔄 Finance page: Loading transactions...');
-      final transactions = await _transactionService.getTransactions();
+      // Load ALL finance data from database (without date filtering)
+      // We'll handle date filtering in _applyFilters for more control
+      final entries = await _financeService.getFinanceEntries();
 
-      print('✅ Finance page: Loaded ${transactions.length} total transactions');
+      // Convert database records to FinanceEntry objects
+      final dbEntries = entries.map((entry) {
+        final dbTimestamp = DateTime.parse(entry['created_at'] as String);
+        final localTimestamp = dbTimestamp.toLocal(); // Convert to local time
 
-      // Debug: Print transaction types
-      final revenueCount = transactions.where((t) => t.transactionType == TransactionType.revenue).length;
-      final expenseCount = transactions.where((t) => t.transactionType == TransactionType.expense).length;
-      print('📊 Finance page: $revenueCount revenue, $expenseCount expense transactions');
-
-      // Convert transaction records to FinanceEntry objects for UI compatibility
-      final dbEntries = transactions
-          .where((transaction) {
-            final isRevenue = transaction.transactionType == TransactionType.revenue;
-            final isExpense = transaction.transactionType == TransactionType.expense;
-            print('🔍 Transaction ${transaction.id}: type=${transaction.transactionType}, isRevenue=$isRevenue, isExpense=$isExpense');
-            return isRevenue || isExpense;
-          })
-          .map((transaction) {
-        final entry = FinanceEntry(
-          id: transaction.id,
-          type: transaction.isIncome ? FinanceEntryType.income : FinanceEntryType.expense,
-          amount: transaction.absoluteAmount, // Always positive for UI display
-          description: transaction.description ?? 'Transaction',
-          category: transaction.category ?? 'General',
-          createdAt: transaction.transactionTime,
+        return FinanceEntry(
+          id: entry['id'] as String,
+          type: entry['type'] == 'income' ? FinanceEntryType.income : FinanceEntryType.expense,
+          amount: (entry['amount'] as num).toDouble(),
+          description: entry['description'] as String,
+          category: entry['category'] as String,
+          createdAt: localTimestamp, // Use local time for consistency
         );
-        print('💰 Created FinanceEntry: ${entry.type}, amount=${entry.amount}, desc=${entry.description}');
-        return entry;
       }).toList();
-
-      print('📝 Finance page: Created ${dbEntries.length} finance entries from transactions');
 
       // Merge database entries with existing local entries intelligently
       final entryMap = <String, FinanceEntry>{};
@@ -126,20 +112,10 @@ class _FinancePageState extends ConsumerState<FinancePage>
       _allEntries = entryMap.values.toList();
       _allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      print('📋 Finance page: Final _allEntries count: ${_allEntries.length}');
-      print('🗓️ Finance page: Selected date range: $_selectedDateRange');
-
       // Apply current filters
       _applyFilters();
 
-      print('🔍 Finance page: After filters _filteredEntries count: ${_filteredEntries.length}');
-      print('💵 Finance page: Current income: $_currentIncome, expenses: $_currentExpenses');
-
-    } catch (e, stackTrace) {
-      // Debug: Print detailed error information
-      print('❌ Finance page error: $e');
-      print('📍 Stack trace: $stackTrace');
-
+    } catch (e) {
       // Show user-friendly error message
       if (mounted) {
         ErrorMessages.showErrorSnackbar(
@@ -213,22 +189,33 @@ class _FinancePageState extends ConsumerState<FinancePage>
         return true;
       }
 
-      // Date range filter - handle timezone properly by converting to local time first
-      final entryLocalTime = entry.createdAt.toLocal();
-      final entryDate = DateTime(entryLocalTime.year, entryLocalTime.month, entryLocalTime.day);
+      // Date range filter - this is crucial for proper filtering
+      // Use more robust date comparison that handles timezone issues
+      final entryDate = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
       final filterStartDate = DateTime(startDate.year, startDate.month, startDate.day);
       final filterEndDate = DateTime(endDate.year, endDate.month, endDate.day);
 
-      // Debug date filtering
-      print('🗓️ Entry ${entry.id}: entry date=$entryDate, filter range=$filterStartDate to $filterEndDate');
+      // Special handling for auto-created income entries from orders
+      // These should be visible even if there are minor timezone discrepancies
+      final isAutoCreatedIncome = entry.type == FinanceEntryType.income &&
+                                 entry.description.contains('Order ') &&
+                                 entry.description.contains('ORD-');
 
-      // Check if entry date is within the filter range
       if (entryDate.isBefore(filterStartDate) || entryDate.isAfter(filterEndDate)) {
-        print('❌ Entry ${entry.id} filtered out - outside date range');
+        // For auto-created income entries, be more lenient with today's date
+        if (isAutoCreatedIncome && _selectedDateRange == DateRangeType.today) {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final entryIsToday = entryDate.isAtSameMomentAs(today) ||
+                              entryDate.isAfter(today.subtract(const Duration(hours: 6))); // Allow 6 hours buffer
+
+          if (entryIsToday) {
+            return true;
+          }
+        }
+
         return false;
       }
-
-      print('✅ Entry ${entry.id} passed date filter');
 
       // Search filter
       if (_searchQuery.isNotEmpty) {

@@ -44,7 +44,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 8,
+      version: 11,
       onCreate: _createDatabase,
       onUpgrade: _upgradeDatabase,
     );
@@ -59,6 +59,7 @@ class DatabaseHelper {
         password_hash TEXT NOT NULL,
         full_name TEXT,
         role TEXT DEFAULT 'staff',
+        subscription_plan TEXT DEFAULT 'free',
         is_active INTEGER DEFAULT 1,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
@@ -373,6 +374,31 @@ class DatabaseHelper {
       )
     ''');
 
+    // Restaurants table
+    await db.execute('''
+      CREATE TABLE restaurants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        description TEXT,
+        logo_url TEXT,
+        cover_image_url TEXT,
+        phone TEXT,
+        email TEXT,
+        website TEXT,
+        country TEXT NOT NULL DEFAULT 'VN',
+        cuisine_type TEXT DEFAULT 'vietnamese',
+        price_range INTEGER CHECK (price_range >= 1 AND price_range <= 4) DEFAULT 2,
+        owner_user_id INTEGER NOT NULL,
+        brand TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (owner_user_id) REFERENCES users (id) ON DELETE CASCADE,
+        CONSTRAINT unique_restaurant_name_per_owner UNIQUE(owner_user_id, name)
+      )
+    ''');
+
     // Create default admin user
     await _createDefaultAdmin(db);
 
@@ -609,6 +635,84 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE menu_items_new RENAME TO menu_items');
 
       print('✅ Successfully migrated menu_items.user_id from INTEGER to TEXT');
+    }
+
+    if (oldVersion < 9 && newVersion >= 9) {
+      // Add subscription_plan to users table for version 9
+      await db.execute('''
+        ALTER TABLE users ADD COLUMN subscription_plan TEXT DEFAULT 'free'
+      ''');
+      print('✅ Added subscription_plan column to users table');
+    }
+
+    if (oldVersion < 10 && newVersion >= 10) {
+      // Create restaurants table for version 10
+      await db.execute('''
+        CREATE TABLE restaurants (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          slug TEXT NOT NULL UNIQUE,
+          description TEXT,
+          logo_url TEXT,
+          cover_image_url TEXT,
+          phone TEXT,
+          email TEXT,
+          website TEXT,
+          country TEXT NOT NULL DEFAULT 'VN',
+          cuisine_type TEXT DEFAULT 'vietnamese',
+          price_range INTEGER CHECK (price_range >= 1 AND price_range <= 4) DEFAULT 2,
+          owner_user_id INTEGER NOT NULL,
+          brand TEXT,
+          is_active INTEGER DEFAULT 1,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (owner_user_id) REFERENCES users (id) ON DELETE CASCADE,
+          CONSTRAINT unique_restaurant_name_per_owner UNIQUE(owner_user_id, name)
+        )
+      ''');
+      print('✅ Created restaurants table');
+    }
+
+    if (oldVersion < 11 && newVersion >= 11) {
+      // Add restaurant_id columns to all relevant tables for version 11
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      // Add restaurant_id columns
+      await db.execute('ALTER TABLE menu_categories ADD COLUMN restaurant_id INTEGER REFERENCES restaurants(id)');
+      await db.execute('ALTER TABLE menu_items ADD COLUMN restaurant_id INTEGER REFERENCES restaurants(id)');
+      await db.execute('ALTER TABLE customers ADD COLUMN restaurant_id INTEGER REFERENCES restaurants(id)');
+      await db.execute('ALTER TABLE orders ADD COLUMN restaurant_id INTEGER REFERENCES restaurants(id)');
+      await db.execute('ALTER TABLE ingredients ADD COLUMN restaurant_id INTEGER REFERENCES restaurants(id)');
+
+      // Create default restaurants for existing users
+      final users = await db.query('users');
+      for (final user in users) {
+        final restaurantName = (user['full_name']?.toString() ?? 'My Restaurant') + '\'s Restaurant';
+        final slug = (user['full_name']?.toString().toLowerCase().replaceAll(' ', '-') ?? 'restaurant') + '-' + user['id'].toString();
+
+        final restaurantId = await db.insert('restaurants', {
+          'name': restaurantName,
+          'slug': slug,
+          'description': 'Default restaurant created during migration',
+          'country': 'VN',
+          'cuisine_type': 'vietnamese',
+          'price_range': 2,
+          'owner_user_id': user['id'],
+          'brand': (user['full_name']?.toString() ?? 'My') + '\'s Brand',
+          'is_active': 1,
+          'created_at': now,
+          'updated_at': now,
+        });
+
+        // Update all existing data to reference the new restaurant
+        await db.update('menu_categories', {'restaurant_id': restaurantId}, where: 'restaurant_id IS NULL');
+        await db.update('menu_items', {'restaurant_id': restaurantId}, where: 'user_id = ? AND restaurant_id IS NULL', whereArgs: [user['id']]);
+        await db.update('customers', {'restaurant_id': restaurantId}, where: 'restaurant_id IS NULL');
+        await db.update('orders', {'restaurant_id': restaurantId}, where: 'restaurant_id IS NULL');
+        await db.update('ingredients', {'restaurant_id': restaurantId}, where: 'restaurant_id IS NULL');
+      }
+
+      print('✅ Added restaurant_id columns and migrated existing data');
     }
   }
 

@@ -5,6 +5,7 @@ class AppUser {
   final String email;
   final String fullName;
   final String role;
+  final String subscriptionPlan;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -14,6 +15,7 @@ class AppUser {
     required this.email,
     required this.fullName,
     required this.role,
+    required this.subscriptionPlan,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -25,6 +27,7 @@ class AppUser {
       email: stringFromDynamic(map['email']),
       fullName: stringFromDynamic(map['full_name']),
       role: stringFromDynamic(map['role']) == '' ? 'staff' : stringFromDynamic(map['role']),
+      subscriptionPlan: stringFromDynamic(map['subscription_plan']) == '' ? 'free' : stringFromDynamic(map['subscription_plan']),
       isActive: (map['is_active'] ?? 1) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] ?? 0),
@@ -37,6 +40,7 @@ class AppUser {
       'email': email,
       'full_name': fullName,
       'role': role,
+      'subscription_plan': subscriptionPlan,
       'is_active': isActive ? 1 : 0,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
@@ -48,6 +52,7 @@ class AppUser {
     String? email,
     String? fullName,
     String? role,
+    String? subscriptionPlan,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -57,6 +62,7 @@ class AppUser {
       email: email ?? this.email,
       fullName: fullName ?? this.fullName,
       role: role ?? this.role,
+      subscriptionPlan: subscriptionPlan ?? this.subscriptionPlan,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -74,6 +80,6 @@ class AppUser {
 
   @override
   String toString() {
-    return 'AppUser(id: $id, email: $email, fullName: $fullName, role: $role)';
+    return 'AppUser(id: $id, email: $email, fullName: $fullName, role: $role, subscriptionPlan: $subscriptionPlan)';
   }
 }

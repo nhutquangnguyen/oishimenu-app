@@ -6,6 +6,8 @@ import 'package:easy_localization/easy_localization.dart';
 
 import '../../models/order.dart';
 import '../providers/supabase_providers.dart';
+import '../../features/restaurants/widgets/restaurant_selector.dart';
+import '../../features/restaurants/providers/restaurant_provider.dart';
 
 // 🚀 OPTIMIZED: Provider for active orders count with smart app lifecycle awareness
 // StateNotifier for active orders count with immediate updates
@@ -150,12 +152,21 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize restaurant selection provider to auto-select single restaurant
+    ref.watch(restaurantSelectionProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_getPageTitle()),
         elevation: 0,
         scrolledUnderElevation: 1,
         actions: [
+          // Restaurant selector in AppBar
+          const SizedBox(
+            width: 180,
+            child: RestaurantSelector(showLabel: false),
+          ),
+          const SizedBox(width: 16),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
